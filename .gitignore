@@ -1,0 +1,13 @@
+# virtual environment
+venv
+
+# IDEs
+.idea
+.vscode
+
+# images
+*.dot
+*.png
+
+# temp
+**/temp.py
