@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plt
 import networkx as nx
 
-from multilayer_graph_generator import generate_multilayer_graph
+from multilayered_graph.multilayer_graph_generator import generate_multilayer_graph
 
 mlgraph = generate_multilayer_graph(7, 24, 0.2, 0.5)
 

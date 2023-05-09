@@ -117,15 +117,15 @@ class MultiLayeredGraph:
         position_scale = 150
         positions = self.nodes_positions()
         for node in self.all_nodes_as_list():
-            posx, posy = positions[node]
-            pos_str = f"{posx * position_scale},{posy * position_scale}"
+            pos_x, pos_y = positions[node]
+            pos_str = f"{pos_x * position_scale},{pos_y * position_scale}"
             attrs = {"pos": pos_str}
             if node.is_virtual:
                 attrs["label"] = ""
                 # attrs["style"] = "invis"
-                # attrs["fixedsize"] = True
-                # attrs["width"] = 0
-                # attrs["height"] = 0
+                attrs["fixedsize"] = True
+                attrs["width"] = 0.01
+                attrs["height"] = 0.01
 
             pgv_graph.add_node(node, **attrs)
 
