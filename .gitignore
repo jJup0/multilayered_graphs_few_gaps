@@ -8,6 +8,7 @@ venv
 # images
 *.dot
 *.png
+*.svg
 !example_images/*
 
 
