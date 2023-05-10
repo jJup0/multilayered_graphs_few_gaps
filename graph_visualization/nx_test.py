@@ -6,7 +6,7 @@ from multilayered_graph.multilayer_graph_generator import generate_multilayer_gr
 mlgraph = generate_multilayer_graph(7, 24, 0.2, 0.5)
 
 G = mlgraph.to_networkx_graph()
-pos = mlgraph.nodes_positions()
+pos = mlgraph.nodes_to_integer_relative_coordinates()
 
 # color_map = ["green"] + ["blue"] * (len(G) - 1)
 # size_map = [1000] + [300] * (len(G) - 1)

@@ -27,6 +27,7 @@ class NoNodeExistsError(ValueError):
 
 class MLGNode:
     def __init__(self, layer: int, name: str, is_virtual: bool = False):
+        # layer is permanent, TODO refactor: maybe only store in graph
         self.layer = layer
         self.name = name
         self.is_virtual = is_virtual
@@ -60,8 +61,10 @@ class MultiLayeredGraph:
         self.layers_to_nodes: defaultdict[int, list[MLGNode]] = defaultdict(list)
         self.layer_count = layer_count
         self.layers_to_edges: defaultdict[
-            int, list[tuple[MLGNode, MLGNode]]
-        ] = defaultdict(list)
+            int, set[tuple[MLGNode, MLGNode]]
+        ] = defaultdict(set)
+        self.nodes_to_in_edges: defaultdict[MLGNode, set[MLGNode]] = defaultdict(set)
+        self.nodes_to_out_edges: defaultdict[MLGNode, set[MLGNode]] = defaultdict(set)
 
     def add_real_node(self, layer) -> MLGNode:
         if layer < 0 or layer - 1 > self.layer_count:
@@ -112,7 +115,9 @@ class MultiLayeredGraph:
         self._add_short_edge(prev_node, to_upper_node)
 
     def _add_short_edge(self, lower_node: MLGNode, upper_node: MLGNode) -> None:
-        self.layers_to_edges[lower_node.layer].append((lower_node, upper_node))
+        self.layers_to_edges[lower_node.layer].add((lower_node, upper_node))
+        self.nodes_to_out_edges[lower_node].add(upper_node)
+        self.nodes_to_in_edges[upper_node].add(lower_node)
 
     def to_networkx_graph(self) -> nx.Graph:
         nx_graph = nx.Graph()
@@ -130,7 +135,7 @@ class MultiLayeredGraph:
         pgv_graph.graph_attr["splines"] = "spline"
 
         position_scale = 150
-        positions = self.nodes_positions()
+        positions = self.nodes_to_integer_relative_coordinates()
         for node in self.all_nodes_as_list():
             pos_x, pos_y = positions[node]
             pos_str = f"{pos_x * position_scale},{pos_y * position_scale}"
@@ -158,30 +163,6 @@ class MultiLayeredGraph:
 
         return all_edges
 
-    def nodes_to_out_edges(self) -> dict[MLGNode, set[MLGNode]]:
-        """Get outgoing edges as adjacency set for each node.
-
-        Returns:
-            Mapping from node to neighbors.
-        """
-        edges_as_dict: defaultdict[MLGNode, set[MLGNode]] = defaultdict(set)
-        edges_as_tuples = self.all_edges_as_list()
-        for source, destination in edges_as_tuples:
-            edges_as_dict[source].add(destination)
-        return dict(edges_as_dict)
-
-    def nodes_to_in_edges(self) -> dict[MLGNode, set[MLGNode]]:
-        """Get incoming edges as adjacency set for each node.
-
-        Returns:
-            Mapping from node to neighbors.
-        """
-        edges_as_dict: defaultdict[MLGNode, set[MLGNode]] = defaultdict(set)
-        edges_as_tuples = self.all_edges_as_list()
-        for source, destination in edges_as_tuples:
-            edges_as_dict[destination].add(source)
-        return dict(edges_as_dict)
-
     def all_nodes_as_list(self) -> list[MLGNode]:
         all_nodes = []
         for layer in range(self.layer_count):
@@ -189,7 +170,14 @@ class MultiLayeredGraph:
             all_nodes.extend(nodes_at_layer)
         return all_nodes
 
-    def nodes_positions(self) -> dict[MLGNode, tuple[float, float]]:
+    def nodes_to_index_within_layer(self) -> dict[MLGNode, int]:
+        indices = {}
+        for nodes_at_layer in self.layers_to_nodes.values():
+            for i, node in enumerate(nodes_at_layer):
+                indices[node] = i
+        return indices
+
+    def nodes_to_integer_relative_coordinates(self) -> dict[MLGNode, tuple[int, int]]:
         positions = {}
         for layer, nodes_at_layer in self.layers_to_nodes.items():
             for i, node in enumerate(nodes_at_layer):
@@ -197,20 +185,20 @@ class MultiLayeredGraph:
         return positions
 
     def get_crossings_per_layer(self) -> list[int]:
-        positions = self.nodes_positions()
+        curr_positions = self.nodes_to_index_within_layer()
         crossings_list = []
         for layer in range(self.layer_count):
-            edges = self.layers_to_edges[layer]
+            edges = list(self.layers_to_edges[layer])
             crossings = 0
             # two edges tw and uv cross if and only if (x(t) - x(U))(x(w) - x(v)) is negative
             for i in range(len(edges)):
                 u, v = edges[i]
-                u_pos = positions[u][0]
-                v_pos = positions[v][0]
+                u_pos = curr_positions[u]
+                v_pos = curr_positions[v]
                 for j in range(i + 1, len(edges)):
                     t, w = edges[j]
-                    t_pos = positions[t][0]
-                    w_pos = positions[w][0]
+                    t_pos = curr_positions[t]
+                    w_pos = curr_positions[w]
                     edges_cross = (t_pos - u_pos) * (w_pos - v_pos) < 0
                     crossings += edges_cross
             crossings_list.append(crossings)
