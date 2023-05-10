@@ -8,6 +8,8 @@ venv
 # images
 *.dot
 *.png
+!example_images/*
+
 
 # temp
 **/temp.py
