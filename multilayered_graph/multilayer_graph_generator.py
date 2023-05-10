@@ -1,6 +1,6 @@
 import random
 
-from multilayered_graph import MultiLayeredGraph
+from multilayered_graph.multilayered_graph import MultiLayeredGraph
 
 
 def generate_multilayer_graph(layers_count: int, node_count: int, edge_density: float, long_edge_probability: float,
