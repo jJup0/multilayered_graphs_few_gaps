@@ -11,6 +11,8 @@ venv
 *.svg
 !example_images/*
 
+# python
+.pyc
 
 # temp
 **/temp.py
