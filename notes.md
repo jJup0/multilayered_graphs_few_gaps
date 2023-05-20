@@ -23,3 +23,15 @@ https://pypi.org/project/grandalf/
 
 https://pypi.org/project/ogdf-python/
 
+
+
+
+Split whole group of virtual nodes and calculate crossings 
+
+larger instances, automated crossing calculation
+
+networkx ranodm cluster graphs
+
+in tunet vpn sein um key zu installieren
+
+implemtation of constrained graph - split into two gaps first and apply heuristic
