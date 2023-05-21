@@ -1,3 +1,4 @@
+from copy import deepcopy
 from typing import TypeAlias, Any
 import pygraphviz as pgv
 import networkx as nx
@@ -27,11 +28,19 @@ class NoNodeExistsError(ValueError):
 
 class MLGNode:
     def __init__(self, layer: int, name: str, is_virtual: bool = False):
-        # layer is permanent, TODO refactor: maybe only store in graph
+        # layer is permanent, TODO refactor: maybe only store layer in graph
         self.layer = layer
         self.name = name
         self.is_virtual = is_virtual
         self.text_info = ""
+
+    def __copy__(self) -> "MLGNode":
+        _copy = MLGNode(self.layer, self.name, self.is_virtual)
+        _copy.text_info = self.text_info
+        return _copy
+
+    def __deepcopy__(self, memodict={}):
+        return self.__copy__()
 
     def attrs_to_dict(self) -> dict[str, Any]:
         return {"layer": self, "name": self.name, "is_virtual": self.is_virtual}
@@ -65,6 +74,27 @@ class MultiLayeredGraph:
         ] = defaultdict(set)
         self.nodes_to_in_edges: defaultdict[MLGNode, set[MLGNode]] = defaultdict(set)
         self.nodes_to_out_edges: defaultdict[MLGNode, set[MLGNode]] = defaultdict(set)
+
+    def __copy__(self) -> "MultiLayeredGraph":
+        cls = self.__class__
+        _copy = cls(self.layer_count)
+        _copy.layers_to_nodes = self.layers_to_nodes
+        _copy.layers_to_edges = self.layers_to_edges
+        _copy.nodes_to_in_edges = self.nodes_to_in_edges
+        _copy.nodes_to_out_edges = self.nodes_to_out_edges
+
+        return _copy
+
+    def __deepcopy__(self, memo_dict=None):
+        if memo_dict is None:
+            memo_dict = {}
+
+        cls = self.__class__
+        _copy = cls.__new__(cls)
+        memo_dict[id(self)] = _copy
+        for k, v in self.__dict__.items():
+            setattr(_copy, k, deepcopy(v, memo_dict))
+        return _copy
 
     def add_real_node(self, layer) -> MLGNode:
         if layer < 0 or layer - 1 > self.layer_count:
@@ -203,3 +233,6 @@ class MultiLayeredGraph:
                     crossings += edges_cross
             crossings_list.append(crossings)
         return crossings_list
+
+    def get_total_crossings(self):
+        return sum(self.get_crossings_per_layer())
