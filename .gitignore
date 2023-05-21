@@ -4,6 +4,7 @@ venv
 # IDEs
 .idea
 .vscode
+temp_idea
 
 # images
 *.dot
