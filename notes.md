@@ -26,7 +26,7 @@ https://pypi.org/project/ogdf-python/
 
 
 
-Split whole group of virtual nodes and calculate crossings 
+alternative corrsing minimization strategy: find relative order of gap nodes, and find index where left/right split results in fewest crossings 
 
 larger instances, automated crossing calculation
 
