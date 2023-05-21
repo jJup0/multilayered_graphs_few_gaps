@@ -1,4 +1,6 @@
-from multilayered_graph.crossings import crossings_uv_vu
+from typing import Literal
+
+from crossings.calculate_crossings import crossings_uv_vu
 from multilayered_graph.multilayered_graph import MultiLayeredGraph, MLGNode
 
 PSEUDO_SORT_DISPLACE_VALUE = 1_000
@@ -16,6 +18,7 @@ def few_gaps_barycenter_smart_sort(ml_graph: MultiLayeredGraph) -> None:
         _layer_idx: int,
         _prev_layer_indices: dict[MLGNode, int],
         node_to_neighbors: dict[MLGNode, set[MLGNode]],
+        above_or_below: Literal["above"] | Literal["below"],
     ):
         nonlocal ml_graph
         ml_graph.layers_to_nodes[_layer_idx] = sorted(
@@ -26,6 +29,7 @@ def few_gaps_barycenter_smart_sort(ml_graph: MultiLayeredGraph) -> None:
                 _prev_layer_indices,
                 ml_graph,
                 layer_to_real_nodes[layer_idx],
+                above_or_below,
             ),
         )
 
@@ -48,10 +52,10 @@ def few_gaps_barycenter_smart_sort(ml_graph: MultiLayeredGraph) -> None:
     for _ in range(3):
         for layer_idx in range(1, ml_graph.layer_count):
             prev_layer_indices = _layer_indices(layer_idx - 1)
-            _sort_layer(layer_idx, prev_layer_indices, node_to_in_neighbors)
+            _sort_layer(layer_idx, prev_layer_indices, node_to_in_neighbors, "below")
         for layer_idx in range(ml_graph.layer_count - 2, -1, -1):
             prev_layer_indices = _layer_indices(layer_idx + 1)
-            _sort_layer(layer_idx, prev_layer_indices, node_to_out_neighbors)
+            _sort_layer(layer_idx, prev_layer_indices, node_to_out_neighbors, "above")
 
 
 def few_gaps_barycenter_sort(ml_graph: MultiLayeredGraph) -> None:
@@ -162,6 +166,7 @@ def _get_pseudo_barycenter_improved_placement(
     prev_layer_indices: dict[MLGNode, int],
     ml_graph: MultiLayeredGraph,
     real_nodes_at_layer: list[MLGNode],
+    above_or_below: Literal["above"] | Literal["below"],
 ) -> float:
     # TODO get barycenter as accurate fraction to avoid
     #   floating point errors, and ensure stable sorting
@@ -173,7 +178,9 @@ def _get_pseudo_barycenter_improved_placement(
         real_node_crossings_if_left = 0
         real_node_crossings_if_right = 0
         for real_node in real_nodes_at_layer:
-            left_crossings, right_crossings = crossings_uv_vu(ml_graph, node, real_node)
+            left_crossings, right_crossings = crossings_uv_vu(
+                ml_graph, node, real_node, above_or_below
+            )
             real_node_crossings_if_left += left_crossings
             real_node_crossings_if_right += right_crossings
 
