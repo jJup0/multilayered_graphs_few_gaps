@@ -236,3 +236,8 @@ class MultiLayeredGraph:
 
     def get_total_crossings(self):
         return sum(self.get_crossings_per_layer())
+
+    def nodes_to_indices_at_layer(self, layer_idx: int):
+        return {
+            node: index for index, node in enumerate(self.layers_to_nodes[layer_idx])
+        }
