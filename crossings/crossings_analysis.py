@@ -10,6 +10,10 @@ from node_sorting.barycenter_heuristic import (
     few_gaps_barycenter_smart_sort,
     few_gaps_barycenter_sort,
 )
+from node_sorting.median_heuristic import (
+    few_gaps_median_sort_naive,
+    few_gaps_median_sort_improved,
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -41,6 +45,8 @@ class CrossingsAnalyser:
         self.algorithms: list[NamedAlgorithm] = [
             NamedAlgorithm("Barycenter smart", few_gaps_barycenter_smart_sort),
             NamedAlgorithm("Barycenter naive", few_gaps_barycenter_sort),
+            NamedAlgorithm("Median naive", few_gaps_median_sort_naive),
+            NamedAlgorithm("Median improved", few_gaps_median_sort_improved),
         ]
         self.algs_graphtype_crossings: dict[NamedAlgorithm, dict[str, list[int]]] = {}
         self.graph_type_names: dict[str, str] = {}
@@ -58,7 +64,7 @@ class CrossingsAnalyser:
             alg: defaultdict(list) for alg in self.algorithms
         }
 
-        for i in range(20):
+        for i in range(10):
             random_params = {
                 "node_count": 20,
                 "layers_count": 8,
@@ -76,6 +82,7 @@ class CrossingsAnalyser:
             print(f"Round {i}")
 
         for graph_type in self.graph_type_names.values():
+            print(f'For graph type "{graph_type}":')
             for named_alg in self.algorithms:
                 total_crossings = sum(
                     self.algs_graphtype_crossings[named_alg][graph_type]
@@ -84,7 +91,7 @@ class CrossingsAnalyser:
                 mean_crossings = total_crossings / runs
 
                 print(
-                    f'{named_alg} for graph type "{graph_type}" had mean crossing count of {mean_crossings:.2f}'
+                    f"\t{str(named_alg):<20} had mean crossing count of {mean_crossings:>8.2f}"
                 )
 
         total_time_seconds = sum(sum(t) for t in self.timings.values()) / 1_000_000_000
