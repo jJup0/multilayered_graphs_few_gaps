@@ -1,6 +1,6 @@
 from multilayered_graph.multilayer_graph_generator import generate_multilayer_graph
 from node_sorting.barycenter_heuristic import (
-    few_gaps_barycenter_sort,
+    # few_gaps_barycenter_sort,
     few_gaps_barycenter_smart_sort,
 )
 
