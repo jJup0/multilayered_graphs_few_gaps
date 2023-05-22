@@ -1,3 +1,4 @@
+import statistics
 from typing import Literal
 
 from crossings.calculate_crossings import crossings_uv_vu
@@ -43,10 +44,10 @@ def few_gaps_barycenter_smart_sort(ml_graph: MultiLayeredGraph) -> None:
     # arbitrary loop count,TODO pass as parameter?
     for _ in range(3):
         for layer_idx in range(1, ml_graph.layer_count):
-            prev_layer_indices = _nodes_to_indices_at_layer(ml_graph, layer_idx - 1)
+            prev_layer_indices = ml_graph.nodes_to_indices_at_layer(layer_idx - 1)
             _sort_layer(layer_idx, prev_layer_indices, node_to_in_neighbors, "below")
         for layer_idx in range(ml_graph.layer_count - 2, -1, -1):
-            prev_layer_indices = _nodes_to_indices_at_layer(ml_graph, layer_idx + 1)
+            prev_layer_indices = ml_graph.nodes_to_indices_at_layer(layer_idx + 1)
             _sort_layer(layer_idx, prev_layer_indices, node_to_out_neighbors, "above")
 
 
@@ -58,6 +59,23 @@ def few_gaps_barycenter_sort(ml_graph: MultiLayeredGraph) -> None:
         ml_graph: Graph on which to apply sorting.
     """
 
+    def _get_real_node_barycenter_median(
+        nodes_at_layer: list[MLGNode],
+        _node_to_neighbors: dict[MLGNode, set[MLGNode]],
+        _prev_layer_indices: dict[MLGNode, int],
+    ):
+        nonlocal ml_graph
+        real_node_barycenters = (
+            _get_real_node_barycenter(
+                ml_graph, node, _node_to_neighbors[node], _prev_layer_indices
+            )
+            for node in nodes_at_layer
+            if not node.is_virtual
+        )
+
+        # should have at least one real node in layer, so list should not be empty
+        return statistics.median(real_node_barycenters)
+
     def _sort_layer(
         _ml_graph: MultiLayeredGraph,
         _layer_idx: int,
@@ -66,7 +84,6 @@ def few_gaps_barycenter_sort(ml_graph: MultiLayeredGraph) -> None:
         # above_or_below: Literal["above"] | Literal["below"],
     ):
         real_node_bary_median = _get_real_node_barycenter_median(
-            _ml_graph,
             _ml_graph.layers_to_nodes[_layer_idx],
             _node_to_neighbors,
             _prev_layer_indices,
@@ -88,40 +105,11 @@ def few_gaps_barycenter_sort(ml_graph: MultiLayeredGraph) -> None:
     # arbitrary loop count,TODO pass as parameter?
     for _ in range(3):
         for layer in range(1, ml_graph.layer_count):
-            prev_layer_indices = _nodes_to_indices_at_layer(ml_graph, layer - 1)
+            prev_layer_indices = ml_graph.nodes_to_indices_at_layer(layer - 1)
             _sort_layer(ml_graph, layer, prev_layer_indices, node_to_in_neighbors)
         for layer in range(ml_graph.layer_count - 2, -1, -1):
-            prev_layer_indices = _nodes_to_indices_at_layer(ml_graph, layer + 1)
+            prev_layer_indices = ml_graph.nodes_to_indices_at_layer(layer + 1)
             _sort_layer(ml_graph, layer, prev_layer_indices, node_to_out_neighbors)
-
-
-def _nodes_to_indices_at_layer(ml_graph: MultiLayeredGraph, _layer_idx: int):
-    layer_indices = {
-        node: index for index, node in enumerate(ml_graph.layers_to_nodes[_layer_idx])
-    }
-    return layer_indices
-
-
-def _get_real_node_barycenter_median(
-    ml_graph: MultiLayeredGraph,
-    nodes_at_layer: list[MLGNode],
-    node_to_in_neighbors: dict[MLGNode, set[MLGNode]],
-    prev_layer_indices: dict[MLGNode, int],
-):
-    real_node_barycenters = []
-    for node in nodes_at_layer:
-        if node.is_virtual:
-            continue
-        real_node_barycenters.append(
-            _get_real_node_barycenter(
-                ml_graph, node, node_to_in_neighbors[node], prev_layer_indices
-            )
-        )
-
-    # should have at least one real node in layer, so list should not be empty
-    real_node_barycenters.sort()
-    real_node_bary_median = real_node_barycenters[len(real_node_barycenters) // 2]
-    return real_node_bary_median
 
 
 def _get_real_node_barycenter(
