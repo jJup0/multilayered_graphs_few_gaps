@@ -35,8 +35,6 @@ def crossings_for_node_pair(
     assert u.layer == v.layer
 
     # TODO do not fetch all indices, just of layer of u and v and layer above and below
-    temp = ml_graph.all_nodes_as_list()
-    l2n = list(ml_graph.layers_to_nodes.values())
     nodes_to_index = ml_graph.nodes_to_index_within_layer()
 
     # v_idx must set to any number bigger than u_idx
