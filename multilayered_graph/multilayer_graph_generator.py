@@ -20,8 +20,7 @@ def generate_multilayer_graph(
         or long_edge_probability < 0
         or long_edge_probability > 1
     ):
-        # TODO better value error message
-        raise ValueError("Invalid args passed")
+        raise ValueError("Invalid arguments passed.")
 
     if randomness_seed is not None:
         random.seed(randomness_seed)
