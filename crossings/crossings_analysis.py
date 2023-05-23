@@ -10,6 +10,7 @@ from node_sorting.barycenter_heuristic import (
     few_gaps_barycenter_smart_sort,
     few_gaps_barycenter_sort,
 )
+from node_sorting.gurobi_int_lin import few_gaps_gurobi
 from node_sorting.median_heuristic import (
     few_gaps_median_sort_naive,
     few_gaps_median_sort_improved,
@@ -47,6 +48,7 @@ class CrossingsAnalyser:
             NamedAlgorithm("Barycenter naive", few_gaps_barycenter_sort),
             NamedAlgorithm("Median naive", few_gaps_median_sort_naive),
             NamedAlgorithm("Median improved", few_gaps_median_sort_improved),
+            NamedAlgorithm("Gurobi", few_gaps_gurobi),
         ]
         self.algs_graphtype_crossings: dict[NamedAlgorithm, dict[str, list[int]]] = {}
         self.graph_type_names: dict[str, str] = {}
@@ -67,7 +69,7 @@ class CrossingsAnalyser:
         for i in range(10):
             random_params = {
                 "node_count": 20,
-                "layers_count": 8,
+                "layers_count": 4,
                 "edge_density": 0.1,
                 "long_edge_probability": 0.3,
             }
@@ -79,7 +81,11 @@ class CrossingsAnalyser:
 
             random_params["layers_count"] = 2
             self._test_random_graph(**random_params, randomness_seed=i)
-            print(f"Round {i}")
+
+            random_params["layers_count"] = 8
+            self._test_random_graph(**random_params, randomness_seed=i)
+
+        print(f"Round {i}")
 
         for graph_type in self.graph_type_names.values():
             print(f'For graph type "{graph_type}":')
@@ -193,6 +199,8 @@ class CrossingsAnalyser:
                 perf_timer_end_curr_alg - perf_timer_end_prev_alg
             )
             perf_timer_end_prev_alg = perf_timer_end_curr_alg
+
+            # graph_copy.to_pygraphviz_graph().draw(f"{named_alg.name}-re.svg")
             # print(f"{named_alg.name} produced {crossing_count} crossings")
 
 
