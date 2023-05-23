@@ -177,7 +177,8 @@ class MultiLayeredGraph:
                 attrs["width"] = 0.01
                 attrs["height"] = 0.01
 
-            attrs["label"] = f"{(pos_x, pos_y)}"
+            # attrs["label"] = f"{(pos_x, pos_y)}"
+            attrs["label"] = f"{node}"
             if node.text_info:
                 attrs["label"] += f"\n{node.text_info}"
 
