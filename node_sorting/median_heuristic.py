@@ -190,11 +190,11 @@ def _get_median_sort_val_improved(
     if node.is_virtual:
         real_node_crossings_if_left = 0
         real_node_crossings_if_right = 0
-        for node in layer_before_sorting:
-            if node.is_virtual:
+        for other_node in layer_before_sorting:
+            if other_node.is_virtual:
                 continue
             left_crossings, right_crossings = crossings_uv_vu(
-                ml_graph, node, node, neighbors_above_or_below
+                ml_graph, node, other_node, neighbors_above_or_below
             )
             real_node_crossings_if_left += left_crossings
             real_node_crossings_if_right += right_crossings
