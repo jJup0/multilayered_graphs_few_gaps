@@ -32,10 +32,16 @@ def crossings_for_node_pair(
     v: MLGNode,
     above_or_below: Literal["above"] | Literal["below"],
 ):
-    assert u.layer == v.layer
+    if not (above_or_below == "above" or above_or_below == "below"):
+        raise ValueError(f'{above_or_below} must be "above" or "below"')
 
-    # TODO do not fetch all indices, just of layer of u and v and layer above and below
-    nodes_to_index = ml_graph.nodes_to_index_within_layer()
+    if not u.layer == v.layer:
+        raise ValueError("Nodes must be on same layer")
+
+    # nodes_to_index2 = ml_graph.nodes_to_index_within_layer()
+    # if 0 in nodes_to_index2:
+    #     print("", end="")
+    # nodes_to_index = ml_graph.nodes_to_indices_at_layer(u.layer)
 
     # v_idx must set to any number bigger than u_idx
     u_idx = 1
@@ -44,23 +50,17 @@ def crossings_for_node_pair(
     crossings = 0
 
     if above_or_below == "above":
-        u_out_neighbor_idxs = [
-            nodes_to_index[n] for n in ml_graph.nodes_to_out_edges[u]
-        ]
-        v_out_neighbors_idxs = [
-            nodes_to_index[n] for n in ml_graph.nodes_to_out_edges[v]
-        ]
-        for u_neighbor_idx in u_out_neighbor_idxs:
-            for v_neighbor_idx in v_out_neighbors_idxs:
-                crossings += edges_cross(u_idx, u_neighbor_idx, v_idx, v_neighbor_idx)
-    elif above_or_below == "below":
-        u_in_neighbor_idxs = [nodes_to_index[n] for n in ml_graph.nodes_to_in_edges[u]]
-        v_in_neighbors_idxs = [nodes_to_index[n] for n in ml_graph.nodes_to_in_edges[v]]
-        for u_neighbor_idx in u_in_neighbor_idxs:
-            for v_neighbor_idx in v_in_neighbors_idxs:
-                crossings += edges_cross(u_idx, u_neighbor_idx, v_idx, v_neighbor_idx)
+        edges_to_use = ml_graph.nodes_to_out_edges
+        nodes_to_index = ml_graph.nodes_to_indices_at_layer(u.layer + 1)
     else:
-        raise ValueError(f'{above_or_below} must be "above" or "below"')
+        edges_to_use = ml_graph.nodes_to_in_edges
+        nodes_to_index = ml_graph.nodes_to_indices_at_layer(u.layer - 1)
+
+    u_neighbor_idxs = [nodes_to_index[n] for n in edges_to_use[u]]
+    v_neighbor_idxs = [nodes_to_index[n] for n in edges_to_use[v]]
+    for u_neighbor_idx in u_neighbor_idxs:
+        for v_neighbor_idx in v_neighbor_idxs:
+            crossings += edges_cross(u_idx, u_neighbor_idx, v_idx, v_neighbor_idx)
 
     return crossings
 
