@@ -8,7 +8,8 @@ from multilayered_graph import multilayer_graph_generator
 from multilayered_graph.multilayered_graph import MultiLayeredGraph
 from node_sorting.barycenter_heuristic import (
     few_gaps_barycenter_smart_sort,
-    few_gaps_barycenter_sort,
+    few_gaps_barycenter_sort_naive,
+    few_gaps_barycenter_split,
 )
 from node_sorting.gurobi_int_lin import few_gaps_gurobi
 from node_sorting.median_heuristic import (
@@ -44,11 +45,12 @@ class GraphAndType:
 class CrossingsAnalyser:
     def __init__(self):
         self.algorithms: list[NamedAlgorithm] = [
-            NamedAlgorithm("Barycenter smart", few_gaps_barycenter_smart_sort),
-            NamedAlgorithm("Barycenter naive", few_gaps_barycenter_sort),
+            NamedAlgorithm("Barycenter naive", few_gaps_barycenter_sort_naive),
+            NamedAlgorithm("Barycenter improved", few_gaps_barycenter_smart_sort),
+            NamedAlgorithm("Barycenter split", few_gaps_barycenter_split),
             NamedAlgorithm("Median naive", few_gaps_median_sort_naive),
             NamedAlgorithm("Median improved", few_gaps_median_sort_improved),
-            NamedAlgorithm("Gurobi", few_gaps_gurobi),
+            # NamedAlgorithm("Gurobi", few_gaps_gurobi),
         ]
         self.algs_graphtype_crossings: dict[NamedAlgorithm, dict[str, list[int]]] = {}
         self.graph_type_names: dict[str, str] = {}
