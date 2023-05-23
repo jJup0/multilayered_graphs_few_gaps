@@ -26,12 +26,8 @@ https://pypi.org/project/ogdf-python/
 
 
 
-alternative corrsing minimization strategy: find relative order of gap nodes, and find index where left/right split results in fewest crossings 
+alternative crossing minimization strategy: find relative order of gap nodes, and find index where left/right split results in fewest crossings 
 
-larger instances, automated crossing calculation
+networkx random cluster graphs
 
-networkx ranodm cluster graphs
-
-in tunet vpn sein um key zu installieren
-
-implemtation of constrained graph - split into two gaps first and apply heuristic
+implement existing algorithm with constrained nodes: split into two gaps first and apply heuristic
