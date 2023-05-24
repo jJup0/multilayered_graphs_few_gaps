@@ -1,8 +1,8 @@
 from multilayered_graph.multilayer_graph_generator import generate_multilayer_graph
-from node_sorting.barycenter_heuristic import (
+from crossing_minimization.barycenter_heuristic import (
     few_gaps_barycenter_smart_sort,
 )
-from node_sorting.median_heuristic import few_gaps_median_sort_improved
+from crossing_minimization.median_heuristic import few_gaps_median_sort_improved
 
 
 def draw_graph():

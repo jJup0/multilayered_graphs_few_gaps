@@ -6,13 +6,13 @@ from typing import Callable
 
 from multilayered_graph import multilayer_graph_generator
 from multilayered_graph.multilayered_graph import MultiLayeredGraph
-from node_sorting.barycenter_heuristic import (
+from crossing_minimization.barycenter_heuristic import (
     few_gaps_barycenter_smart_sort,
     few_gaps_barycenter_sort_naive,
     few_gaps_barycenter_split,
 )
-from node_sorting.gurobi_int_lin import few_gaps_gurobi
-from node_sorting.median_heuristic import (
+from crossing_minimization.gurobi_int_lin import few_gaps_gurobi
+from crossing_minimization.median_heuristic import (
     few_gaps_median_sort_naive,
     few_gaps_median_sort_improved,
 )

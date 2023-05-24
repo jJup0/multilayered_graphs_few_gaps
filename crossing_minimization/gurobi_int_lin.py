@@ -8,7 +8,7 @@ from gurobipy import GRB
 from crossings.calculate_crossings import crossings_uv_vu
 from multilayered_graph.multilayer_graph_generator import generate_multilayer_graph
 from multilayered_graph.multilayered_graph import MultiLayeredGraph, MLGNode
-from node_sorting.barycenter_heuristic import few_gaps_barycenter_smart_sort
+from crossing_minimization.barycenter_heuristic import few_gaps_barycenter_smart_sort
 
 gp.LogToConsole = 0
 
