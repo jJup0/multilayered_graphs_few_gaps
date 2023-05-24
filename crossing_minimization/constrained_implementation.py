@@ -11,6 +11,7 @@ Implemented algorithm presented in the following paper:
 }
 """
 import statistics
+from collections import deque
 from typing import Literal
 
 from crossing_minimization.barycenter_heuristic import get_real_node_barycenter
@@ -19,6 +20,10 @@ from multilayered_graph.multilayered_graph import MultiLayeredGraph, MLGNode
 
 def few_gaps_constrained_paper(ml_graph: MultiLayeredGraph):
     constraints = generate_constraints(ml_graph)
+    # TODO iterate over whole graph
+    constrained_crossing_reduction(
+        ml_graph,
+    )
 
 
 def generate_constraints(
@@ -97,7 +102,7 @@ def constrained_crossing_reduction(
     V_dash = {node for node in V2 if node not in V}  # unconstrained vertices
 
     while True:
-        _violated = find_violated_constraint(V, constraints)
+        _violated = find_violated_constraint(V, constraints, _nodes_to_neighbors, b)
         if _violated is None:
             break
         s, t = _violated
@@ -143,9 +148,35 @@ def constrained_crossing_reduction(
 
 
 def find_violated_constraint(
-    nodes: list[MLGNode], constraints: set[tuple[MLGNode, MLGNode]]
-) -> tuple[MLGNode, MLGNode]:
-    ...
+    V: list[MLGNode],
+    C: set[tuple[MLGNode, MLGNode]],
+    _nodes_to_incoming_edges: dict[MLGNode, set[MLGNode]],
+    _nodes_to_barycenter: dict[MLGNode, float],
+) -> tuple[MLGNode, MLGNode] | None:
+    b = _nodes_to_barycenter
+
+    S = set()  # active vertices
+    I = {}
+    for v in V:
+        I[v] = deque()
+        if len(_nodes_to_incoming_edges[v]) == 0:
+            S.add(v)
+
+    while S:
+        v = S.pop()
+        for c in I:
+            s, v = c
+            if b[s] > b[v]:
+                return c
+        for c in C:
+            if c[0] is not v:
+                continue
+            v, t = c
+            I[t].appendleft(c)
+            if I[t] == len(_nodes_to_incoming_edges[t]):
+                S.add(t)
+
+    return None
 
 
 # Input: An acyclic constraint graph GC = (V,C) without isolated vertices
