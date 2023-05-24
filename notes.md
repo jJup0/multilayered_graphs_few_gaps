@@ -24,10 +24,10 @@ https://pypi.org/project/grandalf/
 https://pypi.org/project/ogdf-python/
 
 
+## TODOS
 
-
-alternative crossing minimization strategy: find relative order of gap nodes, and find index where left/right split results in fewest crossings 
-
-networkx random cluster graphs
-
-implement existing algorithm with constrained nodes: split into two gaps first and apply heuristic
+- networkx random cluster graphs https://networkx.org/documentation/stable/reference/generated/networkx.generators.random_clustered.random_clustered_graph.html#networkx.generators.random_clustered.random_clustered_graph
+  - random graphs: https://networkx.org/documentation/stable/reference/generators.html#module-networkx.generators.random_graphs
+  - real graphs: https://networkx.org/documentation/stable/reference/generators.html#module-networkx.generators.social
+- implement existing algorithm with constrained nodes: split into two gaps first and apply heuristic
+- two-sided ILP program
