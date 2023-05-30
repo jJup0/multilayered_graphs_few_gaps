@@ -19,19 +19,26 @@ from multilayered_graph.multilayered_graph import MultiLayeredGraph, MLGNode
 
 
 def few_gaps_constrained_paper(ml_graph: MultiLayeredGraph):
-    constraints = generate_constraints(ml_graph)
-    # TODO iterate over whole graph
-    constrained_crossing_reduction(
-        ml_graph,
+    layers__above_below = []
+    layers__above_below.extend(
+        (layer_idx, "below") for layer_idx in range(1, ml_graph.layer_count)
     )
+    layers__above_below.extend(
+        (layer_idx, "above") for layer_idx in range(ml_graph.layer_count - 2, -1, -1)
+    )
+    layers__above_below *= 3
+
+    for layer_idx, above_or_below in layers__above_below:
+        constraints = generate_constraints(ml_graph, layer_idx, above_or_below)
+        constrained_crossing_reduction(ml_graph, layer_idx, above_or_below, constraints)
 
 
 def generate_constraints(
-    ml_graph: MultiLayeredGraph,
-    layer_idx: int,
-    above_or_below: Literal["above"] | Literal["below"],
-    # pass splitting function?
-) -> list[tuple[int, int]]:
+        ml_graph: MultiLayeredGraph,
+        layer_idx: int,
+        above_or_below: Literal["above"] | Literal["below"],
+        # pass splitting function as parameter?
+) -> set[tuple[int, int]]:
     nodes = ml_graph.layers_to_nodes[layer_idx]
 
     prev_layer_idx = get_layer_idx_above_or_below(layer_idx, above_or_below)
@@ -56,22 +63,22 @@ def generate_constraints(
 
     virtual_nodes = [node for node in nodes if node.is_virtual]
 
-    constraints = []
+    constraints = set()
     for v_node in virtual_nodes:
         # TODO make this decision a parameter passed to the function
         if barycenters[v_node] < median_real_bary:
-            constraints.extend((v_node, r_node) for r_node in real_nodes)
+            constraints.update((v_node, r_node) for r_node in real_nodes)
         else:
-            constraints.extend((r_node, v_node) for r_node in real_nodes)
+            constraints.update((r_node, v_node) for r_node in real_nodes)
 
     return constraints
 
 
 def constrained_crossing_reduction(
-    ml_graph: MultiLayeredGraph,
-    layer_idx: int,
-    above_or_below: Literal["above"] | Literal["below"],
-    constraints: set[tuple[MLGNode, MLGNode]],
+        ml_graph: MultiLayeredGraph,
+        layer_idx: int,
+        above_or_below: Literal["above"] | Literal["below"],
+        constraints: set[tuple[MLGNode, MLGNode]],
 ):
     # variables starting with an '_' are helper variables not mentioned in the algorithm pseudo code
     _prev_layer_idx = get_layer_idx_above_or_below(layer_idx, above_or_below)
@@ -94,11 +101,9 @@ def constrained_crossing_reduction(
         )
         for node in V2
     }
-    L = {node: [] for node in V2}
+    L = {node: [node] for node in V2}
 
-    V: set[MLGNode] = set(c[0] for c in constraints) + set(
-        c[1] for c in constraints
-    )  # constrained vertices
+    V: set[MLGNode] = set(c[0] for c in constraints).union(c[1] for c in constraints)  # constrained vertices
     V_dash = {node for node in V2 if node not in V}  # unconstrained vertices
 
     while True:
@@ -144,14 +149,16 @@ def constrained_crossing_reduction(
     for node in V_dash_dash:
         other_L.extend(L[node])
 
-    return other_L
+    # print(ml_graph.layers_to_nodes[layer_idx])
+    # print(other_L)
+    ml_graph.layers_to_nodes[layer_idx][:] = other_L
 
 
 def find_violated_constraint(
-    V: list[MLGNode],
-    C: set[tuple[MLGNode, MLGNode]],
-    _nodes_to_incoming_edges: dict[MLGNode, set[MLGNode]],
-    _nodes_to_barycenter: dict[MLGNode, float],
+        V: list[MLGNode],
+        C: set[tuple[MLGNode, MLGNode]],
+        _nodes_to_incoming_edges: dict[MLGNode, set[MLGNode]],
+        _nodes_to_barycenter: dict[MLGNode, float],
 ) -> tuple[MLGNode, MLGNode] | None:
     b = _nodes_to_barycenter
 
@@ -164,7 +171,7 @@ def find_violated_constraint(
 
     while S:
         v = S.pop()
-        for c in I:
+        for c in I[v]:
             s, v = c
             if b[s] > b[v]:
                 return c
@@ -179,29 +186,8 @@ def find_violated_constraint(
     return None
 
 
-# Input: An acyclic constraint graph GC = (V,C) without isolated vertices
-# Output: A violated constraint c, or ⊥ if none exists
-# begin
-# 1 S ← ∅ //active vertices
-# 2 foreach v ∈ V do
-# 3 I(v) ←  //empty list of incoming constraints
-# 4 if indeg(v)=0 then
-# 5 S ← S ∪ {v} //vertices without incoming constraints
-# 6 while S = ∅ do
-# 7 choose v ∈ S
-# 8 S ← S − {v}
-# 9 foreach c = (s, v) ∈ I(v) in list order do
-# 10 if b(s) ≥ b(v) then
-# 11 return c
-# 12 foreach outgoing constraint c = (v, t) do
-# 13 I(t) ← c ◦ I(t)
-# 14 if |I(t)| = indeg(t) then
-# 15 S ← S ∪ {t}
-# 16 re
-
-
 def get_layer_idx_above_or_below(
-    layer_idx: int, above_or_below: Literal["above"] | Literal["below"]
+        layer_idx: int, above_or_below: Literal["above"] | Literal["below"]
 ):
     if above_or_below == "above":
         return layer_idx + 1

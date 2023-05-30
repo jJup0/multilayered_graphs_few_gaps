@@ -4,6 +4,7 @@ from collections import defaultdict
 from dataclasses import dataclass
 from typing import Callable
 
+from crossing_minimization.constrained_implementation import few_gaps_constrained_paper
 from multilayered_graph import multilayer_graph_generator
 from multilayered_graph.multilayered_graph import MultiLayeredGraph
 from crossing_minimization.barycenter_heuristic import (
@@ -50,7 +51,8 @@ class CrossingsAnalyser:
             NamedAlgorithm("Barycenter split", few_gaps_barycenter_split),
             NamedAlgorithm("Median naive", few_gaps_median_sort_naive),
             NamedAlgorithm("Median improved", few_gaps_median_sort_improved),
-            # NamedAlgorithm("Gurobi", few_gaps_gurobi),
+            NamedAlgorithm("Constrained nodes (paper impl)", few_gaps_constrained_paper),
+            NamedAlgorithm("Gurobi", few_gaps_gurobi),
         ]
         self.algs_graphtype_crossings: dict[NamedAlgorithm, dict[str, list[int]]] = {}
         self.graph_type_names: dict[str, str] = {}
@@ -68,26 +70,29 @@ class CrossingsAnalyser:
             alg: defaultdict(list) for alg in self.algorithms
         }
 
-        for i in range(10):
-            random_params = {
-                "node_count": 20,
-                "layers_count": 4,
-                "edge_density": 0.1,
-                "long_edge_probability": 0.3,
-            }
+        try:
+            for i in range(100):
+                random_params = {
+                    "node_count": 20,
+                    "layers_count": 4,
+                    "edge_density": 0.05,
+                    "long_edge_probability": 0.3,
+                }
 
-            self._test_random_graph(**random_params, randomness_seed=i)
+                self._test_random_graph(**random_params, randomness_seed=i)
 
-            random_params["long_edge_probability"] = 0.7
-            self._test_random_graph(**random_params, randomness_seed=i)
+                random_params["long_edge_probability"] = 0.7
+                self._test_random_graph(**random_params, randomness_seed=i)
 
-            random_params["layers_count"] = 2
-            self._test_random_graph(**random_params, randomness_seed=i)
+                random_params["layers_count"] = 2
+                self._test_random_graph(**random_params, randomness_seed=i)
 
-            random_params["layers_count"] = 8
-            self._test_random_graph(**random_params, randomness_seed=i)
-
-        print(f"Round {i}")
+                random_params["layers_count"] = 8
+                self._test_random_graph(**random_params, randomness_seed=i)
+                print(f"Round {i}")
+        except:
+            print(f"Exception, stopping")
+            # stop and show results so far
 
         for graph_type in self.graph_type_names.values():
             print(f'For graph type "{graph_type}":')
@@ -99,7 +104,7 @@ class CrossingsAnalyser:
                 mean_crossings = total_crossings / runs
 
                 print(
-                    f"\t{str(named_alg):<20} had mean crossing count of {mean_crossings:>8.2f}"
+                    f"\t{str(named_alg):<30} had mean crossing count of {mean_crossings:>8.2f}"
                 )
 
         total_time_seconds = sum(sum(t) for t in self.timings.values()) / 1_000_000_000
@@ -108,16 +113,16 @@ class CrossingsAnalyser:
             total_time_ms = sum(times) / 1_000_000
             # avg_time = total_time_ms / len(times)
             avg_time_str = f"{total_time_ms / len(times):.3f}"
-            print(f"{timing_name:>20} took avg: {avg_time_str:>7}ms")
+            print(f"{timing_name:>30} took avg: {avg_time_str:>7}ms")
 
     def _test_random_graph(
-        self,
-        layers_count: int,
-        node_count: int,
-        edge_density: float,
-        long_edge_probability: float,
-        *,
-        randomness_seed: int | None = None,
+            self,
+            layers_count: int,
+            node_count: int,
+            edge_density: float,
+            long_edge_probability: float,
+            *,
+            randomness_seed: int | None = None,
     ):
         perf_timer_start__name_gen = time.perf_counter_ns()
         (
@@ -163,11 +168,11 @@ class CrossingsAnalyser:
         # )
 
     def _reorganize_graph_and_count_crossings(
-        self,
-        graph_and_type: GraphAndType,
-        algorithms_to_graph_structure_to_crossings: dict[
-            NamedAlgorithm, dict[str, list[int]]
-        ],
+            self,
+            graph_and_type: GraphAndType,
+            algorithms_to_graph_structure_to_crossings: dict[
+                NamedAlgorithm, dict[str, list[int]]
+            ],
     ):
         perf_timer_start__deep_copy = time.perf_counter_ns()
 
@@ -189,7 +194,7 @@ class CrossingsAnalyser:
         named_alg: NamedAlgorithm
         graph_copy: MultiLayeredGraph
         for named_alg, graph_copy in zip(
-            algorithms_to_graph_structure_to_crossings.keys(), graph_copies, strict=True
+                algorithms_to_graph_structure_to_crossings.keys(), graph_copies, strict=True
         ):
             named_alg.algorithm(graph_copy)
             crossing_count = graph_copy.get_total_crossings()
