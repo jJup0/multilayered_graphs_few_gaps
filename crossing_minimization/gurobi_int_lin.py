@@ -13,7 +13,7 @@ from crossing_minimization.barycenter_heuristic import few_gaps_barycenter_smart
 gp.LogToConsole = 0
 
 
-def few_gaps_gurobi(ml_graph: MultiLayeredGraph) -> int:
+def few_gaps_gurobi(ml_graph: MultiLayeredGraph) -> None:
     layers_to_above_below = []
     layers_to_above_below.extend(
         (layer_idx, "below") for layer_idx in range(1, ml_graph.layer_count)
