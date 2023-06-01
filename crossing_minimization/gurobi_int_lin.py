@@ -15,7 +15,73 @@ gp.LogToConsole = 0
 
 
 def few_gaps_gurobi_two_sided(ml_graph: MultiLayeredGraph) -> None:
-    pass
+    m = gp.Model("Multilayered Graph 2 layer cross minimization")
+    l1 = ml_graph.layers_to_nodes[0]
+    l2 = ml_graph.layers_to_nodes[1]
+    l1_ordering_gb_vars, _, _ = _gen_order_var_and_constraints(m, l1)
+    l2_ordering_gb_vars, _, _ = _gen_order_var_and_constraints(m, l2)
+
+
+def few_gaps_gurobi(ml_graph: MultiLayeredGraph) -> None:
+    layers_to_above_below = []
+    layers_to_above_below.extend(
+        (layer_idx, "below") for layer_idx in range(1, ml_graph.layer_count)
+    )
+    layers_to_above_below.extend(
+        (layer_idx, "above") for layer_idx in range(ml_graph.layer_count - 2, -1, -1)
+    )
+    layers_to_above_below *= 3
+
+    layer_to_model: dict[int, gp.Model] = {}
+    layer_to_ordering_vars: dict[int, dict[tuple[MLGNode, MLGNode], gp.Var]] = {}
+
+    for layer_idx, above_below in layers_to_above_below:
+        nodes = ml_graph.layers_to_nodes[layer_idx]
+
+        if layer_idx not in layer_to_model:
+            m = gp.Model(
+                f"Multilayered graph crossing minimization - layer {layer_idx}"
+            )
+            m.Params.LogToConsole = 0
+
+            ordering_gb_vars, _, _ = _gen_order_var_and_constraints(m, nodes)
+            layer_to_ordering_vars[layer_idx] = ordering_gb_vars
+
+            real_nodes = [n for n in nodes if not n.is_virtual]
+            virtual_nodes = [n for n in nodes if n.is_virtual]
+            _gen_virtual_node_vars_and_constraints(
+                m,
+                virtual_nodes=virtual_nodes,
+                real_nodes=real_nodes,
+                ordering_gb_vars=ordering_gb_vars,
+            )
+            layer_to_model[layer_idx] = m
+
+        m = layer_to_model[layer_idx]
+        ordering_gb_vars = layer_to_ordering_vars[layer_idx]
+        # always update objective function
+        obj = gp.LinExpr()
+        n1__n2_crossings: int
+        n2__n1_crossings: int
+        for n1 in nodes:
+            for n2 in nodes:
+                if n1 is n2:
+                    continue
+                n1__n2_crossings, n2__n1_crossings = crossings_uv_vu(
+                    ml_graph, n1, n2, above_below
+                )
+                # print(f"{(n1__n2_crossings, n2__n1_crossings)=}")
+                n1__n2 = ordering_gb_vars[(n1, n2)]
+                n2__n1 = ordering_gb_vars[(n2, n1)]
+                obj += n1__n2_crossings * n1__n2 + n2__n1_crossings * n2__n1
+
+        # set objective, update and optimize
+        m.setObjective(obj, GRB.MINIMIZE)
+        m.update()
+        m.optimize()
+
+        # order graph using gurobi variables
+        gurobi_merge_sort(nodes, ordering_gb_vars)
 
 
 def _gen_order_var_and_constraints(m: gp.Model, nodes: list[MLGNode], prefix: str = ""):
@@ -101,68 +167,6 @@ def _gen_virtual_node_vars_and_constraints(
         )
 
     return virtual_node_gb_vars
-
-
-def few_gaps_gurobi(ml_graph: MultiLayeredGraph) -> None:
-    layers_to_above_below = []
-    layers_to_above_below.extend(
-        (layer_idx, "below") for layer_idx in range(1, ml_graph.layer_count)
-    )
-    layers_to_above_below.extend(
-        (layer_idx, "above") for layer_idx in range(ml_graph.layer_count - 2, -1, -1)
-    )
-    layers_to_above_below *= 3
-
-    layer_to_model: dict[int, gp.Model] = {}
-    layer_to_ordering_vars: dict[int, dict[tuple[MLGNode, MLGNode], gp.Var]] = {}
-
-    for layer_idx, above_below in layers_to_above_below:
-        nodes = ml_graph.layers_to_nodes[layer_idx]
-
-        if layer_idx not in layer_to_model:
-            m = gp.Model(
-                f"Multilayered graph crossing minimization - layer {layer_idx}"
-            )
-            m.Params.LogToConsole = 0
-
-            ordering_gb_vars, _, _ = _gen_order_var_and_constraints(m, nodes)
-            layer_to_ordering_vars[layer_idx] = ordering_gb_vars
-
-            real_nodes = [n for n in nodes if not n.is_virtual]
-            virtual_nodes = [n for n in nodes if n.is_virtual]
-            _gen_virtual_node_vars_and_constraints(
-                m,
-                virtual_nodes=virtual_nodes,
-                real_nodes=real_nodes,
-                ordering_gb_vars=ordering_gb_vars,
-            )
-            layer_to_model[layer_idx] = m
-
-        m = layer_to_model[layer_idx]
-        ordering_gb_vars = layer_to_ordering_vars[layer_idx]
-        # always update objective function
-        obj = gp.LinExpr()
-        n1__n2_crossings: int
-        n2__n1_crossings: int
-        for n1 in nodes:
-            for n2 in nodes:
-                if n1 is n2:
-                    continue
-                n1__n2_crossings, n2__n1_crossings = crossings_uv_vu(
-                    ml_graph, n1, n2, above_below
-                )
-                # print(f"{(n1__n2_crossings, n2__n1_crossings)=}")
-                n1__n2 = ordering_gb_vars[(n1, n2)]
-                n2__n1 = ordering_gb_vars[(n2, n1)]
-                obj += n1__n2_crossings * n1__n2 + n2__n1_crossings * n2__n1
-
-        # set objective, update and optimize
-        m.setObjective(obj, GRB.MINIMIZE)
-        m.update()
-        m.optimize()
-
-        # order graph using gurobi variables
-        gurobi_merge_sort(nodes, ordering_gb_vars)
 
 
 def gurobi_merge_sort(arr, ordering_gb_vars):
