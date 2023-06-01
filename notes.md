@@ -24,16 +24,10 @@ https://pypi.org/project/grandalf/
 https://pypi.org/project/ogdf-python/
 
 
-## Meeting notes
-
-- Presentation in ~2 Wochen? Detailgrad?
-- Next steps? visualization (e.g. edge bundling)? more research?
-
 ## TODOS
 
 - [x] implement existing algorithm with constrained nodes: split into two gaps first and apply heuristic
 - [ ] performance comparison graphs (as in lines on x,y plane showing size vs crossings and size vs time)
-- [ ] gurobi tuning?
 - [ ] two-sided ILP formulation
   https://www.researchgate.net/profile/Brian-Alspach/publication/221335384_Arc_Searching_Digraphs_Without_Jumping/links/00b7d525cb7012e03d000000/Arc-Searching-Digraphs-Without-Jumping.pdf#page=273
   page 276
@@ -42,10 +36,9 @@ https://pypi.org/project/ogdf-python/
   - [ ] networkx other random graphs: https://networkx.org/documentation/stable/reference/generators.html#module-networkx.generators.random_graphs
   - [ ] networkx real graphs: https://networkx.org/documentation/stable/reference/generators.html#module-networkx.generators.social
 - [ ] analyse 1- and 2-layer crossing minimization for graph with only 2 layers
-
-Bleibt 3-approximation für median heuristic
-multiple gaps
-ILP max siyze realistic computation time
-ILP multiple gaps (more than 2 choices)
-Abstract for presentation
-presentation: definitions, related work, work done so far, future plans
+- [ ] Bleibt 3-approximation für median heuristic
+- [ ] multiple gaps
+- [ ] ILP max size realistic computation time
+- [ ] ILP multiple gaps (more than 2 choices)
+- [ ] Abstract for presentation
+- [ ] presentation: definitions, related work, work done so far, future plans
