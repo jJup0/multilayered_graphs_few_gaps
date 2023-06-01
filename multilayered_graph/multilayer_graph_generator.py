@@ -3,6 +3,43 @@ import random
 from multilayered_graph.multilayered_graph import MultiLayeredGraph
 
 
+def generate_two_layer_graph(
+    layer1_count: int,
+    layer2_count: int,
+    virtual_nodes_count: int,
+    regular_edges_count: int | None = None,
+    regular_edge_density: float | None = None,
+) -> MultiLayeredGraph:
+    if (regular_edge_density is not None) and (not (0 <= regular_edges_count <= 1)):
+        raise ValueError(f"Invalid {regular_edge_density=}")
+    if regular_edges_count is None:
+        if regular_edge_density is None:
+            raise ValueError(
+                f"regular_edge_density or regular_edges_count need to be given"
+            )
+        regular_edges_count = layer1_count * layer2_count * regular_edge_density
+
+    ml_graph = MultiLayeredGraph(2)
+    l1_nodes = []
+    l2_nodes = []
+    for _ in range(layer1_count):
+        l1_nodes.append(ml_graph.add_real_node(0))
+    for _ in range(layer2_count):
+        l2_nodes.append(ml_graph.add_real_node(1))
+    for i in range(virtual_nodes_count):
+        neighbor = random.choice(l1_nodes)
+        v_node = ml_graph.add_virtual_node(1, f"{neighbor}_id={i}")
+        l2_nodes.append(v_node)
+        ml_graph.add_edge(neighbor, v_node)
+
+    for _ in range(regular_edges_count):
+        n1 = random.choice(l1_nodes)
+        n2 = random.choice(l2_nodes)
+        ml_graph.add_edge(n1, n2)
+
+    return ml_graph
+
+
 def generate_multilayer_graph(
     layers_count: int,
     node_count: int,
