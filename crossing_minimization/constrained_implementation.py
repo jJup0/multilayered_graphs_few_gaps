@@ -19,6 +19,7 @@ from multilayered_graph.multilayered_graph import MultiLayeredGraph, MLGNode
 
 
 def few_gaps_constrained_paper(ml_graph: MultiLayeredGraph):
+    # TODO SEEMS TO BE BUSTED AND NOT PLACE VIRTUAL NODES IN GAPS
     layers__above_below = []
     layers__above_below.extend(
         (layer_idx, "below") for layer_idx in range(1, ml_graph.layer_count)
@@ -34,10 +35,10 @@ def few_gaps_constrained_paper(ml_graph: MultiLayeredGraph):
 
 
 def generate_constraints(
-        ml_graph: MultiLayeredGraph,
-        layer_idx: int,
-        above_or_below: Literal["above"] | Literal["below"],
-        # pass splitting function as parameter?
+    ml_graph: MultiLayeredGraph,
+    layer_idx: int,
+    above_or_below: Literal["above"] | Literal["below"],
+    # pass splitting function as parameter?
 ) -> set[tuple[int, int]]:
     nodes = ml_graph.layers_to_nodes[layer_idx]
 
@@ -75,10 +76,10 @@ def generate_constraints(
 
 
 def constrained_crossing_reduction(
-        ml_graph: MultiLayeredGraph,
-        layer_idx: int,
-        above_or_below: Literal["above"] | Literal["below"],
-        constraints: set[tuple[MLGNode, MLGNode]],
+    ml_graph: MultiLayeredGraph,
+    layer_idx: int,
+    above_or_below: Literal["above"] | Literal["below"],
+    constraints: set[tuple[MLGNode, MLGNode]],
 ):
     # variables starting with an '_' are helper variables not mentioned in the algorithm pseudo code
     _prev_layer_idx = get_layer_idx_above_or_below(layer_idx, above_or_below)
@@ -103,7 +104,9 @@ def constrained_crossing_reduction(
     }
     L = {node: [node] for node in V2}
 
-    V: set[MLGNode] = set(c[0] for c in constraints).union(c[1] for c in constraints)  # constrained vertices
+    V: set[MLGNode] = set(c[0] for c in constraints).union(
+        c[1] for c in constraints
+    )  # constrained vertices
     V_dash = {node for node in V2 if node not in V}  # unconstrained vertices
 
     while True:
@@ -155,10 +158,10 @@ def constrained_crossing_reduction(
 
 
 def find_violated_constraint(
-        V: list[MLGNode],
-        C: set[tuple[MLGNode, MLGNode]],
-        _nodes_to_incoming_edges: dict[MLGNode, set[MLGNode]],
-        _nodes_to_barycenter: dict[MLGNode, float],
+    V: list[MLGNode],
+    C: set[tuple[MLGNode, MLGNode]],
+    _nodes_to_incoming_edges: dict[MLGNode, set[MLGNode]],
+    _nodes_to_barycenter: dict[MLGNode, float],
 ) -> tuple[MLGNode, MLGNode] | None:
     b = _nodes_to_barycenter
 
@@ -187,7 +190,7 @@ def find_violated_constraint(
 
 
 def get_layer_idx_above_or_below(
-        layer_idx: int, above_or_below: Literal["above"] | Literal["below"]
+    layer_idx: int, above_or_below: Literal["above"] | Literal["below"]
 ):
     if above_or_below == "above":
         return layer_idx + 1
