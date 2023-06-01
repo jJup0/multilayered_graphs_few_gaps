@@ -104,7 +104,7 @@ class MultiLayeredGraph:
         self.layers_to_nodes[layer].append(node)
         return node
 
-    def _add_virtual_node(self, layer, name_appendix) -> MLGNode:
+    def add_virtual_node(self, layer, name_appendix) -> MLGNode:
         virtual_node_name = f"{layer}_vnode_{name_appendix}"
         virtual_node = MLGNode(layer, virtual_node_name, True)
         self.layers_to_nodes[layer].append(virtual_node)
@@ -136,7 +136,7 @@ class MultiLayeredGraph:
         prev_node = from_lower_node
         for layer_of_vnode in range(lower_layer + 1, upper_layer):
             # create long edge
-            virtual_node = self._add_virtual_node(
+            virtual_node = self.add_virtual_node(
                 layer_of_vnode, f"{from_lower_node.name}_{to_upper_node.name}"
             )
             self._add_short_edge(prev_node, virtual_node)
