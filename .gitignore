@@ -13,7 +13,7 @@ temp_idea
 !example_images/*
 
 # python
-.pyc
+*.pyc
 
 # temp
 **/temp.py
