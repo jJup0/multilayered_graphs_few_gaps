@@ -1,29 +1,32 @@
 import collections
 import copy
-from functools import cmp_to_key
 from typing import Literal
 
 import gurobipy as gp
 from gurobipy import GRB
 
+from crossing_minimization.barycenter_heuristic import few_gaps_barycenter_smart_sort
 from crossings.calculate_crossings import crossings_uv_vu
 from multilayered_graph.multilayer_graph_generator import generate_multilayer_graph
-from multilayered_graph.multilayered_graph import MultiLayeredGraph, MLGNode
-from crossing_minimization.barycenter_heuristic import few_gaps_barycenter_smart_sort
+from multilayered_graph.multilayered_graph import MLGNode, MultiLayeredGraph
 
-gp.LogToConsole = 0
+gp.setParam("LogToConsole", 0)
 
 
 def few_gaps_gurobi_two_sided(ml_graph: MultiLayeredGraph) -> None:
     m = gp.Model("Multilayered Graph 2 layer cross minimization")
     l1 = ml_graph.layers_to_nodes[0]
     l2 = ml_graph.layers_to_nodes[1]
-    l1_ordering_gb_vars, _, _ = _gen_order_var_and_constraints(m, l1)
-    l2_ordering_gb_vars, _, _ = _gen_order_var_and_constraints(m, l2)
+    l1_ordering_gb_vars, _, _ = _gen_order_var_and_constraints(m, l1, prefix="l1_")
+    l2_ordering_gb_vars, _, _ = _gen_order_var_and_constraints(m, l2, prefix="l2_")
+    print(l1_ordering_gb_vars)
+    print(l2_ordering_gb_vars)
+    # TODO
+    ...
 
 
 def few_gaps_gurobi(ml_graph: MultiLayeredGraph) -> None:
-    layers_to_above_below = []
+    layers_to_above_below: list[tuple[int, Literal["above"] | Literal["below"]]] = []
     layers_to_above_below.extend(
         (layer_idx, "below") for layer_idx in range(1, ml_graph.layer_count)
     )
@@ -93,10 +96,10 @@ def _gen_order_var_and_constraints(m: gp.Model, nodes: list[MLGNode], prefix: st
 
             pair_n1_n2 = (n1, n2)
             pair_n2_n1 = (n2, n1)
-            n1_before_n2 = m.addVar(vtype=GRB.BINARY, name=f"{prefix}{n1}->{n2}")
+            n1_before_n2 = m.addVar(vtype=GRB.BINARY, name=f"{prefix}{n1}->{n2}")  # type: ignore # incorrect call arguments
             ordering_gb_vars[pair_n1_n2] = n1_before_n2
 
-            n2_before_n1 = m.addVar(vtype=GRB.BINARY, name=f"{prefix}{n2}->{n1}")
+            n2_before_n1 = m.addVar(vtype=GRB.BINARY, name=f"{prefix}{n2}->{n1}")  # type: ignore # incorrect call arguments
             ordering_gb_vars[pair_n2_n1] = n2_before_n1
 
             one_before_other_constraint = m.addConstr(
@@ -146,8 +149,8 @@ def _gen_virtual_node_vars_and_constraints(
         tuple[MLGNode, Literal["left"] | Literal["right"]], gp.Var
     ] = {}
     for v_node in virtual_nodes:
-        virtual_node_left = m.addVar(vtype=GRB.BINARY, name=f"{prefix}{v_node}...")
-        virtual_node_right = m.addVar(vtype=GRB.BINARY, name=f"{prefix}...{v_node}")
+        virtual_node_left = m.addVar(vtype=GRB.BINARY, name=f"{prefix}{v_node}...")  # type: ignore # incorrect call arguments
+        virtual_node_right = m.addVar(vtype=GRB.BINARY, name=f"{prefix}...{v_node}")  # type: ignore # incorrect call arguments
         virtual_node_gb_vars[(v_node, "left")] = virtual_node_left
         virtual_node_gb_vars[(v_node, "right")] = virtual_node_right
         m.addConstr(
@@ -169,15 +172,20 @@ def _gen_virtual_node_vars_and_constraints(
     return virtual_node_gb_vars
 
 
-def gurobi_merge_sort(arr, ordering_gb_vars):
-    def merge(_arr1: list[gp.Var], _arr2: list[gp.Var]):
+def gurobi_merge_sort(
+    arr: list[MLGNode], ordering_gb_vars: dict[tuple[MLGNode, MLGNode], gp.Var]
+) -> list[MLGNode]:
+    def merge(_arr1: list[MLGNode], _arr2: list[MLGNode]) -> list[MLGNode]:
         nonlocal ordering_gb_vars
         a1 = collections.deque(_arr1)
-        a2 = collections.deque(arr2)
-        res = []
+        a2 = collections.deque(_arr2)
+        res: list[MLGNode] = []
 
         while a1 and a2:
-            if ordering_gb_vars[a1[0], a2[0]].x > 0.5:
+            # X gives the gurobi-variable's value after optimization. Since the
+            # variable is boolean in our case it will either evaluate to 0 or 1,
+            # so compare with any number in between, 0.5 was arbitrarily chosen
+            if ordering_gb_vars[a1[0], a2[0]].X > 0.5:
                 res.append(a1.popleft())
             else:
                 res.append(a2.popleft())
@@ -194,41 +202,43 @@ def gurobi_merge_sort(arr, ordering_gb_vars):
     return arr
 
 
-def sort_nodes_with_gurobi_ordering_BROKEN(
-    nodes: list[MLGNode], ordering_gb_vars: dict[tuple[MLGNode, MLGNode], gp.Var]
-):
-    def compare(n1: MLGNode, n2: MLGNode):
-        if ordering_gb_vars[n1, n2].x < 0.5:
-            return -1
-        return 1
+#### BUILT IN SORT with cmp_to_key does not work! ####
+# from functools import cmp_to_key
+# def sort_nodes_with_gurobi_ordering_BROKEN(
+#     nodes: list[MLGNode], ordering_gb_vars: dict[tuple[MLGNode, MLGNode], gp.Var]
+# ):
+#     def compare(n1: MLGNode, n2: MLGNode):
+#         if ordering_gb_vars[n1, n2].X < 0.5:
+#             return -1
+#         return 1
 
-    nodes.sort(key=cmp_to_key(compare))
-
-
-def _check_correctly_sorted(
-    nodes: list[MLGNode], ordering_gb_vars: dict[tuple[MLGNode, MLGNode], gp.Var]
-):
-    for i, n1 in enumerate(nodes):
-        for n2 in nodes[i + 1 :]:
-            if ordering_gb_vars[n1, n2].x < 0.9:
-                print(f"ERROR {n1} comes before {n2}")
-                exit(1)
+#     nodes.sort(key=cmp_to_key(compare))
 
 
-def _check_transitive_ordering(
-    nodes: list[MLGNode], ordering_gb_vars: dict[tuple[MLGNode, MLGNode], gp.Var]
-):
-    for n1 in nodes:
-        for n2 in nodes:
-            if n1 is n2:
-                continue
-            if ordering_gb_vars[n1, n2].x < 0.5:
-                continue
-            for n3 in nodes:
-                if n3 is n1 or n3 is n2:
-                    continue
-                if ordering_gb_vars[n2, n3].x > 0.5:
-                    assert ordering_gb_vars[n1, n3].x > 0.5
+# def _check_correctly_sorted(
+#     nodes: list[MLGNode], ordering_gb_vars: dict[tuple[MLGNode, MLGNode], gp.Var]
+# ):
+#     for i, n1 in enumerate(nodes):
+#         for n2 in nodes[i + 1 :]:
+#             if ordering_gb_vars[n1, n2].X < 0.5:
+#                 print(f"ERROR {n1} comes before {n2}")
+#                 exit(1)
+
+
+# def _check_transitive_ordering(
+#     nodes: list[MLGNode], ordering_gb_vars: dict[tuple[MLGNode, MLGNode], gp.Var]
+# ):
+#     for n1 in nodes:
+#         for n2 in nodes:
+#             if n1 is n2:
+#                 continue
+#             if ordering_gb_vars[n1, n2].X < 0.5:
+#                 continue
+#             for n3 in nodes:
+#                 if n3 is n1 or n3 is n2:
+#                     continue
+#                 if ordering_gb_vars[n2, n3].X > 0.5:
+#                     assert ordering_gb_vars[n1, n3].X > 0.5
 
 
 def test_gurobi_implementation():
@@ -237,7 +247,7 @@ def test_gurobi_implementation():
 
     # gurobi_graph.to_pygraphviz_graph().draw("before.svg")
 
-    res = few_gaps_gurobi(gurobi_graph)
+    few_gaps_gurobi(gurobi_graph)
     # print(f"GUROBI RES = {res}")
     print(f"{gurobi_graph.get_crossings_per_layer()=}")
     # gurobi_graph.to_pygraphviz_graph().draw("gurobi.svg")
