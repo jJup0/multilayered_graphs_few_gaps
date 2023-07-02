@@ -3,7 +3,7 @@ from copy import deepcopy
 from typing import Any, TypeAlias
 
 import networkx as nx
-import pygraphviz as pgv
+import pygraphviz as pgv  # type: ignore # stubfile not found
 
 
 class InvalidEdgeParamError(ValueError):
@@ -157,8 +157,8 @@ class MultiLayeredGraph:
         all_nodes_with_props = [
             (node, node.attrs_to_dict()) for node in self.all_nodes_as_list()
         ]
-        nx_graph.add_nodes_from(all_nodes_with_props)
-        nx_graph.add_edges_from(self.all_edges_as_list())
+        nx_graph.add_nodes_from(all_nodes_with_props)  # type: ignore # partially unknown
+        nx_graph.add_edges_from(self.all_edges_as_list())  # type: ignore # partially unknown
         return nx_graph
 
     def to_pygraphviz_graph(self) -> pgv.AGraph:
@@ -184,9 +184,9 @@ class MultiLayeredGraph:
             if node.text_info:
                 attrs["label"] += f"\n{node.text_info}"
 
-            pgv_graph.add_node(node, **attrs)
+            pgv_graph.add_node(node, **attrs)  # type: ignore # partially unknown
 
-        pgv_graph.add_edges_from(self.all_edges_as_list())
+        pgv_graph.add_edges_from(self.all_edges_as_list())  # type: ignore # partially unknown
         return pgv_graph
 
     def all_edges_as_list(self) -> list[tuple[MLGNode, MLGNode]]:
