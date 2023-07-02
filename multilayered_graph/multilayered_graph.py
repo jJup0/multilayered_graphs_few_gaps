@@ -1,8 +1,9 @@
-from copy import deepcopy
-from typing import TypeAlias, Any
-import pygraphviz as pgv
-import networkx as nx
 from collections import defaultdict
+from copy import deepcopy
+from typing import Any, TypeAlias
+
+import networkx as nx
+import pygraphviz as pgv
 
 
 class InvalidEdgeParamError(ValueError):
@@ -39,7 +40,7 @@ class MLGNode:
         _copy.text_info = self.text_info
         return _copy
 
-    def __deepcopy__(self, memodict={}):
+    def __deepcopy__(self, memo: None = None):
         return self.__copy__()
 
     def attrs_to_dict(self) -> dict[str, Any]:
@@ -48,7 +49,7 @@ class MLGNode:
     def __hash__(self) -> int:
         return hash((self.layer, self.name))
 
-    def __eq__(self, other) -> bool:
+    def __eq__(self, other: Any) -> bool:
         return self is other
 
     def __repr__(self) -> str:
@@ -85,7 +86,7 @@ class MultiLayeredGraph:
 
         return _copy
 
-    def __deepcopy__(self, memo_dict=None):
+    def __deepcopy__(self, memo_dict: dict[Any, Any] | None = None):
         if memo_dict is None:
             memo_dict = {}
 
@@ -96,15 +97,16 @@ class MultiLayeredGraph:
             setattr(_copy, k, deepcopy(v, memo_dict))
         return _copy
 
-    def add_real_node(self, layer) -> MLGNode:
+    def add_real_node(self, layer: int, name: str | None = None) -> MLGNode:
         if layer < 0 or layer - 1 > self.layer_count:
             raise InvalidLayerError(f'Invalid layer "{layer}"')
-        node_name = f"{layer}_{len(self.layers_to_nodes[layer])}"
-        node: MLGNode = MLGNode(layer, node_name)
+        if name is None:
+            name = f"{layer}_{len(self.layers_to_nodes[layer])}"
+        node: MLGNode = MLGNode(layer, name)
         self.layers_to_nodes[layer].append(node)
         return node
 
-    def add_virtual_node(self, layer, name_appendix) -> MLGNode:
+    def add_virtual_node(self, layer: int, name_appendix: str) -> MLGNode:
         virtual_node_name = f"{layer}_vnode_{name_appendix}"
         virtual_node = MLGNode(layer, virtual_node_name, True)
         self.layers_to_nodes[layer].append(virtual_node)
@@ -169,7 +171,7 @@ class MultiLayeredGraph:
         for node in self.all_nodes_as_list():
             pos_x, pos_y = positions[node]
             pos_str = f"{pos_x * position_scale},{pos_y * position_scale}"
-            attrs = {"pos": pos_str}
+            attrs: dict[str, Any] = {"pos": pos_str}
             if node.is_virtual:
                 attrs["label"] = ""
                 # attrs["style"] = "invis"
@@ -188,28 +190,28 @@ class MultiLayeredGraph:
         return pgv_graph
 
     def all_edges_as_list(self) -> list[tuple[MLGNode, MLGNode]]:
-        all_edges = []
+        all_edges: list[MLGNodeEdgeType] = []
         for nodes_at_layer in self.layers_to_edges.values():
             all_edges.extend(nodes_at_layer)
 
         return all_edges
 
     def all_nodes_as_list(self) -> list[MLGNode]:
-        all_nodes = []
+        all_nodes: list[MLGNode] = []
         for layer in range(self.layer_count):
             nodes_at_layer = self.layers_to_nodes[layer]
             all_nodes.extend(nodes_at_layer)
         return all_nodes
 
     def nodes_to_index_within_layer(self) -> dict[MLGNode, int]:
-        indices = {}
+        indices: dict[MLGNode, int] = {}
         for nodes_at_layer in self.layers_to_nodes.values():
             for i, node in enumerate(nodes_at_layer):
                 indices[node] = i
         return indices
 
     def nodes_to_integer_relative_coordinates(self) -> dict[MLGNode, tuple[int, int]]:
-        positions = {}
+        positions: dict[MLGNode, tuple[int, int]] = {}
         for layer, nodes_at_layer in self.layers_to_nodes.items():
             for i, node in enumerate(nodes_at_layer):
                 positions[node] = (i, layer)
@@ -217,7 +219,7 @@ class MultiLayeredGraph:
 
     def get_crossings_per_layer(self) -> list[int]:
         curr_positions = self.nodes_to_index_within_layer()
-        crossings_list = []
+        crossing_count_at_layer: list[int] = []
         for layer in range(self.layer_count):
             edges = list(self.layers_to_edges[layer])
             crossings = 0
@@ -232,8 +234,8 @@ class MultiLayeredGraph:
                     w_pos = curr_positions[w]
                     edges_cross = (t_pos - u_pos) * (w_pos - v_pos) < 0
                     crossings += edges_cross
-            crossings_list.append(crossings)
-        return crossings_list
+            crossing_count_at_layer.append(crossings)
+        return crossing_count_at_layer
 
     def get_total_crossings(self):
         return sum(self.get_crossings_per_layer())
