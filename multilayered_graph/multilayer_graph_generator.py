@@ -1,6 +1,10 @@
 import random
 
-from multilayered_graph.multilayered_graph import MultiLayeredGraph
+from multilayered_graph.multilayered_graph import (
+    MLGNode,
+    MLGNodeEdgeType,
+    MultiLayeredGraph,
+)
 
 
 def generate_two_layer_graph(
@@ -10,18 +14,19 @@ def generate_two_layer_graph(
     regular_edges_count: int | None = None,
     regular_edge_density: float | None = None,
 ) -> MultiLayeredGraph:
-    if (regular_edge_density is not None) and (not (0 <= regular_edges_count <= 1)):
+    if (regular_edge_density is not None) and (not (0 <= regular_edge_density <= 1)):
         raise ValueError(f"Invalid {regular_edge_density=}")
+
     if regular_edges_count is None:
         if regular_edge_density is None:
             raise ValueError(
                 f"regular_edge_density or regular_edges_count need to be given"
             )
-        regular_edges_count = layer1_count * layer2_count * regular_edge_density
+        regular_edges_count = int(layer1_count * layer2_count * regular_edge_density)
 
     ml_graph = MultiLayeredGraph(2)
-    l1_nodes = []
-    l2_nodes = []
+    l1_nodes: list[MLGNode] = []
+    l2_nodes: list[MLGNode] = []
     for _ in range(layer1_count):
         l1_nodes.append(ml_graph.add_real_node(0))
     for _ in range(layer2_count):
@@ -173,8 +178,8 @@ def _generate_random_edges(
         ml_graph.add_edge(n1, n2)
 
     # LONG EDGES
-    all_previous_nodes = []
-    all_possible_long_edges = []
+    all_previous_nodes: list[MLGNode] = []
+    all_possible_long_edges: list[MLGNodeEdgeType] = []
     for lower_layer_idx in range(layers_count):
         curr_layer_nodes = ml_graph.layers_to_nodes[lower_layer_idx]
         all_possible_long_edges.extend(
