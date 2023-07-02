@@ -2,21 +2,20 @@ import copy
 import time
 from collections import defaultdict
 from dataclasses import dataclass
-from typing import Callable
+from typing import Any, Callable
 
-from crossing_minimization.constrained_implementation import few_gaps_constrained_paper
-from multilayered_graph import multilayer_graph_generator
-from multilayered_graph.multilayered_graph import MultiLayeredGraph
 from crossing_minimization.barycenter_heuristic import (
     few_gaps_barycenter_smart_sort,
     few_gaps_barycenter_sort_naive,
-    few_gaps_barycenter_split,
 )
+from crossing_minimization.constrained_implementation import few_gaps_constrained_paper
 from crossing_minimization.gurobi_int_lin import few_gaps_gurobi
 from crossing_minimization.median_heuristic import (
-    few_gaps_median_sort_naive,
     few_gaps_median_sort_improved,
+    few_gaps_median_sort_naive,
 )
+from multilayered_graph import multilayer_graph_generator
+from multilayered_graph.multilayered_graph import MultiLayeredGraph
 
 
 @dataclass(frozen=True, slots=True)
@@ -24,7 +23,7 @@ class NamedAlgorithm:
     name: str
     algorithm: Callable[[MultiLayeredGraph], None]
 
-    def __eq__(self, other):
+    def __eq__(self, other: Any):
         return self is other
 
     def __str__(self):
@@ -36,7 +35,7 @@ class GraphAndType:
     graph: MultiLayeredGraph
     type_name: str
 
-    def __eq__(self, other):
+    def __eq__(self, other: Any):
         return self is other
 
     def __str__(self):
@@ -74,12 +73,12 @@ class CrossingsAnalyser:
 
         try:
             for i in range(4):
-                random_params = {
-                    "node_count": 30,
-                    "layers_count": 4,
-                    "edge_density": 0.02,
-                    "long_edge_probability": 0.3,
-                }
+                # random_params = {
+                #     "node_count": 30,
+                #     "layers_count": 4,
+                #     "edge_density": 0.02,
+                #     "long_edge_probability": 0.3,
+                # }
                 two_layer_params = {
                     "layer1_count": 20,
                     "layer2_count": 10,
