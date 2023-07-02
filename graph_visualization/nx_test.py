@@ -1,3 +1,5 @@
+# type: ignore
+"""Module is unused, used to be for testing how networkx works/looks."""
 import matplotlib.pyplot as plt
 import networkx as nx
 
