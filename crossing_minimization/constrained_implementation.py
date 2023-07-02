@@ -4,7 +4,8 @@ Implemented algorithm presented in the following paper:
 @inproceedings{forster2005fast,
   title={A fast and simple heuristic for constrained two-level crossing reduction},
   author={Forster, Michael},
-  booktitle={Graph Drawing: 12th International Symposium, GD 2004, New York, NY, USA, September 29-October 2, 2004, Revised Selected Papers 12},
+  booktitle={Graph Drawing: 12th International Symposium, GD 2004, New York,
+  NY, USA, September 29-October 2, 2004, Revised Selected Papers 12},
   pages={206--216},
   year={2005},
   organization={Springer}
@@ -12,15 +13,15 @@ Implemented algorithm presented in the following paper:
 """
 import statistics
 from collections import deque
-from typing import Literal
+from typing import Literal, TypeAlias
 
 from crossing_minimization.barycenter_heuristic import get_real_node_barycenter
-from multilayered_graph.multilayered_graph import MultiLayeredGraph, MLGNode
+from multilayered_graph.multilayered_graph import MLGNode, MultiLayeredGraph
 
 
 def few_gaps_constrained_paper(ml_graph: MultiLayeredGraph):
     # TODO SEEMS TO BE BUSTED AND NOT PLACE VIRTUAL NODES IN GAPS
-    layers__above_below = []
+    layers__above_below: list[tuple[int, Literal["above"] | Literal["below"]]] = []
     layers__above_below.extend(
         (layer_idx, "below") for layer_idx in range(1, ml_graph.layer_count)
     )
@@ -39,7 +40,7 @@ def generate_constraints(
     layer_idx: int,
     above_or_below: Literal["above"] | Literal["below"],
     # pass splitting function as parameter?
-) -> set[tuple[int, int]]:
+) -> set[tuple[MLGNode, MLGNode]]:
     nodes = ml_graph.layers_to_nodes[layer_idx]
 
     prev_layer_idx = get_layer_idx_above_or_below(layer_idx, above_or_below)
@@ -64,7 +65,7 @@ def generate_constraints(
 
     virtual_nodes = [node for node in nodes if node.is_virtual]
 
-    constraints = set()
+    constraints: set[tuple[MLGNode, MLGNode]] = set()
     for v_node in virtual_nodes:
         # TODO make this decision a parameter passed to the function
         if barycenters[v_node] < median_real_bary:
@@ -75,15 +76,18 @@ def generate_constraints(
     return constraints
 
 
+NodeConstraint_T: TypeAlias = tuple[MLGNode, MLGNode]
+
+
 def constrained_crossing_reduction(
     ml_graph: MultiLayeredGraph,
     layer_idx: int,
     above_or_below: Literal["above"] | Literal["below"],
-    constraints: set[tuple[MLGNode, MLGNode]],
+    constraints: set[NodeConstraint_T],
 ):
     # variables starting with an '_' are helper variables not mentioned in the algorithm pseudo code
     _prev_layer_idx = get_layer_idx_above_or_below(layer_idx, above_or_below)
-    V1 = ml_graph.layers_to_nodes[_prev_layer_idx]
+    # V1 = ml_graph.layers_to_nodes[_prev_layer_idx]
     V2 = ml_graph.layers_to_nodes[layer_idx]
 
     _prev_layer_indices = ml_graph.nodes_to_indices_at_layer(_prev_layer_idx)
@@ -120,8 +124,8 @@ def constrained_crossing_reduction(
         b[v_c] = (b[s] * deg[s] + b[t] * deg[t]) / deg[v_c]
         L[v_c] = L[s] + L[t]
 
-        _constraint_pop_set = set()
-        _constraint_add_set = set()
+        _constraint_pop_set: set[NodeConstraint_T] = set()
+        _constraint_add_set: set[NodeConstraint_T] = set()
         for c in constraints:
             c_0, c_1 = c
 
@@ -148,7 +152,7 @@ def constrained_crossing_reduction(
             V_dash.add(v_c)
 
     V_dash_dash = sorted(V.union(V_dash), key=lambda node: b[node])
-    other_L = []
+    other_L: list[MLGNode] = []
     for node in V_dash_dash:
         other_L.extend(L[node])
 
@@ -158,15 +162,15 @@ def constrained_crossing_reduction(
 
 
 def find_violated_constraint(
-    V: list[MLGNode],
-    C: set[tuple[MLGNode, MLGNode]],
+    V: set[MLGNode],
+    C: set[NodeConstraint_T],
     _nodes_to_incoming_edges: dict[MLGNode, set[MLGNode]],
     _nodes_to_barycenter: dict[MLGNode, float],
 ) -> tuple[MLGNode, MLGNode] | None:
     b = _nodes_to_barycenter
 
-    S = set()  # active vertices
-    I = {}
+    S: set[MLGNode] = set()  # active vertices
+    I: dict[MLGNode, deque[NodeConstraint_T]] = {}
     for v in V:
         I[v] = deque()
         if len(_nodes_to_incoming_edges[v]) == 0:
@@ -183,7 +187,7 @@ def find_violated_constraint(
                 continue
             v, t = c
             I[t].appendleft(c)
-            if I[t] == len(_nodes_to_incoming_edges[t]):
+            if len(I[t]) == len(_nodes_to_incoming_edges[t]):
                 S.add(t)
 
     return None
