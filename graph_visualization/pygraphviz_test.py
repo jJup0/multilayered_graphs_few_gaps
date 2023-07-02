@@ -1,8 +1,6 @@
-from multilayered_graph.multilayer_graph_generator import generate_multilayer_graph
-from crossing_minimization.barycenter_heuristic import (
-    few_gaps_barycenter_smart_sort,
-)
+from crossing_minimization.barycenter_heuristic import few_gaps_barycenter_smart_sort
 from crossing_minimization.median_heuristic import few_gaps_median_sort_improved
+from multilayered_graph.multilayer_graph_generator import generate_multilayer_graph
 from multilayered_graph.multilayered_graph import MultiLayeredGraph
 
 
@@ -17,7 +15,7 @@ def draw_graph():
     few_gaps_barycenter_smart_sort(ml_graph)
     few_gaps_median_sort_improved(ml_graph)
     pgv_graph_median = ml_graph.to_pygraphviz_graph()
-    pgv_graph_median.draw("median.svg")
+    pgv_graph_median.draw("median.svg")  # type: ignore # type of draw partially unknown
 
     # print(pgv_graph.string())  # print to screen
     # pgv_graph.write("simple.dot")  # write to simple.dot
@@ -61,7 +59,7 @@ def draw_presentation_graph():
     pgv_graph = ml_graph.to_pygraphviz_graph()
 
     pgv_graph.layout(prog="dot")
-    pgv_graph.draw("presentation_dot.svg")
+    pgv_graph.draw("presentation_dot.svg")  # type: ignore # type of draw partially unknown
 
 
 if __name__ == "__main__":
