@@ -16,30 +16,49 @@ from collections import deque
 from typing import Literal, TypeAlias
 
 from crossing_minimization.barycenter_heuristic import get_real_node_barycenter
+from crossing_minimization.utils import (
+    DEFAULT_MAX_ITERATIONS_MULTILAYERED_CROSSING_MINIMIZATION,
+    get_layer_idx_above_or_below,
+    lgraph_sorting_algorithm,
+    sorting_parameter_check,
+)
 from multilayered_graph.multilayered_graph import MLGNode, MultiLayeredGraph
 
+NodeConstraint_T: TypeAlias = tuple[MLGNode, MLGNode]
 
-def few_gaps_constrained_paper(ml_graph: MultiLayeredGraph):
-    # TODO SEEMS TO BE BUSTED AND NOT PLACE VIRTUAL NODES IN GAPS
+
+@lgraph_sorting_algorithm
+def few_gaps_constrained_paper(
+    ml_graph: MultiLayeredGraph,
+    *,
+    max_iterations: int = DEFAULT_MAX_ITERATIONS_MULTILAYERED_CROSSING_MINIMIZATION,
+    one_sided: bool = False,
+):
+    sorting_parameter_check(
+        ml_graph, max_iterations=max_iterations, one_sided=one_sided
+    )
     layers__above_below: list[tuple[int, Literal["above"] | Literal["below"]]] = []
     layers__above_below.extend(
         (layer_idx, "below") for layer_idx in range(1, ml_graph.layer_count)
     )
-    layers__above_below.extend(
-        (layer_idx, "above") for layer_idx in range(ml_graph.layer_count - 2, -1, -1)
-    )
-    layers__above_below *= 3
+    if not one_sided:
+        layers__above_below.extend(
+            (layer_idx, "above")
+            for layer_idx in range(ml_graph.layer_count - 2, -1, -1)
+        )
+        layers__above_below *= max_iterations
 
     for layer_idx, above_or_below in layers__above_below:
-        constraints = generate_constraints(ml_graph, layer_idx, above_or_below)
-        constrained_crossing_reduction(ml_graph, layer_idx, above_or_below, constraints)
+        constraints = _generate_constraints(ml_graph, layer_idx, above_or_below)
+        _constrained_crossing_reduction(
+            ml_graph, layer_idx, above_or_below, constraints
+        )
 
 
-def generate_constraints(
+def _generate_constraints(
     ml_graph: MultiLayeredGraph,
     layer_idx: int,
     above_or_below: Literal["above"] | Literal["below"],
-    # pass splitting function as parameter?
 ) -> set[tuple[MLGNode, MLGNode]]:
     nodes = ml_graph.layers_to_nodes[layer_idx]
 
@@ -76,10 +95,7 @@ def generate_constraints(
     return constraints
 
 
-NodeConstraint_T: TypeAlias = tuple[MLGNode, MLGNode]
-
-
-def constrained_crossing_reduction(
+def _constrained_crossing_reduction(
     ml_graph: MultiLayeredGraph,
     layer_idx: int,
     above_or_below: Literal["above"] | Literal["below"],
@@ -114,7 +130,7 @@ def constrained_crossing_reduction(
     V_dash = {node for node in V2 if node not in V}  # unconstrained vertices
 
     while True:
-        _violated = find_violated_constraint(V, constraints, _nodes_to_neighbors, b)
+        _violated = _find_violated_constraint(V, constraints, _nodes_to_neighbors, b)
         if _violated is None:
             break
         s, t = _violated
@@ -161,7 +177,7 @@ def constrained_crossing_reduction(
     ml_graph.layers_to_nodes[layer_idx][:] = other_L
 
 
-def find_violated_constraint(
+def _find_violated_constraint(
     V: set[MLGNode],
     C: set[NodeConstraint_T],
     _nodes_to_incoming_edges: dict[MLGNode, set[MLGNode]],
@@ -191,16 +207,6 @@ def find_violated_constraint(
                 S.add(t)
 
     return None
-
-
-def get_layer_idx_above_or_below(
-    layer_idx: int, above_or_below: Literal["above"] | Literal["below"]
-):
-    if above_or_below == "above":
-        return layer_idx + 1
-    if above_or_below == "below":
-        return layer_idx - 1
-    raise ValueError(f'{above_or_below} needs to be either "above" or "below".')
 
 
 if __name__ == "__main__":
