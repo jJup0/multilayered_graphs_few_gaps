@@ -18,8 +18,8 @@ from typing import Literal, TypeAlias
 from crossing_minimization.barycenter_heuristic import get_real_node_barycenter
 from crossing_minimization.utils import (
     DEFAULT_MAX_ITERATIONS_MULTILAYERED_CROSSING_MINIMIZATION,
+    deprecated_lgraph_sorting,
     get_layer_idx_above_or_below,
-    lgraph_sorting_algorithm,
     sorting_parameter_check,
 )
 from multilayered_graph.multilayered_graph import MLGNode, MultiLayeredGraph
@@ -27,13 +27,14 @@ from multilayered_graph.multilayered_graph import MLGNode, MultiLayeredGraph
 NodeConstraint_T: TypeAlias = tuple[MLGNode, MLGNode]
 
 
-@lgraph_sorting_algorithm
+@deprecated_lgraph_sorting
 def few_gaps_constrained_paper(
     ml_graph: MultiLayeredGraph,
     *,
     max_iterations: int = DEFAULT_MAX_ITERATIONS_MULTILAYERED_CROSSING_MINIMIZATION,
     one_sided: bool = False,
 ):
+    """Implementation does not seem to place nodes in limited gaps."""
     sorting_parameter_check(
         ml_graph, max_iterations=max_iterations, one_sided=one_sided
     )
@@ -41,12 +42,12 @@ def few_gaps_constrained_paper(
     layers__above_below.extend(
         (layer_idx, "below") for layer_idx in range(1, ml_graph.layer_count)
     )
-    if not one_sided:
-        layers__above_below.extend(
-            (layer_idx, "above")
-            for layer_idx in range(ml_graph.layer_count - 2, -1, -1)
-        )
-        layers__above_below *= max_iterations
+    # if not one_sided:
+    #     layers__above_below.extend(
+    #         (layer_idx, "above")
+    #         for layer_idx in range(ml_graph.layer_count - 2, -1, -1)
+    #     )
+    #     layers__above_below *= max_iterations
 
     for layer_idx, above_or_below in layers__above_below:
         constraints = _generate_constraints(ml_graph, layer_idx, above_or_below)
@@ -92,6 +93,7 @@ def _generate_constraints(
         else:
             constraints.update((r_node, v_node) for r_node in real_nodes)
 
+    print("constraints:", *sorted(constraints, key=lambda x: str(x[1])), sep="\n")
     return constraints
 
 
@@ -102,20 +104,20 @@ def _constrained_crossing_reduction(
     constraints: set[NodeConstraint_T],
 ):
     # variables starting with an '_' are helper variables not mentioned in the algorithm pseudo code
-    _prev_layer_idx = get_layer_idx_above_or_below(layer_idx, above_or_below)
-    # V1 = ml_graph.layers_to_nodes[_prev_layer_idx]
-    V2 = ml_graph.layers_to_nodes[layer_idx]
-
-    _prev_layer_indices = ml_graph.nodes_to_indices_at_layer(_prev_layer_idx)
     _nodes_to_neighbors = (
         ml_graph.nodes_to_in_edges
         if above_or_below == "below"
         else ml_graph.nodes_to_out_edges
     )
 
+    # V1 = ml_graph.layers_to_nodes[_prev_layer_idx]
+    V2 = ml_graph.layers_to_nodes[layer_idx]
+
     # in pseudo code already defined in graph datastructure
     deg = {node: len(_nodes_to_neighbors[node]) for node in V2}
 
+    _prev_layer_idx = get_layer_idx_above_or_below(layer_idx, above_or_below)
+    _prev_layer_indices = ml_graph.nodes_to_indices_at_layer(_prev_layer_idx)
     b = {
         node: get_real_node_barycenter(
             ml_graph, node, _nodes_to_neighbors[node], _prev_layer_indices
@@ -140,31 +142,47 @@ def _constrained_crossing_reduction(
         b[v_c] = (b[s] * deg[s] + b[t] * deg[t]) / deg[v_c]
         L[v_c] = L[s] + L[t]
 
-        _constraint_pop_set: set[NodeConstraint_T] = set()
-        _constraint_add_set: set[NodeConstraint_T] = set()
-        for c in constraints:
-            c_0, c_1 = c
+        # # old optimization
+        # _constraint_pop_set: set[NodeConstraint_T] = set()
+        # _constraint_add_set: set[NodeConstraint_T] = set()
+        # for c in constraints:
+        #     c_0, c_1 = c
 
-            # can probably remove, as the only case where this is true should be (s, t) right?
-            if c_0 is s or c_0 is t and c_1 is s or c_1 is t:
-                _constraint_pop_set.add(c)
-                # _constraint_add_set.add(v_c, v_c) # no need as removed later anyways
-            elif c_0 is s or c_0 is t:
-                _constraint_pop_set.add(c)
-                _constraint_add_set.add((c_0, v_c))
-            elif c_1 is s or c_1 is t:
-                _constraint_pop_set.add(c)
-                _constraint_add_set.add((v_c, c_1))
+        #     # can probably remove, as the only case where this is true should be (s, t) right?
+        #     if c_0 is s or c_0 is t and c_1 is s or c_1 is t:
+        #         _constraint_pop_set.add(c)
+        #         # _constraint_add_set.add(v_c, v_c) # no need as removed later anyways
+        #     elif c_0 is s or c_0 is t:
+        #         _constraint_pop_set.add(c)
+        #         _constraint_add_set.add((c_0, v_c))
+        #     elif c_1 is s or c_1 is t:
+        #         _constraint_pop_set.add(c)
+        #         _constraint_add_set.add((v_c, c_1))
+        # constraints.update(_constraint_add_set)
+        # constraints.difference_update(_constraint_pop_set)
+        # constraints.discard((v_c, v_c))
+        # V.discard(s)
+        # V.discard(t)
+        # # if v_c has incident constraints
+        # if _constraint_add_set:
+        #     V.add(v_c)
+        # else:
+        #     V_dash.add(v_c)
 
-        constraints.update(_constraint_add_set)
-        constraints.difference_update(_constraint_pop_set)
+        constraints = set(
+            tuple(node if node is not s and node is not t else v_c for node in c)
+            for c in constraints
+        )
         constraints.discard((v_c, v_c))
         V.discard(s)
         V.discard(t)
-        # if v_c has incident constraints
-        if _constraint_add_set:
-            V.add(v_c)
-        else:
+        _v_c_is_constrained = False
+        for n1, n2 in constraints:
+            if n1 is v_c or n2 is v_c:
+                V.add(v_c)
+                _v_c_is_constrained = True
+                break
+        if not _v_c_is_constrained:
             V_dash.add(v_c)
 
     V_dash_dash = sorted(V.union(V_dash), key=lambda node: b[node])
