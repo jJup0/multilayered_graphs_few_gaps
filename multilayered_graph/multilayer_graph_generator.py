@@ -31,16 +31,17 @@ def generate_two_layer_graph(
         l1_nodes.append(ml_graph.add_real_node(0))
     for _ in range(layer2_count):
         l2_nodes.append(ml_graph.add_real_node(1))
-    for i in range(virtual_nodes_count):
-        neighbor = random.choice(l1_nodes)
-        v_node = ml_graph.add_virtual_node(1, f"{neighbor}_id={i}")
-        l2_nodes.append(v_node)
-        ml_graph.add_edge(neighbor, v_node)
 
     for _ in range(regular_edges_count):
         n1 = random.choice(l1_nodes)
         n2 = random.choice(l2_nodes)
         ml_graph.add_edge(n1, n2)
+
+    for i in range(virtual_nodes_count):
+        neighbor = random.choice(l1_nodes)
+        v_node = ml_graph.add_virtual_node(1, f"{neighbor}_id={i}")
+        l2_nodes.append(v_node)
+        ml_graph.add_edge(neighbor, v_node)
 
     return ml_graph
 
