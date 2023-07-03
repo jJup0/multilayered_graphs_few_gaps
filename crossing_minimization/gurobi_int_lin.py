@@ -6,6 +6,10 @@ import gurobipy as gp
 from gurobipy import GRB
 
 from crossing_minimization.barycenter_heuristic import few_gaps_barycenter_smart_sort
+from crossing_minimization.utils import (
+    DEFAULT_MAX_ITERATIONS_MULTILAYERED_CROSSING_MINIMIZATION,
+    sorting_parameter_check,
+)
 from crossings.calculate_crossings import crossings_uv_vu
 from multilayered_graph.multilayer_graph_generator import generate_multilayer_graph
 from multilayered_graph.multilayered_graph import MLGNode, MultiLayeredGraph
@@ -13,27 +17,114 @@ from multilayered_graph.multilayered_graph import MLGNode, MultiLayeredGraph
 gp.setParam("LogToConsole", 0)
 
 
-def few_gaps_gurobi_two_sided(ml_graph: MultiLayeredGraph) -> None:
+def few_gaps_gurobi_two_sided(
+    ml_graph: MultiLayeredGraph,
+) -> None:
+    if ml_graph.layer_count != 2:
+        raise ValueError(f"ml_graph.layer_count must be 2, got {ml_graph.layer_count}")
+
     m = gp.Model("Multilayered Graph 2 layer cross minimization")
     l1 = ml_graph.layers_to_nodes[0]
     l2 = ml_graph.layers_to_nodes[1]
     l1_ordering_gb_vars, _, _ = _gen_order_var_and_constraints(m, l1, prefix="l1_")
     l2_ordering_gb_vars, _, _ = _gen_order_var_and_constraints(m, l2, prefix="l2_")
-    print(l1_ordering_gb_vars)
-    print(l2_ordering_gb_vars)
-    # TODO
-    ...
+
+    real_nodes_l2 = [n for n in l2 if not n.is_virtual]
+    virtual_nodes_l2 = [n for n in l2 if n.is_virtual]
+    _gen_virtual_node_vars_and_constraints(
+        m,
+        virtual_nodes=virtual_nodes_l2,
+        real_nodes=real_nodes_l2,
+        ordering_gb_vars=l1_ordering_gb_vars,
+    )
+
+    # create objective function
+    obj = gp.LinExpr()
+    edges = ml_graph.layers_to_edges[0]
+    for e1 in edges:
+        n1_l1, n1_l2 = e1
+        for e2 in edges:
+            if e1 == e2:
+                continue
+            n2_l1, n2_l2 = e2
+
+            ordering_var_for_l1_nodes = l1_ordering_gb_vars[n1_l1, n1_l2]
+            ordering_var_for_l2_nodes = l2_ordering_gb_vars[n2_l1, n2_l2]
+
+            crossing_between_nodes = m.addVar(
+                vtype=GRB.BINARY, name=f"c_{n1_l1}{n2_l1}{n1_l2}{n2_l2}"
+            )
+
+            m.addConstr(
+                crossing_between_nodes
+                >= ordering_var_for_l1_nodes - ordering_var_for_l2_nodes,
+                f"cross_{n1_l1}{n2_l1}{n1_l2}{n2_l2}",
+            )
+            m.addConstr(
+                crossing_between_nodes
+                >= ordering_var_for_l2_nodes - ordering_var_for_l1_nodes,
+                f"cross_{n1_l2}{n2_l2}{n1_l1}{n2_l1}",
+            )
+
+            obj += crossing_between_nodes
+    # for u in l2:
+    #     for v in l2:
+    #         if u is v:
+    #             continue
+    #         ordering_var_for_l1_nodes = l1_ordering_gb_vars[u, v]
+    #         for w in l2:
+    #             for z in l2:
+    #                 if w is z:
+    #                     continue
+    #                 w_z_ordering_var = l1_ordering_gb_vars[w, z]
+
+    #                 crossing_between_nodes = m.addVar(
+    #                     vtype=GRB.BINARY, name=f"c_{u}{v}{w}{z}"
+    #                 )
+
+    #                 m.addConstr(
+    #                     crossing_between_nodes
+    #                     >= ordering_var_for_l1_nodes - w_z_ordering_var,
+    #                     f"cross_{u}{v}{w}{z}",
+    #                 )
+    #                 m.addConstr(
+    #                     crossing_between_nodes
+    #                     >= w_z_ordering_var - ordering_var_for_l1_nodes,
+    #                     f"cross_{w}{z}{u}{v}",
+    #                 )
+
+    #                 obj += crossing_between_nodes
+
+    # set objective, update and optimize
+    m.setObjective(obj, GRB.MINIMIZE)
+    m.update()
+    m.optimize()
+
+    # order graph using gurobi variables
+    gurobi_merge_sort(l1, l1_ordering_gb_vars)
+    gurobi_merge_sort(l2, l2_ordering_gb_vars)
 
 
-def few_gaps_gurobi(ml_graph: MultiLayeredGraph) -> None:
+def few_gaps_gurobi(
+    ml_graph: MultiLayeredGraph,
+    *,
+    max_iterations: int = DEFAULT_MAX_ITERATIONS_MULTILAYERED_CROSSING_MINIMIZATION,
+    one_sided: bool = False,
+) -> None:
+    sorting_parameter_check(
+        ml_graph, max_iterations=max_iterations, one_sided=one_sided
+    )
+
     layers_to_above_below: list[tuple[int, Literal["above"] | Literal["below"]]] = []
     layers_to_above_below.extend(
         (layer_idx, "below") for layer_idx in range(1, ml_graph.layer_count)
     )
-    layers_to_above_below.extend(
-        (layer_idx, "above") for layer_idx in range(ml_graph.layer_count - 2, -1, -1)
-    )
-    layers_to_above_below *= 3
+    if not one_sided:
+        layers_to_above_below.extend(
+            (layer_idx, "above")
+            for layer_idx in range(ml_graph.layer_count - 2, -1, -1)
+        )
+        layers_to_above_below *= max_iterations
 
     layer_to_model: dict[int, gp.Model] = {}
     layer_to_ordering_vars: dict[int, dict[tuple[MLGNode, MLGNode], gp.Var]] = {}
