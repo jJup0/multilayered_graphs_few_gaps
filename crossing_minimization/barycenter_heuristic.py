@@ -87,7 +87,7 @@ def few_gaps_barycenter_sort_naive(
     ):
         nonlocal ml_graph
         real_node_barycenters = (
-            _get_real_node_barycenter(
+            get_real_node_barycenter(
                 ml_graph, node, _node_to_neighbors[node], _prev_layer_indices
             )
             for node in nodes_at_layer
@@ -151,7 +151,7 @@ def _sorting_parameter_check(
         raise ValueError(f"iterations must be > 0, received {max_iterations}")
 
 
-def _get_real_node_barycenter(
+def get_real_node_barycenter(
     ml_graph: MultiLayeredGraph,
     node: MLGNode,
     neighbors: set[MLGNode],
@@ -241,7 +241,7 @@ def few_gaps_barycenter_split(_ml_graph: MultiLayeredGraph) -> None:
     ):
         curr_layer_nodes: list[MLGNode] = ml_graph.layers_to_nodes[layer_idx]
         barycenters = {
-            node: _get_real_node_barycenter(
+            node: get_real_node_barycenter(
                 ml_graph, node, node_to_neighbors[node], prev_layer_indices
             )
             for node in curr_layer_nodes
