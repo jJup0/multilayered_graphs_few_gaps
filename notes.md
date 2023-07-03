@@ -25,8 +25,8 @@ https://pypi.org/project/ogdf-python/
 ## TODOS
 
 - [x] implement existing algorithm with constrained nodes: split into two gaps first and apply heuristic
-- [ ] make one-sided crossing minimization of algorithms
-- [ ] check if constraints variation is still busted
+- [x] make one-sided crossing minimization of algorithms
+- [x] check if constraints variation is still busted (it is)
 - [ ] performance comparison graphs (as in lines on x,y plane showing size vs crossings and size vs time)
 - [ ] two-sided ILP formulation
       https://www.researchgate.net/profile/Brian-Alspach/publication/221335384_Arc_Searching_Digraphs_Without_Jumping/links/00b7d525cb7012e03d000000/Arc-Searching-Digraphs-Without-Jumping.pdf#page=273
