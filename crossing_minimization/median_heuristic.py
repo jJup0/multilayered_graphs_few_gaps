@@ -1,45 +1,30 @@
 import statistics
 from typing import Literal
 
+from crossing_minimization.utils import (
+    DEFAULT_MAX_ITERATIONS_MULTILAYERED_CROSSING_MINIMIZATION,
+    lgraph_sorting_algorithm,
+    sorting_parameter_check,
+)
 from crossings.calculate_crossings import crossings_uv_vu
 from multilayered_graph.multilayered_graph import MLGNode, MultiLayeredGraph
 
 PSEUDO_SORT_DISPLACE_VALUE = 1_000
 
 
-def few_gaps_median_sort_naive(ml_graph: MultiLayeredGraph) -> None:
+@lgraph_sorting_algorithm
+def few_gaps_median_sort_naive(
+    ml_graph: MultiLayeredGraph,
+    *,
+    max_iterations: int = DEFAULT_MAX_ITERATIONS_MULTILAYERED_CROSSING_MINIMIZATION,
+    one_sided: bool = False,
+) -> None:
     """Sorts nodes in multilayered graph according to median heuristic.
 
     Modified in place. Naive virtual node placement.
     Args:
         ml_graph: Graph on which to apply sorting.
     """
-
-    def _get_real_node_median_median(
-        _nodes_at_layer: list[MLGNode],
-        _node_to_neighbors: dict[MLGNode, set[MLGNode]],
-        _prev_layer_indices: dict[MLGNode, int],
-    ):
-        """Calculate median of medians of real nodes at given layer.
-
-        :param _nodes_at_layer: Nodes of a layer for which to calculate.
-        :param _node_to_neighbors: Mapping from nodes to their neighbors.
-        :param _prev_layer_indices: Mapping from nodes at "previous" layer to position in layer.
-        :return: Median of medians of real nodes at given layer.
-        """
-        real_node_medians = (
-            _unweighted_median(
-                layer_before_sorting=_nodes_at_layer,
-                node=node,
-                neighbors=_node_to_neighbors[node],
-                prev_layer_indices=_prev_layer_indices,
-            )
-            for node in _nodes_at_layer
-            if not node.is_virtual
-        )
-
-        # should have at least one real node in layer, so list should not be empty
-        return statistics.median(real_node_medians)
 
     def _sort_layer(
         _layer_idx: int,
@@ -48,7 +33,7 @@ def few_gaps_median_sort_naive(ml_graph: MultiLayeredGraph) -> None:
     ):
         nonlocal ml_graph
         layer_before_sorting = ml_graph.layers_to_nodes[_layer_idx][:]
-        real_node_median_median = _get_real_node_median_median(
+        real_node_median_median = get_real_node_median_median(
             _nodes_at_layer=layer_before_sorting,
             _node_to_neighbors=node_to_neighbors,
             _prev_layer_indices=_prev_layer_indices,
@@ -65,23 +50,40 @@ def few_gaps_median_sort_naive(ml_graph: MultiLayeredGraph) -> None:
             ),
         )
 
+    sorting_parameter_check(
+        ml_graph, max_iterations=max_iterations, one_sided=one_sided
+    )
+
     node_to_in_neighbors = ml_graph.nodes_to_in_edges
     node_to_out_neighbors = ml_graph.nodes_to_out_edges
-    for _ in range(3):
+    for _ in range(max_iterations):
         for layer_idx in range(1, ml_graph.layer_count):
             prev_layer_indices = ml_graph.nodes_to_indices_at_layer(layer_idx - 1)
             _sort_layer(layer_idx, prev_layer_indices, node_to_in_neighbors)
+        if one_sided:
+            return
         for layer_idx in range(ml_graph.layer_count - 2, -1, -1):
             prev_layer_indices = ml_graph.nodes_to_indices_at_layer(layer_idx + 1)
             _sort_layer(layer_idx, prev_layer_indices, node_to_out_neighbors)
 
 
-def few_gaps_median_sort_improved(ml_graph: MultiLayeredGraph) -> None:
+@lgraph_sorting_algorithm
+def few_gaps_median_sort_improved(
+    ml_graph: MultiLayeredGraph,
+    *,
+    max_iterations: int = DEFAULT_MAX_ITERATIONS_MULTILAYERED_CROSSING_MINIMIZATION,
+    one_sided: bool = False,
+) -> None:
     """Sorts nodes in multilayered graph according to median heuristic.
 
     Modified in place. Improved virtual node placement.
     Args:
         ml_graph: Graph on which to apply sorting.
+        max_iterations:
+          Amount of "up" and "down" cycles to make for sorting. Defaults to 3.
+        one_sided:
+          Whether to only do one sided crossing minimization or not.
+          Defaults to False.
     """
 
     def _sort_layer(
@@ -110,17 +112,50 @@ def few_gaps_median_sort_improved(ml_graph: MultiLayeredGraph) -> None:
             )
         )
 
+    sorting_parameter_check(
+        ml_graph, max_iterations=max_iterations, one_sided=one_sided
+    )
+
     node_to_in_neighbors = ml_graph.nodes_to_in_edges
     node_to_out_neighbors = ml_graph.nodes_to_out_edges
 
     # arbitrary loop count,TODO pass as parameter?
-    for _ in range(3):
+    for _ in range(max_iterations):
         for layer in range(1, ml_graph.layer_count):
             prev_layer_indices = ml_graph.nodes_to_indices_at_layer(layer - 1)
             _sort_layer(layer, prev_layer_indices, node_to_in_neighbors, "below")
+        if one_sided:
+            return
         for layer in range(ml_graph.layer_count - 2, -1, -1):
             prev_layer_indices = ml_graph.nodes_to_indices_at_layer(layer + 1)
             _sort_layer(layer, prev_layer_indices, node_to_out_neighbors, "above")
+
+
+def get_real_node_median_median(
+    _nodes_at_layer: list[MLGNode],
+    _node_to_neighbors: dict[MLGNode, set[MLGNode]],
+    _prev_layer_indices: dict[MLGNode, int],
+):
+    """Calculate median of medians of real nodes at given layer.
+
+    :param _nodes_at_layer: Nodes of a layer for which to calculate.
+    :param _node_to_neighbors: Mapping from nodes to their neighbors.
+    :param _prev_layer_indices: Mapping from nodes at "previous" layer to position in layer.
+    :return: Median of medians of real nodes at given layer.
+    """
+    real_node_medians = (
+        _unweighted_median(
+            layer_before_sorting=_nodes_at_layer,
+            node=node,
+            neighbors=_node_to_neighbors[node],
+            prev_layer_indices=_prev_layer_indices,
+        )
+        for node in _nodes_at_layer
+        if not node.is_virtual
+    )
+
+    # should have at least one real node in layer, so list should not be empty
+    return statistics.median(real_node_medians)
 
 
 def _unweighted_median(
