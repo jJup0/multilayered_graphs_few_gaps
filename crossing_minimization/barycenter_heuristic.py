@@ -21,6 +21,16 @@ def few_gaps_barycenter_smart_sort(
     max_iterations: int = DEFAULT_MAX_ITERATIONS_MULTILAYERED_CROSSING_MINIMIZATION,
     one_sided: bool = False,
 ) -> None:
+    """Sorts MultiLayeredGraph using barycenter heuristic, placing nodes depending on minimal crossings.
+
+    Args:
+        ml_graph (MultiLayeredGraph): _description_
+        max_iterations:
+          Amount of "up" and "down" cycles to make for sorting. Defaults to 3.
+        one_sided:
+          Whether to only do one sided crossing minimization or not.
+          Defaults to False.
+    """
     sorting_parameter_check(
         ml_graph, max_iterations=max_iterations, one_sided=one_sided
     )
@@ -77,7 +87,7 @@ def few_gaps_barycenter_sort_naive(
     Args:
         ml_graph:
           Graph on which to apply sorting.
-        iterations:
+        max_iterations:
           Amount of "up" and "down" cycles to make for sorting. Defaults to 3.
         one_sided:
           Whether to only do one sided crossing minimization or not.
