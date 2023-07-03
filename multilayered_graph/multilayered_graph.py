@@ -68,8 +68,12 @@ class MultiLayeredGraph:
     def __init__(self, layer_count: int = 1):
         if layer_count < 0:
             raise ValueError("Layer count must be larger than 0.")
-        self.layers_to_nodes: defaultdict[int, list[MLGNode]] = defaultdict(list)
+
         self.layer_count = layer_count
+
+        # Maps list of nodes to layer. The order of the nodes in this list is
+        # the same order as they are when drawn
+        self.layers_to_nodes: defaultdict[int, list[MLGNode]] = defaultdict(list)
         self.layers_to_edges: defaultdict[
             int, set[tuple[MLGNode, MLGNode]]
         ] = defaultdict(set)
