@@ -71,8 +71,9 @@ class CrossingsAnalyser:
             alg: defaultdict(list) for alg in self.algorithms
         }
 
+        runs = 5
         try:
-            for i in range(4):
+            for i in range(runs):
                 # random_params = {
                 #     "node_count": 30,
                 #     "layers_count": 4,
@@ -80,16 +81,20 @@ class CrossingsAnalyser:
                 #     "long_edge_probability": 0.3,
                 # }
                 two_layer_params = {
-                    "layer1_count": 20,
-                    "layer2_count": 10,
-                    "virtual_nodes_count": 20,
-                    "regular_edges_count": 400,
+                    "layer1_count": 7,
+                    "layer2_count": 7,
+                    "virtual_nodes_count": 7,
+                    "regular_edges_count": 15,
                 }
+                self._reorganize_graph_and_count_crossings(
+                    self._gen_two_layer_graph(**two_layer_params),
+                    self.algs_graphtype_crossings,
+                )
                 # two_layer_params = {
-                #     "layer1_count": 3,
+                #     "layer1_count": 5,
                 #     "layer2_count": 3,
                 #     "virtual_nodes_count": 3,
-                #     "regular_edges_count": 8,
+                #     "regular_edges_count": 3,
                 # }
                 # self._test_random_graph(**random_params, randomness_seed=i)
                 #
@@ -102,10 +107,10 @@ class CrossingsAnalyser:
                 #     self._gen_random_graph(**random_params, randomness_seed=i),
                 #     self.algs_graphtype_crossings,
                 # )
-                self._reorganize_graph_and_count_crossings(
-                    self._gen_two_layer_graph(**two_layer_params),
-                    self.algs_graphtype_crossings,
-                )
+                # self._reorganize_graph_and_count_crossings(
+                #     self._gen_two_layer_graph(**two_layer_params),
+                #     self.algs_graphtype_crossings,
+                # )
                 #
                 # random_params["layers_count"] = 8
                 # self._test_random_graph(**random_params, randomness_seed=i)
@@ -120,8 +125,8 @@ class CrossingsAnalyser:
                 total_crossings = sum(
                     self.algs_graphtype_crossings[named_alg][graph_type]
                 )
-                runs = len(self.algs_graphtype_crossings[named_alg][graph_type])
-                mean_crossings = total_crossings / runs
+                actual_runs = len(self.algs_graphtype_crossings[named_alg][graph_type])
+                mean_crossings = total_crossings / actual_runs
 
                 print(
                     f"\t{str(named_alg):<30} had mean crossing count of {mean_crossings:>8.2f}"
@@ -202,15 +207,18 @@ class CrossingsAnalyser:
             NamedAlgorithm, dict[str, list[int]]
         ],
     ):
+        DRAW_GRAPHS = False
         perf_timer_start__deep_copy = time.perf_counter_ns()
 
-        graph = graph_and_type.graph
+        original_graph = graph_and_type.graph
         graph_type = graph_and_type.type_name
+        if DRAW_GRAPHS and False:
+            original_graph.to_pygraphviz_graph().draw(f"original.svg")
+
         graph_copies: list[MultiLayeredGraph] = [
-            copy.deepcopy(graph)
-            for _ in range(len(algorithms_to_graph_structure_to_crossings) - 1)
+            copy.deepcopy(original_graph)
+            for _ in range(len(algorithms_to_graph_structure_to_crossings))
         ]
-        graph_copies.append(graph)
 
         self.timings["deep_copies"].append(
             time.perf_counter_ns() - perf_timer_start__deep_copy
@@ -225,6 +233,12 @@ class CrossingsAnalyser:
             algorithms_to_graph_structure_to_crossings.keys(), graph_copies, strict=True
         ):
             named_alg.algorithm(graph_copy)
+            # optional validation step
+            try:
+                self.assert_sorted_graph_valid(original_graph, graph_copy, 2)
+            except AssertionError as err:
+                print(f"WARNING!!! {named_alg.name} sorted the graph invalidly: {err}")
+
             crossing_count = graph_copy.get_total_crossings()
             algorithms_to_graph_structure_to_crossings[named_alg][graph_type].append(
                 crossing_count
@@ -235,8 +249,46 @@ class CrossingsAnalyser:
             )
             perf_timer_end_prev_alg = perf_timer_end_curr_alg
 
-            # graph_copy.to_pygraphviz_graph().draw(f"{named_alg.name}-re.svg")
             # print(f"{named_alg.name} produced {crossing_count} crossings")
+
+    def assert_sorted_graph_valid(
+        self,
+        orignal_graph: MultiLayeredGraph,
+        sorted_graph: MultiLayeredGraph,
+        gaps_allowed: int,
+    ):
+        def assert_with_message(evaluation: bool, msg: str):
+            if not evaluation:
+                raise AssertionError(msg)
+
+        assert_with_message(
+            orignal_graph.layer_count == sorted_graph.layer_count, "Layer count differs"
+        )
+        for layer in range(orignal_graph.layer_count):
+            og_nodes = orignal_graph.layers_to_nodes[layer]
+            sorted_nodes = sorted_graph.layers_to_nodes[layer]
+            assert_with_message(
+                len(og_nodes) == len(sorted_nodes),
+                f"Node count at {layer=} differs. {len(og_nodes)} != {len(sorted_nodes)}",
+            )
+
+            og_nodes_set = set(node.name for node in og_nodes)
+            sorted_nodes_set = set(node.name for node in sorted_nodes)
+            assert_with_message(og_nodes_set == sorted_nodes_set, f"Node names differ")
+
+            gaps = 0
+            prev_node_type_is_virtual = False
+            for node in sorted_nodes:
+                if node.is_virtual:
+                    if not prev_node_type_is_virtual:
+                        prev_node_type_is_virtual = True
+                        gaps += 1
+                else:
+                    prev_node_type_is_virtual = False
+            assert_with_message(
+                gaps <= gaps_allowed,
+                f"Produced {gaps} gaps, but only {gaps_allowed} gaps allowed",
+            )
 
 
 if __name__ == "__main__":
