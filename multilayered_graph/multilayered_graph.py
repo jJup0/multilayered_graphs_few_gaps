@@ -207,7 +207,7 @@ class MultiLayeredGraph:
             all_nodes.extend(nodes_at_layer)
         return all_nodes
 
-    def nodes_to_index_within_layer(self) -> dict[MLGNode, int]:
+    def nodes_to_index_within_layer_for_whole_graph(self) -> dict[MLGNode, int]:
         indices: dict[MLGNode, int] = {}
         for nodes_at_layer in self.layers_to_nodes.values():
             for i, node in enumerate(nodes_at_layer):
@@ -222,7 +222,7 @@ class MultiLayeredGraph:
         return positions
 
     def get_crossings_per_layer(self) -> list[int]:
-        curr_positions = self.nodes_to_index_within_layer()
+        curr_positions = self.nodes_to_index_within_layer_for_whole_graph()
         crossing_count_at_layer: list[int] = []
         for layer in range(self.layer_count):
             edges = list(self.layers_to_edges[layer])
@@ -244,7 +244,7 @@ class MultiLayeredGraph:
     def get_total_crossings(self):
         return sum(self.get_crossings_per_layer())
 
-    def nodes_to_indices_at_layer(self, layer_idx: int):
+    def nodes_to_indices_at_layer(self, layer_idx: int) -> dict[MLGNode, int]:
         return {
             node: index for index, node in enumerate(self.layers_to_nodes[layer_idx])
         }
