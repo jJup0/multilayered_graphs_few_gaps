@@ -17,6 +17,20 @@ from multilayered_graph.multilayered_graph import MLGNode, MultiLayeredGraph
 gp.setParam("LogToConsole", 0)
 
 
+def few_gaps_gurobi_wrapper(
+    ml_graph: MultiLayeredGraph,
+    *,
+    max_iterations: int = DEFAULT_MAX_ITERATIONS_MULTILAYERED_CROSSING_MINIMIZATION,
+    one_sided: bool = False,
+):
+    if ml_graph.layer_count == 2 and not one_sided:
+        return few_gaps_gurobi_two_sided(ml_graph)
+
+    return few_gaps_gurobi_one_sided(
+        ml_graph, max_iterations=max_iterations, one_sided=one_sided
+    )
+
+
 def few_gaps_gurobi_two_sided(
     ml_graph: MultiLayeredGraph,
 ) -> None:
@@ -35,7 +49,7 @@ def few_gaps_gurobi_two_sided(
         m,
         virtual_nodes=virtual_nodes_l2,
         real_nodes=real_nodes_l2,
-        ordering_gb_vars=l1_ordering_gb_vars,
+        ordering_gb_vars=l2_ordering_gb_vars,
     )
 
     # create objective function
@@ -44,12 +58,12 @@ def few_gaps_gurobi_two_sided(
     for e1 in edges:
         n1_l1, n1_l2 = e1
         for e2 in edges:
-            if e1 == e2:
-                continue
             n2_l1, n2_l2 = e2
+            if n1_l1 is n2_l1 or n1_l2 is n2_l2:
+                continue
 
-            ordering_var_for_l1_nodes = l1_ordering_gb_vars[n1_l1, n1_l2]
-            ordering_var_for_l2_nodes = l2_ordering_gb_vars[n2_l1, n2_l2]
+            ordering_var_for_l1_nodes = l1_ordering_gb_vars[n1_l1, n2_l1]
+            ordering_var_for_l2_nodes = l2_ordering_gb_vars[n1_l2, n2_l2]
 
             crossing_between_nodes = m.addVar(
                 vtype=GRB.BINARY, name=f"c_{n1_l1}{n2_l1}{n1_l2}{n2_l2}"
@@ -105,7 +119,7 @@ def few_gaps_gurobi_two_sided(
     gurobi_merge_sort(l2, l2_ordering_gb_vars)
 
 
-def few_gaps_gurobi(
+def few_gaps_gurobi_one_sided(
     ml_graph: MultiLayeredGraph,
     *,
     max_iterations: int = DEFAULT_MAX_ITERATIONS_MULTILAYERED_CROSSING_MINIMIZATION,
@@ -338,7 +352,7 @@ def test_gurobi_implementation():
 
     # gurobi_graph.to_pygraphviz_graph().draw("before.svg")
 
-    few_gaps_gurobi(gurobi_graph)
+    few_gaps_gurobi_one_sided(gurobi_graph)
     # print(f"GUROBI RES = {res}")
     print(f"{gurobi_graph.get_crossings_per_layer()=}")
     # gurobi_graph.to_pygraphviz_graph().draw("gurobi.svg")
