@@ -284,6 +284,7 @@ class CrossingsAnalyser:
         orignal_graph: MultiLayeredGraph,
         sorted_graph: MultiLayeredGraph,
         gaps_allowed: int,
+        only_side_gaps: bool = False,
     ):
         """Given an original graph, check if it's crossing-minimized graph is a valid permutation.
 
@@ -296,6 +297,14 @@ class CrossingsAnalyser:
         def assert_with_message(evaluation: bool, msg: str):
             if not evaluation:
                 raise AssertionError(msg)
+
+        if gaps_allowed < 1:
+            raise ValueError("At least one gap must be allowed")
+
+        if only_side_gaps and gaps_allowed > 2:
+            raise ValueError(
+                "If only side gaps are allowed, gaps allowed per layer may not exceed 2"
+            )
 
         assert_with_message(
             orignal_graph.layer_count == sorted_graph.layer_count, "Layer count differs"
@@ -313,7 +322,8 @@ class CrossingsAnalyser:
             assert_with_message(og_nodes_set == sorted_nodes_set, f"Node names differ")
 
             gaps = 0
-            prev_node_type_is_virtual = False
+            # if only side gaps allowed, then make dummy-previous-node virtual, to enforce side gap
+            prev_node_type_is_virtual = only_side_gaps
             for node in sorted_nodes:
                 if node.is_virtual:
                     if not prev_node_type_is_virtual:
@@ -321,6 +331,12 @@ class CrossingsAnalyser:
                         gaps += 1
                 else:
                     prev_node_type_is_virtual = False
+            if only_side_gaps:
+                if gaps == gaps_allowed:
+                    assert_with_message(
+                        prev_node_type_is_virtual == True,
+                        f"Produced {gaps} as algorithm should, however they were not placed on the sides",
+                    )
             assert_with_message(
                 gaps <= gaps_allowed,
                 f"Produced {gaps} gaps, but only {gaps_allowed} gaps allowed",
