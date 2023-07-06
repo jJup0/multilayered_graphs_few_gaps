@@ -20,11 +20,11 @@ def _get_crossings_for_vnodes_in_gaps(
     in in a group of real nodes and count crossings.
 
     Example:
-    Numbers represent real nodes, X represents virtual node, ascii art represents crossings:
+    Numbers represent real nodes, X represents virtual node, ascii art represents edges:
 
-        1       2___    3   X
-        |\____  |  _\__/|  /
-        |     \ | /  \__|_/
+        1       2___   _3   X
+        |\____  |   \_/ |  /
+        |     \ | __/ \_|_/
         4       5       6
 
     A virtual node can be placed either
@@ -33,12 +33,9 @@ def _get_crossings_for_vnodes_in_gaps(
     - between `2` and `3` or
     - after `3` (where it currently is)
 
-    For each placement
-
-
-
-
-
+    For each placement, calculate the crossings, e.g. placed before node `1` it
+    will have 5 crossings, so result[X][0] == 5.
+    Repeat for each placement and we get result[X] == [5, 3, 2, 0]
 
     Args:
         ml_graph (MultiLayeredGraph): Multilayered graph in which to count crossings
@@ -85,8 +82,11 @@ def _find_optimal_gaps(
     gaps: int,
 ):
     INFINITY = 1_000_000_000
-    dp = [
-        [[INFINITY] * (len(ordered_real_nodes)) for _ in range(len(virtual_nodes))]
+    dp: list[list[list[tuple[int, list[int]]]]] = [
+        [
+            [(INFINITY, [-1])] * (len(ordered_real_nodes))
+            for _ in range(len(virtual_nodes))
+        ]
         for _ in range(gaps + 1)
     ]
 
@@ -106,31 +106,66 @@ def _find_optimal_gaps(
             return res
         return res + one_gap_crossings(from_vnode_idx, to_vnode_idx - 1, gap_idx)
 
-    def find_crossings(gaps: int, upto_virtual_idx: int, gap_idx: int) -> int:
+    def find_crossings(
+        gaps: int, upto_virtual_idx: int, gap_idx: int
+    ) -> tuple[int, list[int]]:
         nonlocal dp, ml_graph
-        pre_computed = dp[gaps][upto_virtual_idx][gap_idx]
-        if pre_computed != INFINITY:
-            return pre_computed
+        crossing_res, distribution_res = dp[gaps][upto_virtual_idx][gap_idx]
+        if crossing_res != INFINITY:
+            return crossing_res, distribution_res
 
+        # crossing_res == INIFINITY
         if gaps == 1:
-            vnode = virtual_nodes[upto_virtual_idx]
-            res = virtual_node_to_crossings_in_gap[vnode][gap_idx]
-            if upto_virtual_idx > 0:
-                res += find_crossings(gaps, upto_virtual_idx - 1, gap_idx)
+            if gap_idx == 0:
+                # BASE CASE
+                # only one gap allowed, and only first gap allowed. Placing the
+                # first upto_virtual_idx nodes into first gap is computed by
+                # one_gap_crossings
+                crossing_res = one_gap_crossings(0, upto_virtual_idx, gap_idx)
+                # the distribution is simply the first upto_virtual_idx + 1
+                # virtual nodes are placed in gap 0
+                distribution_res = [0] * (upto_virtual_idx + 1)
+            else:
+                # find best placement for only being allowed to place in previous gap
+                crossing_res, distribution = find_crossings(
+                    0, upto_virtual_idx, gap_idx - 1
+                )
+                # compare to crossings if all nodes are placed in current
+                # rightmost allowed gap
+                crossings_in_bunch = one_gap_crossings(0, upto_virtual_idx, gap_idx)
+                if crossings_in_bunch < crossing_res:
+                    # if placing first (upto_virtual_idx + 1) virtual nodes into
+                    # rightmost allowed gap produces fewer crossings, update result
+                    crossing_res = crossings_in_bunch
+                    distribution_res = [gap_idx] * (upto_virtual_idx + 1)
         else:
-            res = INFINITY
+            # more than one gap allowed, find best placement for `gaps`-1 gaps,
+            # by iterating from i:= 0 to upto_virtual_idx-1 for the virtual node index
+            # # and from j := 0 to gap_idx-1 for the maximum allowed gap index
+            # for each iteration, place the remaining upto_virtual_idx - i nodes in the jth gap
             for prev_vnode_idx in range(upto_virtual_idx):
                 for prev_gap_idx in range(gap_idx):
-                    with_one_fewer_gaps = find_crossings(
+                    # find best placement for one fewer gap with the virtual
+                    # nodes, and few gap-places to use
+                    with_one_fewer_gaps_crossings, distribution = find_crossings(
                         gaps - 1, prev_vnode_idx, prev_gap_idx
                     )
-                    with_one_fewer_gaps += one_gap_crossings(
+                    # add crossings of remaining nodes in the currently right-most allowed gap
+                    with_one_fewer_gaps_crossings += one_gap_crossings(
                         prev_vnode_idx, upto_virtual_idx, prev_gap_idx + 1
                     )
-                    res = min(res, with_one_fewer_gaps)
+                    # if the total crossings are less, update the best result
+                    if with_one_fewer_gaps_crossings < crossing_res:
+                        crossing_res = with_one_fewer_gaps_crossings
+                        # make a copy of the previous distribution and place the
+                        # remaining virtual nodes in one gap to the right of the
+                        # currently rightmost allowed gap-place
+                        distribution_res = distribution + [prev_gap_idx + 1] * (
+                            upto_virtual_idx + 1 - prev_gap_idx
+                        )
 
-        dp[gaps][upto_virtual_idx][gap_idx] = res
-        return res
+        dp[gaps][upto_virtual_idx][gap_idx] = crossing_res, distribution_res
+        return crossing_res, distribution_res
 
     return find_crossings(gaps, len(virtual_nodes) - 1, len(ordered_real_nodes))
 
@@ -141,6 +176,7 @@ def k_gaps_barycenter(
     *,
     max_iterations: int = DEFAULT_MAX_ITERATIONS_MULTILAYERED_CROSSING_MINIMIZATION,
     one_sided: bool = False,
+    gaps: int = 3,
 ):
     sorting_parameter_check(
         ml_graph, max_iterations=max_iterations, one_sided=one_sided
@@ -161,11 +197,17 @@ def k_gaps_barycenter(
     node_to_in_neighbors = ml_graph.nodes_to_in_edges
     node_to_out_neighbors = ml_graph.nodes_to_out_edges
 
+    layer_to_unordered_real_nodes = [
+        [n for n in ml_graph.layers_to_nodes[layer_idx] if not n.is_virtual]
+        for layer_idx in range(ml_graph.layer_count)
+    ]
+    # layer to virtual nodes ordered by bottom neighbor
+
+    # layer to virtual nodes ordered by top neighbor
+
     for _ in range(max_iterations):
         for layer_idx in range(1, ml_graph.layer_count):
-            layer_real_nodes = [
-                n for n in ml_graph.layers_to_nodes[layer_idx] if not n.is_virtual
-            ]
+            layer_real_nodes = layer_to_unordered_real_nodes[layer_idx]
             prev_layer_indices = ml_graph.nodes_to_indices_at_layer(layer_idx - 1)
             layer_real_nodes.sort(
                 key=lambda node: get_sort_value_realnode(
@@ -173,10 +215,33 @@ def k_gaps_barycenter(
                     prev_layer_indices,
                 )
             )
+            # TODO USE ORDERED VIRTUAL NODES
+            layer_virtual_nodes = [
+                n for n in ml_graph.layers_to_nodes[layer_idx] if n.is_virtual
+            ]
+            _, vnode_placement = _find_optimal_gaps(
+                ml_graph, "below", layer_real_nodes, layer_virtual_nodes, gaps
+            )
 
-            # layer_real_nodes = [n for n in ml_graph.layers_to_nodes[layer_idx] if not n.is_virtual]
+            final_node_order: list[MLGNode] = []
+            curr_gap_idx = 0
+            for gap_idx, vnode in zip(vnode_placement, layer_virtual_nodes):
+                for curr_gap_idx in range(curr_gap_idx, gap_idx):
+                    final_node_order.append(layer_real_nodes[curr_gap_idx])
+
+                final_node_order.append(vnode)
+            ml_graph.layers_to_nodes[layer_idx] = final_node_order
 
         if one_sided:
             return
         for layer_idx in range(ml_graph.layer_count - 2, -1, -1):
+            # TODO same procedure in reverse
+            layer_real_nodes = layer_to_unordered_real_nodes[layer_idx]
+            prev_layer_indices = ml_graph.nodes_to_indices_at_layer(layer_idx + 1)
+            layer_real_nodes.sort(
+                key=lambda node: get_sort_value_realnode(
+                    node_to_out_neighbors[node],
+                    prev_layer_indices,
+                )
+            )
             ...
