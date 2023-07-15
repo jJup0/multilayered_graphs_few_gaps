@@ -104,6 +104,10 @@ def _find_optimal_gaps(
     @cache
     def one_gap_crossings(from_vnode_idx: int, to_vnode_idx: int, gap_idx: int) -> int:
         nonlocal virtual_node_to_crossings_in_gap, virtual_nodes
+        # validation
+        assert to_vnode_idx >= from_vnode_idx
+        assert gap_idx >= 0
+
         last_vnode = virtual_nodes[to_vnode_idx]
         res = virtual_node_to_crossings_in_gap[last_vnode][gap_idx]
         if from_vnode_idx == to_vnode_idx:
@@ -135,7 +139,7 @@ def _find_optimal_gaps(
             distribution_res = [0] * (upto_virtual_idx + 1)
         elif curr_gaps == 1:
             # find best placement for only being allowed to place in previous gap
-            crossing_res, distribution = find_crossings(
+            crossing_res, distribution_res = find_crossings(
                 1, upto_virtual_idx, gap_idx - 1
             )
             # compare to crossings if all nodes are placed in current
@@ -146,6 +150,11 @@ def _find_optimal_gaps(
                 # rightmost allowed gap produces fewer crossings, update result
                 crossing_res = crossings_in_bunch
                 distribution_res = [gap_idx] * (upto_virtual_idx + 1)
+        elif upto_virtual_idx == 0:
+            # more than one gap allowed, but only one node
+            crossing_res, distribution_res = find_crossings(
+                1, upto_virtual_idx, gap_idx
+            )
         else:
             # more than one gap allowed, find best placement for `gaps`-1 gaps,
             # by iterating from i:= 0 to upto_virtual_idx-1 for the virtual node index
@@ -155,11 +164,11 @@ def _find_optimal_gaps(
             gap_start_idx = (
                 0 if superfluous_iterations else gap_idx - 1
             )  # TEMP for testing correctness
-            for prev_vnode_idx in range(upto_virtual_idx):
+            for prev_vnode_idx in range(upto_virtual_idx + 1):
                 for prev_gap_idx in range(gap_start_idx, gap_idx):
                     # find best placement for one fewer gap with the virtual
                     # nodes, and few gap-places to use
-                    with_one_fewer_gaps_crossings, distribution = find_crossings(
+                    with_one_fewer_gaps_crossings, distribution_res = find_crossings(
                         curr_gaps - 1, prev_vnode_idx, prev_gap_idx
                     )
                     # add crossings of remaining nodes in the currently right-most allowed gap
@@ -172,8 +181,8 @@ def _find_optimal_gaps(
                         # make a copy of the previous distribution and place the
                         # remaining virtual nodes in one gap to the right of the
                         # currently rightmost allowed gap-place
-                        distribution_res = distribution + [prev_gap_idx + 1] * (
-                            upto_virtual_idx + 1 - prev_gap_idx
+                        distribution_res = distribution_res + [prev_gap_idx + 1] * (
+                            upto_virtual_idx - prev_vnode_idx
                         )
                         if len(distribution_res) != upto_virtual_idx + 1:
                             print(
@@ -182,19 +191,21 @@ def _find_optimal_gaps(
                             )
 
         # validation
-        # if crossing_res == INFINITY:
-        #     print(f"{gaps=}, {upto_virtual_idx=}, {gap_idx=}")
-        #     print(f"crossing_res == INFINITY")
-        #     # assert crossing_res != INFINITY
-        # else:
-        #     print(f"{crossing_res=} ")
+        if crossing_res == INFINITY:
+            print(f"{gaps=}, {upto_virtual_idx=}, {gap_idx=}")
+            print(f"crossing_res == INFINITY")
+            # assert crossing_res != INFINITY
+        else:
+            # print(f"{crossing_res=} ")
+            pass
 
         if len(distribution_res) != upto_virtual_idx + 1:
-            # print(
-            #     f"WARNING: {curr_gaps=}, {upto_virtual_idx=}, {gap_idx=}",
-            #     f"{len(distribution_res)=} != {upto_virtual_idx=}",
-            # )
-            pass
+            print(
+                f"WARNING: {curr_gaps=}, {upto_virtual_idx=}, {gap_idx=}",
+                f"{len(distribution_res)=} != {upto_virtual_idx+1=}",
+            )
+            exit()
+            # pass
         else:
             # print(f"{gaps=}, {upto_virtual_idx=}, {gap_idx=}", "OK!")
             pass
