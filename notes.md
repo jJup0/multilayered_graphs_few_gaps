@@ -25,11 +25,8 @@ https://pypi.org/project/ogdf-python/
 ## TODOS
 
 - [x] implement existing algorithm with constrained nodes: split into two gaps first and apply heuristic (broken)
-
----
-
-- [x] make one-sided crossing minimization of algorithms
 - [x] check if constraints variation is still broken (it is)
+- [x] make one-sided crossing minimization of algorithms
 - [x] two-sided ILP formulation
       https://www.researchgate.net/profile/Brian-Alspach/publication/221335384_Arc_Searching_Digraphs_Without_Jumping/links/00b7d525cb7012e03d000000/Arc-Searching-Digraphs-Without-Jumping.pdf#page=273
       page 276
@@ -39,14 +36,14 @@ https://pypi.org/project/ogdf-python/
   - [x] networkx random cluster graphs https://networkx.org/documentation/stable/reference/generated/networkx.generators.random_clustered.random_clustered_graph.html#networkx.generators.random_clustered.random_clustered_graph
   - [x] networkx other random graphs: https://networkx.org/documentation/stable/reference/generators.html#module-networkx.generators.random_graphs
   - [x] networkx real graphs: (don't seem to be too useful for testing) https://networkx.org/documentation/stable/reference/generators.html#module-networkx.generators.social
-- [ ] multiple gaps
-- [ ] where to place k gaps (dp approach dp[i][j][k] = upto ith gap node, starting at jth real node, using k gaps)
+- [x] multiple gaps
+- [x] where to place k gaps (dp approach dp[i][j][k] = upto ith gap node, starting at jth real node, using k gaps)
+
+---
+
+- [ ] gurobi k gaps but only for one-sided (variable for gap between nodes, sum must not exceed k)
+- [ ] proof for k gaps 3-heuristic
+- [ ] start writing
 - [ ] Bleibt 3-approximation für median heuristic
 - [ ] ILP max size realistic computation time
-- [ ] ILP multiple gaps (more than 2 choices)
 - [ ] gurobi set gap node order fixed (order by incoming edge)
-
-Qs:
-
-- Die LaTeX Vorlage?: https://www.overleaf.com/latex/templates/thesis-template-tu-wien-faculty-of-informatics-vutinfth/ygcskyrqcrff
-- Welchen Graph als case study?
