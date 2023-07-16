@@ -2,7 +2,7 @@ import random
 
 from multilayered_graph.multilayered_graph import (
     MLGNode,
-    MLGNodeEdgeType,
+    MLGNodeEdge_T,
     MultiLayeredGraph,
 )
 
@@ -180,7 +180,7 @@ def _generate_random_edges(
 
     # LONG EDGES
     all_previous_nodes: list[MLGNode] = []
-    all_possible_long_edges: list[MLGNodeEdgeType] = []
+    all_possible_long_edges: list[MLGNodeEdge_T] = []
     for lower_layer_idx in range(layers_count):
         curr_layer_nodes = ml_graph.layers_to_nodes[lower_layer_idx]
         all_possible_long_edges.extend(

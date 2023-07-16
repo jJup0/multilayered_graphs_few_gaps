@@ -61,7 +61,7 @@ class MLGNode:
         return self.name
 
 
-MLGNodeEdgeType: TypeAlias = tuple[MLGNode, MLGNode]
+MLGNodeEdge_T: TypeAlias = tuple[MLGNode, MLGNode]
 
 
 class MultiLayeredGraph:
@@ -194,7 +194,7 @@ class MultiLayeredGraph:
         return pgv_graph
 
     def all_edges_as_list(self) -> list[tuple[MLGNode, MLGNode]]:
-        all_edges: list[MLGNodeEdgeType] = []
+        all_edges: list[MLGNodeEdge_T] = []
         for nodes_at_layer in self.layers_to_edges.values():
             all_edges.extend(nodes_at_layer)
 
