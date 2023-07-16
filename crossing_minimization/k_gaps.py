@@ -214,11 +214,13 @@ def k_gaps_barycenter(
     ml_graph: MultiLayeredGraph,
     *,
     max_iterations: int = DEFAULT_MAX_ITERATIONS_MULTILAYERED_CROSSING_MINIMIZATION,
-    one_sided: bool = False,
+    one_sided_if_two_layers: bool = False,
     gaps: int = 3,
 ):
     sorting_parameter_check(
-        ml_graph, max_iterations=max_iterations, one_sided=one_sided
+        ml_graph,
+        max_iterations=max_iterations,
+        one_sided_if_two_layers=one_sided_if_two_layers,
     )
 
     layer_to_unordered_real_nodes = [
@@ -226,7 +228,7 @@ def k_gaps_barycenter(
         for layer_idx in range(ml_graph.layer_count)
     ]
     layers_to_above_below = generate_layers_to_above_or_below(
-        ml_graph, max_iterations, one_sided
+        ml_graph, max_iterations, one_sided_if_two_layers
     )
 
     for layer_idx, above_or_below in layers_to_above_below:

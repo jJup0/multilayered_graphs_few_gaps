@@ -9,6 +9,7 @@ from crossing_minimization.barycenter_heuristic import (
     few_gaps_barycenter_sort_naive,
 )
 from crossing_minimization.gurobi_int_lin import few_gaps_gurobi_wrapper
+from crossing_minimization.k_gaps import k_gaps_barycenter
 from crossing_minimization.median_heuristic import (
     few_gaps_median_sort_improved,
     few_gaps_median_sort_naive,
@@ -86,8 +87,11 @@ class CrossingsAnalyser:
             (40, 10, 10, 10),
         ]
 
-        one_sided_algorithm_kwargs = {"one_sided": True}
-        two_sided_algorithm_kwargs = {"max_iterations": 3, "one_sided": False}
+        one_sided_algorithm_kwargs = {"one_sided_if_two_layers": True}
+        two_sided_algorithm_kwargs = {
+            "max_iterations": 3,
+            "one_sided_if_two_layers": False,
+        }
         for alg_kwargs in (one_sided_algorithm_kwargs, two_sided_algorithm_kwargs):
             try:
                 for i, (
@@ -124,11 +128,14 @@ class CrossingsAnalyser:
         # algorithms_to_test = [alg for alg in self.algorithms if alg.name != "Gurobi"]
         algorithms_to_test = [alg for alg in self.algorithms]
 
-        two_sided_algorithm_kwargs = {"max_iterations": 3, "one_sided": False}
+        two_sided_algorithm_kwargs = {
+            "max_iterations": 3,
+            "one_sided_if_two_layers": False,
+        }
 
         iterations = 10
         rounds = 5
-        scaling = [1 + 0.3 * round_nr for round_nr in range(rounds)]
+        scaling = [1 + 0.2 * round_nr for round_nr in range(rounds)]
         base_real_nodes = 8
         base_virtual_nodes = 4
         regular_edges_density = 0.1
@@ -177,6 +184,41 @@ class CrossingsAnalyser:
             "Crossings after minimization",
         )
         draw_crossing_analysis_graph(graph_x_values, data_sets, graph_labels)
+
+    def test_correctness_k_gaps(self):
+        # clear previous data
+        self.algs_graphtype_time_ns.clear()
+        self.algs_graphtype_crossings.clear()
+
+        rounds_count = 10
+        for round_nr in range(rounds_count):
+            print(f"round {round_nr}")
+            for gap_count in range(3, 5):
+                random_2_layer_graph = self._generate_random_two_layer_graph(
+                    layer1_count=50,
+                    layer2_count=50,
+                    virtual_nodes_count=30,
+                    regular_edges_count=500,
+                    override_name=f"Round {round_nr}, {gap_count=}",
+                )
+                g1 = copy.deepcopy(random_2_layer_graph.graph)
+                g2 = copy.deepcopy(random_2_layer_graph.graph)
+
+                t1 = time.perf_counter()
+                k_gaps_barycenter(g1, one_sided_if_two_layers=True, gaps=gap_count)
+                t2 = time.perf_counter()
+                k_gaps_barycenter(g2, one_sided_if_two_layers=True, gaps=gap_count)
+                t3 = time.perf_counter()
+
+                if g1.get_crossings_per_layer() != g2.get_crossings_per_layer():
+                    print(
+                        f"DIFFERENT CROSSINGS!!!! {g1.get_crossings_per_layer()} != {g2.get_crossings_per_layer()}"
+                    )
+                else:
+                    print(
+                        f"got same result {g1.get_crossings_per_layer()} == {g2.get_crossings_per_layer()}"
+                    )
+                    print(f"superfluous took {t2-t1}s, simple took {t3-t2}")
 
     def _print_crossing_results(self):
         for graph_type in self.graph_type_names:
@@ -363,4 +405,5 @@ class CrossingsAnalyser:
 
 if __name__ == "__main__":
     # CrossingsAnalyser().analyse_crossings()
-    CrossingsAnalyser().analyze_crossings_for_graph_two_layer()
+    # CrossingsAnalyser().analyze_crossings_for_graph_two_layer()
+    CrossingsAnalyser().test_correctness_k_gaps()

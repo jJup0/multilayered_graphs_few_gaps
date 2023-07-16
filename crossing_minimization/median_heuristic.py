@@ -17,7 +17,7 @@ def few_gaps_median_sort_naive(
     ml_graph: MultiLayeredGraph,
     *,
     max_iterations: int = DEFAULT_MAX_ITERATIONS_MULTILAYERED_CROSSING_MINIMIZATION,
-    one_sided: bool = False,
+    one_sided_if_two_layers: bool = False,
 ) -> None:
     """Sorts nodes in multilayered graph according to median heuristic.
 
@@ -51,7 +51,9 @@ def few_gaps_median_sort_naive(
         )
 
     sorting_parameter_check(
-        ml_graph, max_iterations=max_iterations, one_sided=one_sided
+        ml_graph,
+        max_iterations=max_iterations,
+        one_sided_if_two_layers=one_sided_if_two_layers,
     )
 
     node_to_in_neighbors = ml_graph.nodes_to_in_edges
@@ -60,7 +62,7 @@ def few_gaps_median_sort_naive(
         for layer_idx in range(1, ml_graph.layer_count):
             prev_layer_indices = ml_graph.nodes_to_indices_at_layer(layer_idx - 1)
             _sort_layer(layer_idx, prev_layer_indices, node_to_in_neighbors)
-        if one_sided:
+        if one_sided_if_two_layers:
             return
         for layer_idx in range(ml_graph.layer_count - 2, -1, -1):
             prev_layer_indices = ml_graph.nodes_to_indices_at_layer(layer_idx + 1)
@@ -72,7 +74,7 @@ def few_gaps_median_sort_improved(
     ml_graph: MultiLayeredGraph,
     *,
     max_iterations: int = DEFAULT_MAX_ITERATIONS_MULTILAYERED_CROSSING_MINIMIZATION,
-    one_sided: bool = False,
+    one_sided_if_two_layers: bool = False,
 ) -> None:
     """Sorts nodes in multilayered graph according to median heuristic.
 
@@ -81,7 +83,7 @@ def few_gaps_median_sort_improved(
         ml_graph: Graph on which to apply sorting.
         max_iterations:
           Amount of "up" and "down" cycles to make for sorting. Defaults to 3.
-        one_sided:
+        one_sided_if_two_layers:
           Whether to only do one sided crossing minimization or not.
           Defaults to False.
     """
@@ -113,7 +115,9 @@ def few_gaps_median_sort_improved(
         )
 
     sorting_parameter_check(
-        ml_graph, max_iterations=max_iterations, one_sided=one_sided
+        ml_graph,
+        max_iterations=max_iterations,
+        one_sided_if_two_layers=one_sided_if_two_layers,
     )
 
     node_to_in_neighbors = ml_graph.nodes_to_in_edges
@@ -124,7 +128,7 @@ def few_gaps_median_sort_improved(
         for layer in range(1, ml_graph.layer_count):
             prev_layer_indices = ml_graph.nodes_to_indices_at_layer(layer - 1)
             _sort_layer(layer, prev_layer_indices, node_to_in_neighbors, "below")
-        if one_sided:
+        if one_sided_if_two_layers:
             return
         for layer in range(ml_graph.layer_count - 2, -1, -1):
             prev_layer_indices = ml_graph.nodes_to_indices_at_layer(layer + 1)

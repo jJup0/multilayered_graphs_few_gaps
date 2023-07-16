@@ -33,17 +33,19 @@ def few_gaps_constrained_paper(
     ml_graph: MultiLayeredGraph,
     *,
     max_iterations: int = DEFAULT_MAX_ITERATIONS_MULTILAYERED_CROSSING_MINIMIZATION,
-    one_sided: bool = False,
+    one_sided_if_two_layers: bool = False,
 ):
     """Implementation does not seem to place nodes in limited gaps."""
     sorting_parameter_check(
-        ml_graph, max_iterations=max_iterations, one_sided=one_sided
+        ml_graph,
+        max_iterations=max_iterations,
+        one_sided_if_two_layers=one_sided_if_two_layers,
     )
     layers__above_below: list[tuple[int, Literal["above"] | Literal["below"]]] = []
     layers__above_below.extend(
         (layer_idx, "below") for layer_idx in range(1, ml_graph.layer_count)
     )
-    # if not one_sided:
+    # if not one_sided_if_two_layers:
     #     layers__above_below.extend(
     #         (layer_idx, "above")
     #         for layer_idx in range(ml_graph.layer_count - 2, -1, -1)

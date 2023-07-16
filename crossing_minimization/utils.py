@@ -11,7 +11,7 @@ def lgraph_sorting_algorithm(func: T) -> T:
     """Decorator for function which sorts a layered graph.
 
     Function head should look like this:
-    (ml_graph: MultiLayeredGraph, *, max_iterations: int = 3, one_sided: bool = False) -> None
+    (ml_graph: MultiLayeredGraph, *, max_iterations: int = 3, one_sided_if_two_layers: bool = False) -> None
 
     Does not modify the function in any way.
     """
@@ -30,12 +30,14 @@ def deprecated_lgraph_sorting(func: Callable[..., Any]) -> Callable[..., NoRetur
 
 
 def sorting_parameter_check(
-    ml_graph: MultiLayeredGraph, *, max_iterations: int, one_sided: bool
+    ml_graph: MultiLayeredGraph, *, max_iterations: int, one_sided_if_two_layers: bool
 ):
     # input parameter validation
-    if not (one_sided is True or one_sided is False):
-        raise ValueError(f'one_side must be true or false, received "{one_sided}"')
-    if one_sided:
+    if not (one_sided_if_two_layers is True or one_sided_if_two_layers is False):
+        raise ValueError(
+            f'one_side must be true or false, received "{one_sided_if_two_layers}"'
+        )
+    if one_sided_if_two_layers:
         if ml_graph.layer_count != 2:
             raise ValueError(
                 f"One-sided crossing minimization can only be performed on graphs with exactly 2 layers."
@@ -56,12 +58,12 @@ def get_layer_idx_above_or_below(
 
 
 def generate_layers_to_above_or_below(
-    ml_graph: MultiLayeredGraph, max_iterations: int, one_sided: bool
+    ml_graph: MultiLayeredGraph, max_iterations: int, one_sided_if_two_layers: bool
 ) -> list[tuple[int, Literal["above"] | Literal["below"]]]:
     layers_to_above_below: list[tuple[int, Literal["above"] | Literal["below"]]] = [
         (layer_idx, "below") for layer_idx in range(1, ml_graph.layer_count)
     ]
-    if not one_sided:
+    if not one_sided_if_two_layers:
         layers_to_above_below.extend(
             (layer_idx, "above")
             for layer_idx in range(ml_graph.layer_count - 2, -1, -1)

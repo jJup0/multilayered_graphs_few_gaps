@@ -19,7 +19,7 @@ def few_gaps_barycenter_smart_sort(
     ml_graph: MultiLayeredGraph,
     *,
     max_iterations: int = DEFAULT_MAX_ITERATIONS_MULTILAYERED_CROSSING_MINIMIZATION,
-    one_sided: bool = False,
+    one_sided_if_two_layers: bool = False,
 ) -> None:
     """Sorts MultiLayeredGraph using barycenter heuristic, placing nodes depending on minimal crossings.
 
@@ -27,12 +27,14 @@ def few_gaps_barycenter_smart_sort(
         ml_graph (MultiLayeredGraph): _description_
         max_iterations:
           Amount of "up" and "down" cycles to make for sorting. Defaults to 3.
-        one_sided:
+        one_sided_if_two_layers:
           Whether to only do one sided crossing minimization or not.
           Defaults to False.
     """
     sorting_parameter_check(
-        ml_graph, max_iterations=max_iterations, one_sided=one_sided
+        ml_graph,
+        max_iterations=max_iterations,
+        one_sided_if_two_layers=one_sided_if_two_layers,
     )
 
     def _sort_layer_barycenter_improved(
@@ -68,7 +70,7 @@ def few_gaps_barycenter_smart_sort(
     for _ in range(max_iterations):
         for layer_idx in range(1, ml_graph.layer_count):
             _sort_layer_barycenter_improved(layer_idx, node_to_in_neighbors, "below")
-        if one_sided:
+        if one_sided_if_two_layers:
             return
         for layer_idx in range(ml_graph.layer_count - 2, -1, -1):
             _sort_layer_barycenter_improved(layer_idx, node_to_out_neighbors, "above")
@@ -79,7 +81,7 @@ def few_gaps_barycenter_sort_naive(
     ml_graph: MultiLayeredGraph,
     *,
     max_iterations: int = DEFAULT_MAX_ITERATIONS_MULTILAYERED_CROSSING_MINIMIZATION,
-    one_sided: bool = False,
+    one_sided_if_two_layers: bool = False,
 ) -> None:
     """Sorts nodes in multilayered graph according to barycenter heuristic.
 
@@ -89,12 +91,14 @@ def few_gaps_barycenter_sort_naive(
           Graph on which to apply sorting.
         max_iterations:
           Amount of "up" and "down" cycles to make for sorting. Defaults to 3.
-        one_sided:
+        one_sided_if_two_layers:
           Whether to only do one sided crossing minimization or not.
           Defaults to False.
     """
     sorting_parameter_check(
-        ml_graph, max_iterations=max_iterations, one_sided=one_sided
+        ml_graph,
+        max_iterations=max_iterations,
+        one_sided_if_two_layers=one_sided_if_two_layers,
     )
 
     def _get_real_node_barycenter_median(
@@ -144,7 +148,7 @@ def few_gaps_barycenter_sort_naive(
         for layer in range(1, ml_graph.layer_count):
             prev_layer_indices = ml_graph.nodes_to_indices_at_layer(layer - 1)
             _sort_layer(ml_graph, layer, prev_layer_indices, nodes_to_in_neighbors)
-        if one_sided:
+        if one_sided_if_two_layers:
             return
 
         for layer in range(ml_graph.layer_count - 2, -1, -1):

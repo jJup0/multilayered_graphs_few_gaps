@@ -26,13 +26,15 @@ def few_gaps_gurobi_wrapper(
     ml_graph: MultiLayeredGraph,
     *,
     max_iterations: int = DEFAULT_MAX_ITERATIONS_MULTILAYERED_CROSSING_MINIMIZATION,
-    one_sided: bool = False,
+    one_sided_if_two_layers: bool = False,
 ):
-    if ml_graph.layer_count == 2 and not one_sided:
+    if ml_graph.layer_count == 2 and not one_sided_if_two_layers:
         return side_gaps_gurobi_two_sided(ml_graph)
 
     return side_gaps_gurobi_one_sided(
-        ml_graph, max_iterations=max_iterations, one_sided=one_sided
+        ml_graph,
+        max_iterations=max_iterations,
+        one_sided_if_two_layers=one_sided_if_two_layers,
     )
 
 
@@ -128,17 +130,18 @@ def side_gaps_gurobi_one_sided(
     ml_graph: MultiLayeredGraph,
     *,
     max_iterations: int = DEFAULT_MAX_ITERATIONS_MULTILAYERED_CROSSING_MINIMIZATION,
-    one_sided: bool = False,
+    one_sided_if_two_layers: bool = False,
     side_gaps_only: bool = True,
     max_gaps: int = 2,
 ) -> None:
     sorting_parameter_check(
-        ml_graph, max_iterations=max_iterations, one_sided=one_sided
+        ml_graph,
+        max_iterations=max_iterations,
+        one_sided_if_two_layers=one_sided_if_two_layers,
     )
-    assert one_sided is True
 
     layers_to_above_below = generate_layers_to_above_or_below(
-        ml_graph, max_iterations, one_sided
+        ml_graph, max_iterations, one_sided_if_two_layers
     )
     layer_to_model: dict[int, gp.Model] = {}
     layer_to_ordering_vars: dict[int, dict[tuple[MLGNode, MLGNode], gp.Var]] = {}
