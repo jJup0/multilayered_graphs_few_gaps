@@ -1,6 +1,6 @@
 from typing import Literal
 
-from multilayered_graph.multilayered_graph import MultiLayeredGraph, MLGNode
+from multilayered_graph.multilayered_graph import MLGNode, MultiLayeredGraph
 
 
 def edges_cross(
