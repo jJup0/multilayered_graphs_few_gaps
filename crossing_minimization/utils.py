@@ -53,3 +53,20 @@ def get_layer_idx_above_or_below(
     if above_or_below == "below":
         return layer_idx - 1
     raise ValueError(f'{above_or_below} needs to be either "above" or "below".')
+
+
+def generate_layers_to_above_or_below(
+    ml_graph: MultiLayeredGraph, max_iterations: int, one_sided: bool
+) -> list[tuple[int, Literal["above"] | Literal["below"]]]:
+    layers_to_above_below: list[tuple[int, Literal["above"] | Literal["below"]]] = [
+        (layer_idx, "below") for layer_idx in range(1, ml_graph.layer_count)
+    ]
+    if not one_sided:
+        layers_to_above_below.extend(
+            (layer_idx, "above")
+            for layer_idx in range(ml_graph.layer_count - 2, -1, -1)
+        )
+
+        layers_to_above_below *= max_iterations
+
+    return layers_to_above_below
