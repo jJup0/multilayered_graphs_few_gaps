@@ -1,13 +1,6 @@
 from functools import cache
 from typing import Literal
 
-from crossing_minimization.utils import (
-    DEFAULT_MAX_ITERATIONS_MULTILAYERED_CROSSING_MINIMIZATION,
-    generate_layers_to_above_or_below,
-    get_layer_idx_above_or_below,
-    lgraph_sorting_algorithm,
-    sorting_parameter_check,
-)
 from crossings.calculate_crossings import crossings_for_node_pair
 from multilayered_graph.multilayered_graph import MLGNode, MultiLayeredGraph
 
@@ -209,53 +202,7 @@ def find_optimal_gaps(
     return find_crossings(gaps, len(virtual_nodes) - 1, len(ordered_real_nodes))
 
 
-@lgraph_sorting_algorithm
-def k_gaps_barycenter(
-    ml_graph: MultiLayeredGraph,
-    *,
-    max_iterations: int = DEFAULT_MAX_ITERATIONS_MULTILAYERED_CROSSING_MINIMIZATION,
-    one_sided_if_two_layers: bool = False,
-    gaps: int = 3,
-):
-    sorting_parameter_check(
-        ml_graph,
-        max_iterations=max_iterations,
-        one_sided_if_two_layers=one_sided_if_two_layers,
-    )
-
-    layer_to_unordered_real_nodes = [
-        [n for n in ml_graph.layers_to_nodes[layer_idx] if not n.is_virtual]
-        for layer_idx in range(ml_graph.layer_count)
-    ]
-    layers_to_above_below = generate_layers_to_above_or_below(
-        ml_graph, max_iterations, one_sided_if_two_layers
-    )
-
-    for layer_idx, above_or_below in layers_to_above_below:
-        nodes_to_neighbors = (
-            ml_graph.nodes_to_in_edges
-            if above_or_below == "below"
-            else ml_graph.nodes_to_out_edges
-        )
-        prev_layer_indices = ml_graph.nodes_to_indices_at_layer(
-            get_layer_idx_above_or_below(layer_idx, "below")
-        )
-        layer_to_unordered_real_nodes[layer_idx].sort(
-            key=lambda node: _get_node_barycenter(
-                nodes_to_neighbors[node],
-                prev_layer_indices,
-            )
-        )
-        _k_gaps_sort_layer(
-            ml_graph,
-            layers_to_ordered_real_nodes=layer_to_unordered_real_nodes,
-            layer_idx=layer_idx,
-            above_or_below="below",
-            gaps=gaps,
-        )
-
-
-def _k_gaps_sort_layer(
+def k_gaps_sort_layer(
     ml_graph: MultiLayeredGraph,
     layers_to_ordered_real_nodes: list[list[MLGNode]],
     layer_idx: int,
@@ -299,17 +246,6 @@ def _k_gaps_sort_layer(
         assert False
 
     ml_graph.layers_to_nodes[layer_idx] = final_node_order
-
-
-def _get_node_barycenter(
-    neighbors: set[MLGNode], prev_layer_indices: dict[MLGNode, int]
-) -> float:
-    neighbor_count = len(neighbors)
-    if neighbor_count == 0:
-        # TODO check if this is a viable strategy
-        return 0
-    barycenter = sum(prev_layer_indices[node] for node in neighbors) / neighbor_count
-    return barycenter
 
 
 def _virtual_node_to_neighbor_position_sorting_func(

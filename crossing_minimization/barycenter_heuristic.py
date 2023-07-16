@@ -1,9 +1,11 @@
 import statistics
 from typing import Callable, Literal
 
+from crossing_minimization.k_gaps import k_gaps_sort_layer
 from crossing_minimization.utils import (
     DEFAULT_MAX_ITERATIONS_MULTILAYERED_CROSSING_MINIMIZATION,
     deprecated_lgraph_sorting,
+    generate_layers_to_above_or_below,
     get_layer_idx_above_or_below,
     lgraph_sorting_algorithm,
     sorting_parameter_check,
@@ -108,7 +110,7 @@ def few_gaps_barycenter_sort_naive(
     ):
         nonlocal ml_graph
         real_node_barycenters = (
-            get_real_node_barycenter(
+            get_actual_barycenter(
                 ml_graph, node, _node_to_neighbors[node], _prev_layer_indices
             )
             for node in nodes_at_layer
@@ -156,7 +158,7 @@ def few_gaps_barycenter_sort_naive(
             _sort_layer(ml_graph, layer, prev_layer_indices, nodes_to_out_neighbors)
 
 
-def get_real_node_barycenter(
+def get_actual_barycenter(
     ml_graph: MultiLayeredGraph,
     node: MLGNode,
     neighbors: set[MLGNode],
@@ -169,6 +171,54 @@ def get_real_node_barycenter(
     barycenter = sum(prev_layer_indices[node] for node in neighbors) / neighbor_count
     node.text_info = f"bary {barycenter:.5}"
     return barycenter
+
+
+@lgraph_sorting_algorithm
+def k_gaps_barycenter(
+    ml_graph: MultiLayeredGraph,
+    *,
+    max_iterations: int = DEFAULT_MAX_ITERATIONS_MULTILAYERED_CROSSING_MINIMIZATION,
+    one_sided_if_two_layers: bool = False,
+    gaps: int = 3,
+):
+    sorting_parameter_check(
+        ml_graph,
+        max_iterations=max_iterations,
+        one_sided_if_two_layers=one_sided_if_two_layers,
+    )
+
+    layer_to_unordered_real_nodes = [
+        [n for n in ml_graph.layers_to_nodes[layer_idx] if not n.is_virtual]
+        for layer_idx in range(ml_graph.layer_count)
+    ]
+    layers_to_above_below = generate_layers_to_above_or_below(
+        ml_graph, max_iterations, one_sided_if_two_layers
+    )
+
+    for layer_idx, above_or_below in layers_to_above_below:
+        nodes_to_neighbors = (
+            ml_graph.nodes_to_in_edges
+            if above_or_below == "below"
+            else ml_graph.nodes_to_out_edges
+        )
+        prev_layer_indices = ml_graph.nodes_to_indices_at_layer(
+            get_layer_idx_above_or_below(layer_idx, "below")
+        )
+        layer_to_unordered_real_nodes[layer_idx].sort(
+            key=lambda node: get_actual_barycenter(
+                ml_graph,
+                node,
+                nodes_to_neighbors[node],
+                prev_layer_indices,
+            )
+        )
+        k_gaps_sort_layer(
+            ml_graph,
+            layers_to_ordered_real_nodes=layer_to_unordered_real_nodes,
+            layer_idx=layer_idx,
+            above_or_below="below",
+            gaps=gaps,
+        )
 
 
 def _get_pseudo_barycenter_naive_virtual_placement(
@@ -246,7 +296,7 @@ def few_gaps_barycenter_split(_ml_graph: MultiLayeredGraph) -> None:
     ):
         curr_layer_nodes: list[MLGNode] = ml_graph.layers_to_nodes[layer_idx]
         barycenters = {
-            node: get_real_node_barycenter(
+            node: get_actual_barycenter(
                 ml_graph, node, node_to_neighbors[node], prev_layer_indices
             )
             for node in curr_layer_nodes

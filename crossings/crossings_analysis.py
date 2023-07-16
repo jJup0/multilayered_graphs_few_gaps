@@ -7,9 +7,9 @@ from typing import Any, Callable
 from crossing_minimization.barycenter_heuristic import (
     few_gaps_barycenter_smart_sort,
     few_gaps_barycenter_sort_naive,
+    k_gaps_barycenter,
 )
 from crossing_minimization.gurobi_int_lin import few_gaps_gurobi_wrapper
-from crossing_minimization.k_gaps import k_gaps_barycenter
 from crossing_minimization.median_heuristic import (
     few_gaps_median_sort_improved,
     few_gaps_median_sort_naive,
