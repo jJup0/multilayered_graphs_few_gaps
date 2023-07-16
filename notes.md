@@ -41,6 +41,7 @@ https://pypi.org/project/ogdf-python/
 
 ---
 
+- [x] k gaps dp algorithm: had extra unnecessary loop over prev_gap_idx, now only looping over prev_vnode_idx
 - [ ] gurobi k gaps but only for one-sided (variable for gap between nodes, sum must not exceed k)
 - [ ] proof for k gaps 3-heuristic
 - [ ] start writing
