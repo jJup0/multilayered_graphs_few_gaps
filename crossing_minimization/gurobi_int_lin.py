@@ -8,11 +8,16 @@ from gurobipy import GRB
 from crossing_minimization.barycenter_heuristic import few_gaps_barycenter_smart_sort
 from crossing_minimization.utils import (
     DEFAULT_MAX_ITERATIONS_MULTILAYERED_CROSSING_MINIMIZATION,
+    generate_layers_to_above_or_below,
     sorting_parameter_check,
 )
 from crossings.calculate_crossings import crossings_uv_vu
 from multilayered_graph.multilayer_graph_generator import generate_multilayer_graph
-from multilayered_graph.multilayered_graph import MLGNode, MultiLayeredGraph
+from multilayered_graph.multilayered_graph import (
+    MLGNode,
+    MLGNodeEdge_T,
+    MultiLayeredGraph,
+)
 
 gp.setParam("LogToConsole", 0)
 
@@ -24,14 +29,14 @@ def few_gaps_gurobi_wrapper(
     one_sided: bool = False,
 ):
     if ml_graph.layer_count == 2 and not one_sided:
-        return few_gaps_gurobi_two_sided(ml_graph)
+        return side_gaps_gurobi_two_sided(ml_graph)
 
-    return few_gaps_gurobi_one_sided(
+    return side_gaps_gurobi_one_sided(
         ml_graph, max_iterations=max_iterations, one_sided=one_sided
     )
 
 
-def few_gaps_gurobi_two_sided(
+def side_gaps_gurobi_two_sided(
     ml_graph: MultiLayeredGraph,
 ) -> None:
     if ml_graph.layer_count != 2:
@@ -119,27 +124,22 @@ def few_gaps_gurobi_two_sided(
     gurobi_merge_sort(l2, l2_ordering_gb_vars)
 
 
-def few_gaps_gurobi_one_sided(
+def side_gaps_gurobi_one_sided(
     ml_graph: MultiLayeredGraph,
     *,
     max_iterations: int = DEFAULT_MAX_ITERATIONS_MULTILAYERED_CROSSING_MINIMIZATION,
     one_sided: bool = False,
+    side_gaps_only: bool = True,
+    max_gaps: int = 2,
 ) -> None:
     sorting_parameter_check(
         ml_graph, max_iterations=max_iterations, one_sided=one_sided
     )
+    assert one_sided is True
 
-    layers_to_above_below: list[tuple[int, Literal["above"] | Literal["below"]]] = []
-    layers_to_above_below.extend(
-        (layer_idx, "below") for layer_idx in range(1, ml_graph.layer_count)
+    layers_to_above_below = generate_layers_to_above_or_below(
+        ml_graph, max_iterations, one_sided
     )
-    if not one_sided:
-        layers_to_above_below.extend(
-            (layer_idx, "above")
-            for layer_idx in range(ml_graph.layer_count - 2, -1, -1)
-        )
-        layers_to_above_below *= max_iterations
-
     layer_to_model: dict[int, gp.Model] = {}
     layer_to_ordering_vars: dict[int, dict[tuple[MLGNode, MLGNode], gp.Var]] = {}
 
@@ -152,8 +152,8 @@ def few_gaps_gurobi_one_sided(
             )
             m.Params.LogToConsole = 0
 
-            ordering_gb_vars, _, _ = _gen_order_var_and_constraints(m, nodes)
-            layer_to_ordering_vars[layer_idx] = ordering_gb_vars
+            ordering_gp_vars, _, _ = _gen_order_var_and_constraints(m, nodes)
+            layer_to_ordering_vars[layer_idx] = ordering_gp_vars
 
             real_nodes = [n for n in nodes if not n.is_virtual]
             virtual_nodes = [n for n in nodes if n.is_virtual]
@@ -161,12 +161,15 @@ def few_gaps_gurobi_one_sided(
                 m,
                 virtual_nodes=virtual_nodes,
                 real_nodes=real_nodes,
-                ordering_gb_vars=ordering_gb_vars,
+                ordering_gb_vars=ordering_gp_vars,
             )
             layer_to_model[layer_idx] = m
 
+            if not side_gaps_only:
+                _gen_k_gap_constraints(m, nodes, ordering_gp_vars, max_gaps)
+
         m = layer_to_model[layer_idx]
-        ordering_gb_vars = layer_to_ordering_vars[layer_idx]
+        ordering_gp_vars = layer_to_ordering_vars[layer_idx]
         # always update objective function
         obj = gp.LinExpr()
         n1__n2_crossings: int
@@ -179,8 +182,8 @@ def few_gaps_gurobi_one_sided(
                     ml_graph, n1, n2, above_below
                 )
                 # print(f"{(n1__n2_crossings, n2__n1_crossings)=}")
-                n1__n2 = ordering_gb_vars[(n1, n2)]
-                n2__n1 = ordering_gb_vars[(n2, n1)]
+                n1__n2 = ordering_gp_vars[(n1, n2)]
+                n2__n1 = ordering_gp_vars[(n2, n1)]
                 obj += n1__n2_crossings * n1__n2 + n2__n1_crossings * n2__n1
 
         # set objective, update and optimize
@@ -189,7 +192,7 @@ def few_gaps_gurobi_one_sided(
         m.optimize()
 
         # order graph using gurobi variables
-        gurobi_merge_sort(nodes, ordering_gb_vars)
+        gurobi_merge_sort(nodes, ordering_gp_vars)
 
 
 def _gen_order_var_and_constraints(m: gp.Model, nodes: list[MLGNode], prefix: str = ""):
@@ -277,6 +280,76 @@ def _gen_virtual_node_vars_and_constraints(
     return virtual_node_gb_vars
 
 
+def _gen_k_gap_constraints(
+    m: gp.Model,
+    nodes: list[MLGNode],
+    ordering_gb_vars: dict[MLGNodeEdge_T, gp.Var],
+    allowed_gaps: int,
+    prefix: str = "Gap_",
+):
+    virtual_nodes = [n for n in nodes if n.is_virtual]
+    real_nodes = [n for n in nodes if not n.is_virtual]
+
+    vnodes_left_of_rnode_vars: dict[MLGNode, list[gp.Var]] = {
+        rnode: [ordering_gb_vars[vnode, rnode] for vnode in virtual_nodes]
+        for rnode in real_nodes
+    }
+    rnodes_left_of_rnode_vars: dict[MLGNode, list[gp.Var]] = {
+        n1: [ordering_gb_vars[n2, n1] for n2 in real_nodes if n2 is not n1]
+        for n1 in real_nodes
+    }
+    gap_constraint_vars: list[gp.Var] = []
+
+    # middle gaps
+    for n1 in real_nodes:
+        for n2 in real_nodes:
+            if n1 is n2:
+                continue
+            n1_n2_gap = m.addVar(vtype=GRB.BINARY, name=f"{prefix}{n1}__{n2}")  # type: ignore # incorrect call arguments
+            gap_constraint_vars.append(n1_n2_gap)
+
+            # a gap between n1 and n2 can only exist if n1 comes before n2
+            m.addConstr(n1_n2_gap <= ordering_gb_vars[n1, n2])
+            # gap between two nodes exists if there are virtual nodes between them
+            # but no real nodes
+            m.addConstr(
+                n1_n2_gap
+                >= (
+                    sum(vnodes_left_of_rnode_vars[n2])
+                    - sum(vnodes_left_of_rnode_vars[n1])
+                )
+                / len(virtual_nodes)
+                - (
+                    sum(rnodes_left_of_rnode_vars[n2])
+                    - sum(rnodes_left_of_rnode_vars[n1])
+                ),
+                f"{prefix}{n1}<->{n2}",
+            )
+
+    # outer/side gaps
+    left_gap = m.addVar(vtype=GRB.BINARY, name=f"{prefix}leftgap")  # type: ignore # incorrect call arguments
+    right_gap = m.addVar(vtype=GRB.BINARY, name=f"{prefix}rightgap")  # type: ignore # incorrect call arguments
+    gap_constraint_vars.append(left_gap)
+    gap_constraint_vars.append(right_gap)
+
+    # there is a left/right-most gap if any virtual node is the left/right-most node
+    for vnode in virtual_nodes:
+        left_constraints = [ordering_gb_vars[vnode, rnode] for rnode in real_nodes]
+        m.addConstr(
+            left_gap >= sum(left_constraints) - len(nodes),
+            f"{prefix}leftgap_caused_by_{vnode}",
+        )
+        right_constraints = [ordering_gb_vars[rnode, vnode] for rnode in real_nodes]
+        m.addConstr(
+            right_gap >= sum(right_constraints) - len(nodes),
+            f"{prefix}rightgap_caused_by_{vnode}",
+        )
+
+    sum_of_gap_constraints = sum(gap_constraint_vars)
+    assert sum_of_gap_constraints != 0
+    m.addConstr(sum_of_gap_constraints <= allowed_gaps, f"gap_limit")
+
+
 def gurobi_merge_sort(
     arr: list[MLGNode], ordering_gb_vars: dict[tuple[MLGNode, MLGNode], gp.Var]
 ) -> list[MLGNode]:
@@ -352,7 +425,7 @@ def test_gurobi_implementation():
 
     # gurobi_graph.to_pygraphviz_graph().draw("before.svg")
 
-    few_gaps_gurobi_one_sided(gurobi_graph)
+    side_gaps_gurobi_one_sided(gurobi_graph)
     # print(f"GUROBI RES = {res}")
     print(f"{gurobi_graph.get_crossings_per_layer()=}")
     # gurobi_graph.to_pygraphviz_graph().draw("gurobi.svg")
