@@ -2,18 +2,18 @@ import copy
 import time
 from collections import defaultdict
 from dataclasses import dataclass
-from typing import Any, Callable
+from typing import Any
 
 from crossing_minimization.barycenter_heuristic import (
-    few_gaps_barycenter_smart_sort,
-    few_gaps_barycenter_sort_naive,
-    k_gaps_barycenter,
+    BarycenterImprovedSorter,
+    BarycenterNaiveSorter,
 )
-from crossing_minimization.gurobi_int_lin import few_gaps_gurobi_wrapper
+from crossing_minimization.gurobi_int_lin import GurobiSorter
 from crossing_minimization.median_heuristic import (
-    few_gaps_median_sort_improved,
-    few_gaps_median_sort_naive,
+    ImprovedMedianSorter,
+    NaiveMedianSorter,
 )
+from crossing_minimization.utils import GraphSorter
 from crossings.crossing_analysis_visualization import (
     DataSet,
     GraphLabels,
@@ -21,18 +21,6 @@ from crossings.crossing_analysis_visualization import (
 )
 from multilayered_graph import multilayer_graph_generator
 from multilayered_graph.multilayered_graph import MultiLayeredGraph
-
-
-@dataclass(frozen=True, slots=True)
-class NamedAlgorithm:
-    name: str
-    algorithm: Callable[[MultiLayeredGraph], None]
-
-    def __eq__(self, other: Any):
-        return self is other
-
-    def __str__(self):
-        return self.name
 
 
 @dataclass(frozen=True, slots=True)
@@ -50,28 +38,25 @@ class GraphAndType:
 class CrossingsAnalyser:
     def __init__(self):
         # todo test two layer cross minimization
-        self.algorithms: list[NamedAlgorithm] = [
-            NamedAlgorithm("Barycenter naive", few_gaps_barycenter_sort_naive),
-            NamedAlgorithm("Barycenter improved", few_gaps_barycenter_smart_sort),
-            NamedAlgorithm("Median naive", few_gaps_median_sort_naive),
-            NamedAlgorithm("Median improved", few_gaps_median_sort_improved),
-            NamedAlgorithm("Gurobi", few_gaps_gurobi_wrapper),
+        self.algorithms: list[type[GraphSorter]] = [
+            # GurobiSorter,
+            BarycenterImprovedSorter,
+            BarycenterNaiveSorter,
+            ImprovedMedianSorter,
+            NaiveMedianSorter,
         ]
         self.algs_graphtype_time_ns: dict[
-            NamedAlgorithm, dict[str, list[int]]
+            type[GraphSorter], dict[str, list[int]]
         ] = defaultdict(lambda: defaultdict(list))
         self.algs_graphtype_crossings: dict[
-            NamedAlgorithm, dict[str, list[int]]
+            type[GraphSorter], dict[str, list[int]]
         ] = defaultdict(lambda: defaultdict(list))
-        self.graph_type_names: list[str] = []
+        self.graph_type_names: set[str] = set()
 
         # time taken to perform actions
-        self.timings: dict[str, list[float]] = {
-            "graph_gen": [],
-            "deep_copies": [],
-        }
-        # for named_alg in self.algorithms:
-        #     self.timings[named_alg.name] = []
+        self.timings: dict[str, list[float]] = {}
+        # for algorithm in self.algorithms:
+        #     self.timings[GraphSorter_type.algorithm_name] = []
 
     def analyse_crossings(self):
         # clear previous data
@@ -87,10 +72,10 @@ class CrossingsAnalyser:
             (40, 10, 10, 10),
         ]
 
-        one_sided_algorithm_kwargs = {"one_sided_if_two_layers": True}
+        one_sided_algorithm_kwargs = {"only_one_up_iteration": True}
         two_sided_algorithm_kwargs = {
             "max_iterations": 3,
-            "one_sided_if_two_layers": False,
+            "only_one_up_iteration": False,
         }
         for alg_kwargs in (one_sided_algorithm_kwargs, two_sided_algorithm_kwargs):
             try:
@@ -125,12 +110,12 @@ class CrossingsAnalyser:
         self.algs_graphtype_time_ns.clear()
         self.algs_graphtype_crossings.clear()
 
-        # algorithms_to_test = [alg for alg in self.algorithms if alg.name != "Gurobi"]
+        # algorithms_to_test = [alg for alg in self.algorithms if alg.algorithm_name != "Gurobi"]
         algorithms_to_test = [alg for alg in self.algorithms]
 
         two_sided_algorithm_kwargs = {
             "max_iterations": 3,
-            "one_sided_if_two_layers": False,
+            "only_one_up_iteration": False,
         }
 
         iterations = 10
@@ -159,24 +144,24 @@ class CrossingsAnalyser:
                     override_name=f"Round {round_nr}",
                 )
 
-                for algorithm in algorithms_to_test:
+                for algorithm_class in algorithms_to_test:
                     self._minimize_and_count_crossings(
                         random_2_layer_graph,
-                        algorithm,
+                        algorithm_class,
                         two_sided_algorithm_kwargs,
                     )
 
         # print(dict(self.algs_graphtype_crossings))
         # print(dict(self.algs_graphtype_time_ns))
         data_sets: list[DataSet] = []
-        for algorithm in algorithms_to_test:
+        for algorithm_class in algorithms_to_test:
             y_values: list[float] = []
             for round_nr in range(rounds):
                 graph_name = f"Round {round_nr}"
-                crossings = self.algs_graphtype_crossings[algorithm][graph_name]
+                crossings = self.algs_graphtype_crossings[algorithm_class][graph_name]
                 y_values.append(sum(crossings) / len(crossings))
 
-            data_sets.append(DataSet(algorithm.name, y_values))
+            data_sets.append(DataSet(algorithm_class.algorithm_name, y_values))
 
         graph_labels = GraphLabels(
             "# real nodes (half the amount of virtual nodes)",
@@ -185,53 +170,48 @@ class CrossingsAnalyser:
         )
         draw_crossing_analysis_graph(graph_x_values, data_sets, graph_labels)
 
-    def test_correctness_k_gaps(self):
-        # clear previous data
-        self.algs_graphtype_time_ns.clear()
-        self.algs_graphtype_crossings.clear()
-
-        rounds_count = 10
-        for round_nr in range(rounds_count):
-            print(f"round {round_nr}")
-            for gap_count in range(3, 5):
-                random_2_layer_graph = self._generate_random_two_layer_graph(
-                    layer1_count=50,
-                    layer2_count=50,
-                    virtual_nodes_count=30,
-                    regular_edges_count=500,
-                    override_name=f"Round {round_nr}, {gap_count=}",
+    def analyze_crossings_k_gaps(self):
+        algorithm_kwargs = {
+            "max_iterations": 1,
+            "only_one_up_iteration": True,
+            "side_gaps_only": False,
+            "max_gaps": 3,
+        }
+        try:
+            for round_nr in range(1):
+                graph = self._generate_random_two_layer_graph(
+                    layer1_count=10,
+                    layer2_count=10,
+                    virtual_nodes_count=10,
+                    regular_edges_count=20,
                 )
-                g1 = copy.deepcopy(random_2_layer_graph.graph)
-                g2 = copy.deepcopy(random_2_layer_graph.graph)
-
-                t1 = time.perf_counter()
-                k_gaps_barycenter(g1, one_sided_if_two_layers=True, gaps=gap_count)
-                t2 = time.perf_counter()
-                k_gaps_barycenter(g2, one_sided_if_two_layers=True, gaps=gap_count)
-                t3 = time.perf_counter()
-
-                if g1.get_crossings_per_layer() != g2.get_crossings_per_layer():
-                    print(
-                        f"DIFFERENT CROSSINGS!!!! {g1.get_crossings_per_layer()} != {g2.get_crossings_per_layer()}"
+                for algorithm in reversed(self.algorithms):
+                    sorted_graph = self._minimize_and_count_crossings(
+                        graph, algorithm, algorithm_kwargs
                     )
-                else:
-                    print(
-                        f"got same result {g1.get_crossings_per_layer()} == {g2.get_crossings_per_layer()}"
-                    )
-                    print(f"superfluous took {t2-t1}s, simple took {t3-t2}")
+
+                    sorted_graph.to_pygraphviz_graph().draw(f"00-{algorithm.__name__}.svg", "svg")  # type: ignore # unknown
+                print(f"{round_nr=}")
+        except KeyboardInterrupt:
+            # stop and show results so far
+            print(f"Keyboard interrupt, stopping")
+        # self.algorithms
+        self._print_crossing_results()
 
     def _print_crossing_results(self):
         for graph_type in self.graph_type_names:
             print(f'For graph type "{graph_type}":')
-            for named_alg in self.algorithms:
+            for GraphSorter_type in self.algorithms:
                 total_crossings = sum(
-                    self.algs_graphtype_crossings[named_alg][graph_type]
+                    self.algs_graphtype_crossings[GraphSorter_type][graph_type]
                 )
-                actual_runs = len(self.algs_graphtype_crossings[named_alg][graph_type])
+                actual_runs = len(
+                    self.algs_graphtype_crossings[GraphSorter_type][graph_type]
+                )
                 mean_crossings = total_crossings / actual_runs
 
                 print(
-                    f"\t{str(named_alg):<30} had mean crossing count of {mean_crossings:>8.2f}"
+                    f"\t{str(GraphSorter_type.__name__):<30} had mean crossing count of {mean_crossings:>8.2f}"
                 )
 
         total_time_seconds = sum(sum(t) for t in self.timings.values()) / 1_000_000_000
@@ -251,8 +231,6 @@ class CrossingsAnalyser:
         *,
         override_name: str | None = None,
     ) -> GraphAndType:
-        t1 = time.perf_counter_ns()
-
         ml_graph = multilayer_graph_generator.generate_two_layer_graph(
             layer1_count=layer1_count,
             layer2_count=layer2_count,
@@ -264,9 +242,8 @@ class CrossingsAnalyser:
         else:
             name = override_name
 
-        self.graph_type_names.append(name)
+        self.graph_type_names.add(name)
 
-        self.timings["graph_gen"].append(time.perf_counter_ns() - t1)
         return GraphAndType(graph=ml_graph, type_name=name)
 
     def _generate_random_graph(
@@ -285,7 +262,7 @@ class CrossingsAnalyser:
             long_edge_probability,
             None,
         )
-        self.graph_type_names.append(graph_long_str)
+        self.graph_type_names.add(graph_long_str)
         perf_timer_name_gen__graph_gen = time.perf_counter_ns()
 
         graph: MultiLayeredGraph = multilayer_graph_generator.generate_multilayer_graph(
@@ -305,23 +282,41 @@ class CrossingsAnalyser:
     def _minimize_and_count_crossings(
         self,
         graph_and_type: GraphAndType,
-        named_alg: NamedAlgorithm,
+        GraphSorter_type: type[GraphSorter],
         algorithm_kwargs: dict[str, Any],
-    ):
+    ) -> MultiLayeredGraph:
+        """Minimizes crossings, and returns the crossing-minimized graph.
+
+        Also check validity of sorted graph e.g. if amount of gaps is complied with.
+
+        Args:
+            graph_and_type (GraphAndType): Graph to sort.
+            GraphSorter_type (type[GraphSorter]): Sorter with which to sort nodes.
+            algorithm_kwargs (dict[str, Any]): Keyword arguments to pass to sorter.
+
+        Returns:
+            MultiLayeredGraph: A copy of the graph with nodes sorted
+        """
         original_graph = graph_and_type.graph
 
         graph_copy: MultiLayeredGraph = copy.deepcopy(original_graph)
-        self.time_algorithm_and_count_crossings(
-            named_alg, graph_and_type, algorithm_kwargs
+        self._time_algorithm_and_count_crossings(
+            GraphSorter_type, graph_and_type, algorithm_kwargs
         )
 
         # optional validation step, can be left out if correctness is guaranteed
         try:
-            self.assert_sorted_graph_valid(original_graph, graph_copy, 2)
+            self._assert_sorted_graph_valid(
+                original_graph, graph_copy, gaps_allowed=algorithm_kwargs["max_gaps"]
+            )
+            # print(f"graph valid")
         except AssertionError as err:
-            print(f"WARNING!!! {named_alg.name} sorted the graph invalidly: {err}")
+            print(
+                f"WARNING!!! {GraphSorter_type.algorithm_name} sorted the graph invalidly: {err}"
+            )
+        return graph_copy
 
-    def assert_sorted_graph_valid(
+    def _assert_sorted_graph_valid(
         self,
         orignal_graph: MultiLayeredGraph,
         sorted_graph: MultiLayeredGraph,
@@ -336,10 +331,6 @@ class CrossingsAnalyser:
             gaps_allowed (int): The amount of gaps allowed in the crossing-minimized graph.
         """
 
-        def assert_with_message(evaluation: bool, msg: str):
-            if not evaluation:
-                raise AssertionError(msg)
-
         if gaps_allowed < 1:
             raise ValueError("At least one gap must be allowed")
 
@@ -348,24 +339,23 @@ class CrossingsAnalyser:
                 "If only side gaps are allowed, gaps allowed per layer may not exceed 2"
             )
 
-        assert_with_message(
-            orignal_graph.layer_count == sorted_graph.layer_count, "Layer count differs"
-        )
+        assert (
+            orignal_graph.layer_count == sorted_graph.layer_count
+        ), "Layer count differs"
         for layer in range(orignal_graph.layer_count):
             og_nodes = orignal_graph.layers_to_nodes[layer]
             sorted_nodes = sorted_graph.layers_to_nodes[layer]
-            assert_with_message(
-                len(og_nodes) == len(sorted_nodes),
-                f"Node count at {layer=} differs. {len(og_nodes)} != {len(sorted_nodes)}",
-            )
+            assert len(og_nodes) == len(
+                sorted_nodes
+            ), f"Node count at {layer=} differs. {len(og_nodes)} != {len(sorted_nodes)}"
 
             og_nodes_set = set(node.name for node in og_nodes)
             sorted_nodes_set = set(node.name for node in sorted_nodes)
-            assert_with_message(og_nodes_set == sorted_nodes_set, f"Node names differ")
+            assert og_nodes_set == sorted_nodes_set, f"Node names differ"
 
             gaps = 0
             # if only side gaps allowed, then make dummy-previous-node virtual, to enforce side gap
-            prev_node_type_is_virtual = only_side_gaps
+            prev_node_type_is_virtual = False
             for node in sorted_nodes:
                 if node.is_virtual:
                     if not prev_node_type_is_virtual:
@@ -373,20 +363,25 @@ class CrossingsAnalyser:
                         gaps += 1
                 else:
                     prev_node_type_is_virtual = False
-            if only_side_gaps:
-                if gaps == gaps_allowed:
-                    assert_with_message(
-                        prev_node_type_is_virtual == True,
-                        f"Produced {gaps} as algorithm should, however they were not placed on the sides",
-                    )
-            assert_with_message(
-                gaps <= gaps_allowed,
-                f"Produced {gaps} gaps, but only {gaps_allowed} gaps allowed",
-            )
 
-    def time_algorithm_and_count_crossings(
+            assert (
+                gaps <= gaps_allowed
+            ), f"Produced {gaps} gaps, but only {gaps_allowed} gaps allowed"
+
+            if only_side_gaps:
+                only_side_violation_msg = f"Produced {gaps} as algorithm should, however they were not placed on the sides"
+                if gaps == 1:
+                    assert (
+                        sorted_nodes[0].is_virtual or sorted_nodes[-1].is_virtual
+                    ), only_side_violation_msg
+                elif gaps == 2:
+                    assert (
+                        sorted_nodes[0].is_virtual and sorted_nodes[-1].is_virtual
+                    ), only_side_violation_msg
+
+    def _time_algorithm_and_count_crossings(
         self,
-        named_alg: NamedAlgorithm,
+        sorter_class: type[GraphSorter],
         graph_and_type: GraphAndType,
         algorithm_kwargs: dict[str, Any],
     ):
@@ -394,16 +389,16 @@ class CrossingsAnalyser:
         graph_name = graph_and_type.type_name
 
         start_ns = time.perf_counter_ns()
-        named_alg.algorithm(graph, **algorithm_kwargs)
+        sorter_class.sort_graph(graph, **algorithm_kwargs)
         total_time_ns = time.perf_counter_ns() - start_ns
 
-        self.algs_graphtype_time_ns[named_alg][graph_name].append(total_time_ns)
+        self.algs_graphtype_time_ns[sorter_class][graph_name].append(total_time_ns)
 
         crossing_count = graph.get_total_crossings()
-        self.algs_graphtype_crossings[named_alg][graph_name].append(crossing_count)
+        self.algs_graphtype_crossings[sorter_class][graph_name].append(crossing_count)
 
 
 if __name__ == "__main__":
     # CrossingsAnalyser().analyse_crossings()
     # CrossingsAnalyser().analyze_crossings_for_graph_two_layer()
-    CrossingsAnalyser().test_correctness_k_gaps()
+    CrossingsAnalyser().analyze_crossings_k_gaps()
