@@ -1,18 +1,15 @@
 import collections
-import copy
 from typing import Literal
 
 import gurobipy as gp
 from gurobipy import GRB
 
-from crossing_minimization.barycenter_heuristic import few_gaps_barycenter_smart_sort
 from crossing_minimization.utils import (
     DEFAULT_MAX_ITERATIONS_MULTILAYERED_CROSSING_MINIMIZATION,
+    GraphSorter,
     generate_layers_to_above_or_below,
-    sorting_parameter_check,
 )
 from crossings.calculate_crossings import crossings_uv_vu
-from multilayered_graph.multilayer_graph_generator import generate_multilayer_graph
 from multilayered_graph.multilayered_graph import (
     MLGNode,
     MLGNodeEdge_T,
@@ -22,20 +19,32 @@ from multilayered_graph.multilayered_graph import (
 gp.setParam("LogToConsole", 0)
 
 
-def few_gaps_gurobi_wrapper(
-    ml_graph: MultiLayeredGraph,
-    *,
-    max_iterations: int = DEFAULT_MAX_ITERATIONS_MULTILAYERED_CROSSING_MINIMIZATION,
-    one_sided_if_two_layers: bool = False,
-):
-    if ml_graph.layer_count == 2 and not one_sided_if_two_layers:
-        return side_gaps_gurobi_two_sided(ml_graph)
+class GurobiSorter(GraphSorter):
+    algorithm_name = "Gurobi"
 
-    return side_gaps_gurobi_one_sided(
-        ml_graph,
-        max_iterations=max_iterations,
-        one_sided_if_two_layers=one_sided_if_two_layers,
-    )
+    @classmethod
+    def _sort_graph(
+        cls,
+        ml_graph: MultiLayeredGraph,
+        *,
+        max_iterations: int,
+        only_one_up_iteration: bool,
+        side_gaps_only: bool,
+        max_gaps: int,
+    ) -> None:
+        if only_one_up_iteration is False and ml_graph.layer_count == 2:
+            # if two sided two layer
+            side_gaps_gurobi_two_sided(ml_graph)
+            return
+
+        # else use general sorter
+        gurobi_one_sided(
+            ml_graph,
+            max_iterations=max_iterations,
+            only_one_up_iteration=only_one_up_iteration,
+            side_gaps_only=side_gaps_only,
+            max_gaps=max_gaps,
+        )
 
 
 def side_gaps_gurobi_two_sided(
@@ -88,33 +97,6 @@ def side_gaps_gurobi_two_sided(
             )
 
             obj += crossing_between_nodes
-    # for u in l2:
-    #     for v in l2:
-    #         if u is v:
-    #             continue
-    #         ordering_var_for_l1_nodes = l1_ordering_gb_vars[u, v]
-    #         for w in l2:
-    #             for z in l2:
-    #                 if w is z:
-    #                     continue
-    #                 w_z_ordering_var = l1_ordering_gb_vars[w, z]
-
-    #                 crossing_between_nodes = m.addVar(
-    #                     vtype=GRB.BINARY, name=f"c_{u}{v}{w}{z}"
-    #                 )
-
-    #                 m.addConstr(
-    #                     crossing_between_nodes
-    #                     >= ordering_var_for_l1_nodes - w_z_ordering_var,
-    #                     f"cross_{u}{v}{w}{z}",
-    #                 )
-    #                 m.addConstr(
-    #                     crossing_between_nodes
-    #                     >= w_z_ordering_var - ordering_var_for_l1_nodes,
-    #                     f"cross_{w}{z}{u}{v}",
-    #                 )
-
-    #                 obj += crossing_between_nodes
 
     # set objective, update and optimize
     m.setObjective(obj, GRB.MINIMIZE)
@@ -126,22 +108,16 @@ def side_gaps_gurobi_two_sided(
     gurobi_merge_sort(l2, l2_ordering_gb_vars)
 
 
-def side_gaps_gurobi_one_sided(
+def gurobi_one_sided(
     ml_graph: MultiLayeredGraph,
     *,
     max_iterations: int = DEFAULT_MAX_ITERATIONS_MULTILAYERED_CROSSING_MINIMIZATION,
-    one_sided_if_two_layers: bool = False,
+    only_one_up_iteration: bool = False,
     side_gaps_only: bool = True,
     max_gaps: int = 2,
 ) -> None:
-    sorting_parameter_check(
-        ml_graph,
-        max_iterations=max_iterations,
-        one_sided_if_two_layers=one_sided_if_two_layers,
-    )
-
     layers_to_above_below = generate_layers_to_above_or_below(
-        ml_graph, max_iterations, one_sided_if_two_layers
+        ml_graph, max_iterations, only_one_up_iteration
     )
     layer_to_model: dict[int, gp.Model] = {}
     layer_to_ordering_vars: dict[int, dict[tuple[MLGNode, MLGNode], gp.Var]] = {}
@@ -420,31 +396,3 @@ def gurobi_merge_sort(
 #                     continue
 #                 if ordering_gb_vars[n2, n3].X > 0.5:
 #                     assert ordering_gb_vars[n1, n3].X > 0.5
-
-
-def test_gurobi_implementation():
-    gurobi_graph = generate_multilayer_graph(5, 20, 0.1, 0.5, randomness_seed=1)
-    bary_graph = copy.deepcopy(gurobi_graph)
-
-    # gurobi_graph.to_pygraphviz_graph().draw("before.svg")
-
-    side_gaps_gurobi_one_sided(gurobi_graph)
-    # print(f"GUROBI RES = {res}")
-    print(f"{gurobi_graph.get_crossings_per_layer()=}")
-    # gurobi_graph.to_pygraphviz_graph().draw("gurobi.svg")
-
-    few_gaps_barycenter_smart_sort(bary_graph)
-    print(f"{bary_graph.get_crossings_per_layer()=}")
-    # bary_graph.to_pygraphviz_graph().draw("bary.svg")
-
-
-if __name__ == "__main__":
-    test_gurobi_implementation()
-
-    # gurobi_graph.get_crossings_per_layer() = [22, 7, 55, 8, 0]
-    # bary_graph.get_crossings_per_layer() = [30, 10, 37, 1, 0]
-
-    # l = [random.randint(0, 9999) for _ in range(200)]
-    # ls = sorted(l)
-    # mergeSort(l, None)
-    # print(l == ls)
