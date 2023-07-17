@@ -1,4 +1,5 @@
 import statistics
+from abc import abstractmethod
 from typing import Callable
 
 from crossing_minimization.k_gaps import k_gaps_sort_layer
@@ -19,7 +20,30 @@ PSEUDO_SORT_DISPLACE_VALUE = 1_000
 
 class AbstractBarycenterSorter(GraphSorter):
     @classmethod
-    def k_gaps_barycenter(
+    def _sort_graph(
+        cls,
+        ml_graph: MultiLayeredGraph,
+        *,
+        max_iterations: int,
+        only_one_up_iteration: bool,
+        side_gaps_only: bool,
+        max_gaps: int,
+    ) -> None:
+        if side_gaps_only:
+            return cls._side_gaps(
+                ml_graph,
+                max_iterations=max_iterations,
+                only_one_up_iteration=only_one_up_iteration,
+            )
+        return cls.k_gaps(
+            ml_graph,
+            max_iterations=max_iterations,
+            only_one_up_iteration=only_one_up_iteration,
+            max_gaps=max_gaps,
+        )
+
+    @classmethod
+    def k_gaps(
         cls,
         ml_graph: MultiLayeredGraph,
         *,
@@ -58,26 +82,20 @@ class AbstractBarycenterSorter(GraphSorter):
                 gaps=max_gaps,
             )
 
-
-class BarycenterImprovedSorter(AbstractBarycenterSorter):
-    algorithm_name = "Barycenter improved"
-
+    @abstractmethod
     @classmethod
-    def _sort_graph(
+    def _side_gaps(
         cls,
         ml_graph: MultiLayeredGraph,
         *,
         max_iterations: int,
         only_one_up_iteration: bool,
-        side_gaps_only: bool,
-        max_gaps: int,
     ) -> None:
-        if side_gaps_only:
-            return cls._side_gaps(
-                ml_graph,
-                max_iterations=max_iterations,
-                only_one_up_iteration=only_one_up_iteration,
-            )
+        ...
+
+
+class BarycenterImprovedSorter(AbstractBarycenterSorter):
+    algorithm_name = "Barycenter improved"
 
     @classmethod
     def _side_gaps(
@@ -129,29 +147,6 @@ class BarycenterImprovedSorter(AbstractBarycenterSorter):
 
 class BarycenterNaiveSorter(AbstractBarycenterSorter):
     algorithm_name = "Barycenter naive"
-
-    @classmethod
-    def _sort_graph(
-        cls,
-        ml_graph: MultiLayeredGraph,
-        *,
-        max_iterations: int,
-        only_one_up_iteration: bool,
-        side_gaps_only: bool,
-        max_gaps: int,
-    ) -> None:
-        if side_gaps_only:
-            return cls._side_gaps(
-                ml_graph,
-                max_iterations=max_iterations,
-                only_one_up_iteration=only_one_up_iteration,
-            )
-        return cls.k_gaps_barycenter(
-            ml_graph,
-            max_iterations=max_iterations,
-            only_one_up_iteration=only_one_up_iteration,
-            max_gaps=max_gaps,
-        )
 
     @classmethod
     def _side_gaps(
