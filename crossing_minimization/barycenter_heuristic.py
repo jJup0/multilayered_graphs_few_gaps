@@ -17,7 +17,7 @@ from multilayered_graph.multilayered_graph import MLGNode, MultiLayeredGraph
 PSEUDO_SORT_DISPLACE_VALUE = 1_000
 
 
-class AbstractBarycenterSorted(GraphSorter):
+class AbstractBarycenterSorter(GraphSorter):
     @classmethod
     def k_gaps_barycenter(
         cls,
@@ -59,7 +59,7 @@ class AbstractBarycenterSorted(GraphSorter):
             )
 
 
-class BarycenterImprovedSorter(AbstractBarycenterSorted):
+class BarycenterImprovedSorter(AbstractBarycenterSorter):
     algorithm_name = "Barycenter improved"
 
     @classmethod
@@ -127,7 +127,7 @@ class BarycenterImprovedSorter(AbstractBarycenterSorted):
             _sort_layer_barycenter_improved(layer_idx, above_or_below)
 
 
-class BarycenterNaiveSorter(AbstractBarycenterSorted):
+class BarycenterNaiveSorter(AbstractBarycenterSorter):
     algorithm_name = "Barycenter naive"
 
     @classmethod
