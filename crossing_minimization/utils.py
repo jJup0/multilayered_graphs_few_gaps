@@ -69,6 +69,9 @@ def generate_layers_to_above_or_below(
 class GraphSorter(ABC):
     algorithm_name = "<set algorithm name>"
 
+    def __str__(self) -> str:
+        return self.algorithm_name
+
     @classmethod
     def sort_graph(
         cls,
@@ -145,7 +148,7 @@ class GraphSorter(ABC):
         if side_gaps_only:
             if max_gaps != 2:
                 raise ValueError(
-                    f"If side gaps only, max_gaps must be equal to 2. Got {side_gaps_only}"
+                    f"If side gaps only, max_gaps must be equal to 2. Got {max_gaps}"
                 )
         else:
             if max_gaps <= 0:
