@@ -1,3 +1,4 @@
+import logging
 import statistics
 from abc import abstractmethod
 from typing import Callable
@@ -15,6 +16,7 @@ from crossing_minimization.utils import (
 from crossings.calculate_crossings import crossings_uv_vu
 from multilayered_graph.multilayered_graph import MLGNode, MultiLayeredGraph
 
+logger = logging.getLogger(__name__)
 PSEUDO_SORT_DISPLACE_VALUE = 1_000
 
 
@@ -51,6 +53,7 @@ class AbstractBarycenterSorter(GraphSorter):
         only_one_up_iteration: bool,
         max_gaps: int,
     ):
+        logger.critical(f"k-gaps called by {cls.__name__}")
         layer_to_unordered_real_nodes = [
             [n for n in ml_graph.layers_to_nodes[layer_idx] if not n.is_virtual]
             for layer_idx in range(ml_graph.layer_count)
@@ -82,8 +85,8 @@ class AbstractBarycenterSorter(GraphSorter):
                 gaps=max_gaps,
             )
 
-    @abstractmethod
     @classmethod
+    @abstractmethod
     def _side_gaps(
         cls,
         ml_graph: MultiLayeredGraph,
