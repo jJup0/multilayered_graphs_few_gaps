@@ -80,8 +80,8 @@ class AbstractMedianSorter(GraphSorter):
                 gaps=max_gaps,
             )
 
-    @abstractmethod
     @classmethod
+    @abstractmethod
     def _side_gaps(
         cls,
         ml_graph: MultiLayeredGraph,
@@ -96,7 +96,7 @@ class ImprovedMedianSorter(AbstractMedianSorter):
     algorithm_name = "Median improved"
 
     @classmethod
-    def few_gaps_median_sort_improved(
+    def _side_gaps(
         cls,
         ml_graph: MultiLayeredGraph,
         *,
