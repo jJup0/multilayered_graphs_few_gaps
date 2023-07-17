@@ -16,7 +16,7 @@ import statistics
 from collections import deque
 from typing import Literal, TypeAlias
 
-from crossing_minimization.barycenter_heuristic import get_actual_barycenter
+from crossing_minimization.barycenter_heuristic import unweighted_barycenter
 from crossing_minimization.utils import (
     DEFAULT_MAX_ITERATIONS_MULTILAYERED_CROSSING_MINIMIZATION,
     deprecated_lgraph_sorting,
@@ -71,7 +71,7 @@ def _generate_constraints(
     )
 
     barycenters = {
-        node: get_actual_barycenter(
+        node: unweighted_barycenter(
             ml_graph, node, nodes_to_neighbors[node], prev_layer_indices
         )
         for node in nodes
@@ -117,7 +117,7 @@ def _constrained_crossing_reduction(
     _prev_layer_idx = get_layer_idx_above_or_below(layer_idx, above_or_below)
     _prev_layer_indices = ml_graph.nodes_to_indices_at_layer(_prev_layer_idx)
     b = {
-        node: get_actual_barycenter(
+        node: unweighted_barycenter(
             ml_graph, node, _nodes_to_neighbors[node], _prev_layer_indices
         )
         for node in V2

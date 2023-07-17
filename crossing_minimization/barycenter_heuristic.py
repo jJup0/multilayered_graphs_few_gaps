@@ -43,7 +43,7 @@ class AbstractBarycenterSorter(GraphSorter):
                 get_layer_idx_above_or_below(layer_idx, above_or_below)
             )
             layer_to_unordered_real_nodes[layer_idx].sort(
-                key=lambda node: get_actual_barycenter(
+                key=lambda node: unweighted_barycenter(
                     ml_graph,
                     node,
                     nodes_to_neighbors[node],
@@ -181,7 +181,7 @@ class BarycenterNaiveSorter(AbstractBarycenterSorter):
         ):
             nonlocal ml_graph
             real_node_barycenters = (
-                get_actual_barycenter(
+                unweighted_barycenter(
                     ml_graph, node, _node_to_neighbors[node], _prev_layer_indices
                 )
                 for node in nodes_at_layer
@@ -229,7 +229,7 @@ class BarycenterNaiveSorter(AbstractBarycenterSorter):
                 _sort_layer(ml_graph, layer, prev_layer_indices, nodes_to_out_neighbors)
 
 
-def get_actual_barycenter(
+def unweighted_barycenter(
     ml_graph: MultiLayeredGraph,
     node: MLGNode,
     neighbors: set[MLGNode],
@@ -319,7 +319,7 @@ def few_gaps_barycenter_split(_ml_graph: MultiLayeredGraph) -> None:
     ):
         curr_layer_nodes: list[MLGNode] = ml_graph.layers_to_nodes[layer_idx]
         barycenters = {
-            node: get_actual_barycenter(
+            node: unweighted_barycenter(
                 ml_graph, node, node_to_neighbors[node], prev_layer_indices
             )
             for node in curr_layer_nodes
