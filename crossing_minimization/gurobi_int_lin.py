@@ -123,7 +123,7 @@ def gurobi_one_sided(
     layer_to_model: dict[int, gp.Model] = {}
     layer_to_ordering_vars: dict[int, dict[tuple[MLGNode, MLGNode], gp.Var]] = {}
 
-    gap_constraint_vars = None
+    gap_constraint_vars = not_neighbors_vars = direct_neighbor_vars = None
     for layer_idx, above_below in layers_to_above_below:
         nodes = ml_graph.layers_to_nodes[layer_idx]
 
@@ -146,9 +146,11 @@ def gurobi_one_sided(
                     ordering_gb_vars=ordering_gp_vars,
                 )
             else:
-                gap_constraint_vars = _gen_k_gap_constraints(
-                    m, nodes, ordering_gp_vars, max_gaps
-                )
+                (
+                    gap_constraint_vars,
+                    not_neighbors_vars,
+                    direct_neighbor_vars,
+                ) = _gen_k_gap_constraints(m, nodes, ordering_gp_vars, max_gaps)
             layer_to_model[layer_idx] = m
 
         m = layer_to_model[layer_idx]
@@ -177,12 +179,50 @@ def gurobi_one_sided(
         if m.Status != GRB.OPTIMAL:
             raise Exception(f"Model is not optimal: {m.Status}")
 
-        if gap_constraint_vars is not None:
+        if (
+            gap_constraint_vars is not None
+            and not_neighbors_vars is not None
+            and direct_neighbor_vars is not None
+        ):
             total_gaps = 0
             for var in gap_constraint_vars:
                 total_gaps += var.X
+            print(f"{len(gap_constraint_vars)} gap vars. Sum/{total_gaps=}")
 
-            print(f"{total_gaps=}")
+            total_non_neighbors = 0
+            for var in not_neighbors_vars:
+                total_non_neighbors += var.X
+            print(
+                f"{len(not_neighbors_vars)} non-neighbor vars. {total_non_neighbors=}"
+            )
+            # total_neighbors = 0
+            # for var in direct_neighbor_vars:
+            #     total_neighbors += var.X
+            # print(
+            #     f"{len(direct_neighbor_vars)} non-neighbor vars. Sum/{total_neighbors=}"
+            # )
+
+        # TEMP DEBUG
+        virtual_nodes = [n for n in ml_graph.layers_to_nodes[1] if n.is_virtual]
+        real_nodes = [n for n in ml_graph.layers_to_nodes[1] if not n.is_virtual]
+
+        rnodes_left_of_rnode_vars: dict[MLGNode, float] = {
+            rnode_right: sum(
+                ordering_gp_vars[rnode_left, rnode_right].X
+                for rnode_left in real_nodes
+                if rnode_left is not rnode_right
+            )
+            for rnode_right in real_nodes
+        }
+        print(f"{sorted(rnodes_left_of_rnode_vars.items(), key=lambda x: x[1])}")
+
+        print(f"total real nodes: {len(real_nodes)}")
+        for vnode in virtual_nodes:
+            left_of_rnode_constraints = sum(
+                ordering_gp_vars[vnode, rnode].X for rnode in real_nodes
+            )
+            print(f"{vnode}: {left_of_rnode_constraints=}")
+
         # order graph using gurobi variables
         gurobi_merge_sort(nodes, ordering_gp_vars)
 
@@ -275,44 +315,68 @@ def _gen_virtual_node_vars_and_constraints(
 def _gen_k_gap_constraints(
     m: gp.Model,
     nodes: list[MLGNode],
-    ordering_gb_vars: dict[MLGNodeEdge_T, gp.Var],
+    ordering_gp_vars: dict[MLGNodeEdge_T, gp.Var],
     allowed_gaps: int,
     prefix: str = "Gap_",
-):
+) -> tuple[list[gp.Var], list[gp.Var], list[gp.Var]]:
     virtual_nodes = [n for n in nodes if n.is_virtual]
     real_nodes = [n for n in nodes if not n.is_virtual]
 
     vnodes_left_of_rnode_vars: dict[MLGNode, list[gp.Var]] = {
-        rnode: [ordering_gb_vars[vnode, rnode] for vnode in virtual_nodes]
+        rnode: [ordering_gp_vars[vnode, rnode] for vnode in virtual_nodes]
         for rnode in real_nodes
     }
     rnodes_left_of_rnode_vars: dict[MLGNode, list[gp.Var]] = {
-        n1: [ordering_gb_vars[n2, n1] for n2 in real_nodes if n2 is not n1]
+        n1: [ordering_gp_vars[n2, n1] for n2 in real_nodes if n2 is not n1]
         for n1 in real_nodes
     }
     gap_constraint_vars: list[gp.Var] = []
+    not_neighbors_vars: list[gp.Var] = []
+    direct_neighbors_vars: list[gp.Var] = []
+
+    inverse_len_real_nodes = 1 / len(real_nodes)
 
     # middle gaps
-    for n1 in real_nodes:
+    for ___i, n1 in enumerate(real_nodes):
         for n2 in real_nodes:
             if n1 is n2:
                 continue
-            n1_n2_gap = m.addVar(vtype=GRB.BINARY, name=f"{prefix}{n1}__{n2}")  # type: ignore # incorrect call arguments
-            gap_constraint_vars.append(n1_n2_gap)
 
-            # a gap between n1 and n2 can only exist if n1 comes before n2
-            # not required, maybe improve performance?
-            m.addConstr(n1_n2_gap <= ordering_gb_vars[n1, n2])
+            # n1_n2_direct_neighbors = m.addVar(vtype=GRB.BINARY, name=f"{prefix}{n1}{n2}_not_direct_neighbors")  # type: ignore # incorrect call arguments
+            # m.addConstr(
+            #     n1_n2_direct_neighbors
+            #     >= ordering_gb_vars[n1, n2]
+            #     - sum(n3 for n3 in real_nodes if n3 is not n1 and n3 is not n2)
+            # )
 
+            n1_n2_direct_neighbors = m.addVar(vtype=GRB.BINARY, name=f"{prefix}{n1}{n2}_direct_neighbors")  # type: ignore # incorrect call arguments
+            m.addConstr(
+                n1_n2_direct_neighbors
+                >= ordering_gp_vars[n1, n2] * len(nodes)
+                + sum(rnodes_left_of_rnode_vars[n2])
+                - sum(rnodes_left_of_rnode_vars[n1])
+                - (len(nodes) - 1)
+            )
+
+            # helper variables/constraints for if n1 and n1 are direct neighbors or not
             n1_n2_not_direct_neighbors = m.addVar(vtype=GRB.BINARY, name=f"{prefix}{n1}{n2}_not_direct_neighbors")  # type: ignore # incorrect call arguments
+            not_neighbors_vars.append(n1_n2_not_direct_neighbors)
+
+            # for n1 to be a direct left neighbor of n1
+            # n1 must come before n2
+            m.addConstr(
+                n1_n2_not_direct_neighbors >= ordering_gp_vars[n2, n1],
+                f"{prefix}only_neighbor_if_increasing_order_constr",
+            )
+
+            # n1 cannot be a directe left neighbor of n2 if there are nodes inbetween
             m.addConstr(
                 n1_n2_not_direct_neighbors
                 >= (
                     sum(rnodes_left_of_rnode_vars[n2])
                     - sum(rnodes_left_of_rnode_vars[n1])
-                    - 1
                 )
-                / len(real_nodes),
+                * inverse_len_real_nodes,
                 f"{prefix}{n1}{n2}_not_direct_neighbors_constraint",
             )
             m.addConstr(
@@ -320,15 +384,56 @@ def _gen_k_gap_constraints(
                 >= (
                     sum(rnodes_left_of_rnode_vars[n1])
                     - sum(rnodes_left_of_rnode_vars[n2])
-                    - 1
                 )
-                / len(real_nodes),
-                f"{prefix}{n1}{n2}_not_direct_neighbors_constraint",
+                * inverse_len_real_nodes,
+                f"{prefix}{n1}{n2}_not_direct_neighbors_constraint2",
             )
+
+            # n1_n2_direct_neighbors = m.addVar(vtype=GRB.BINARY, name=f"{prefix}{n1}{n2}_direct_neighbors")  # type: ignore # incorrect call arguments
+            # direct_neighbors_vars.append(n1_n2_direct_neighbors)
+            # m.addConstr(n1_n2_not_direct_neighbors + n1_n2_direct_neighbors == 1)
+            # m.addConstr(
+            #     n1_n2_direct_neighbors
+            #     <= (
+            #         sum(rnodes_left_of_rnode_vars[n2])
+            #         - sum(rnodes_left_of_rnode_vars[n1])
+            #         - 1
+            #     )
+            #     * inverse_len_real_nodes,
+            #     f"{prefix}{n1}{n2}_not_direct_neighbors_constraint",
+            # )
+            # m.addConstr(
+            #     n1_n2_direct_neighbors
+            #     <= (
+            #         sum(rnodes_left_of_rnode_vars[n1])
+            #         - sum(rnodes_left_of_rnode_vars[n2])
+            #         - 1
+            #     )
+            #     * inverse_len_real_nodes,
+            #     f"{prefix}{n1}{n2}_not_direct_neighbors_constraint",
+            # )
+
+            if ___i == 0:
+                pass
+                # print(f"added non-neighbors constraint for {n1=}, {n2}")
+                # in_n1_not_n2 = set(rnodes_left_of_rnode_vars[n1]).difference(
+                #     rnodes_left_of_rnode_vars[n2]
+                # )
+                # in_n2_not_n1 = set(rnodes_left_of_rnode_vars[n2]).difference(
+                #     rnodes_left_of_rnode_vars[n1]
+                # )
+                # print(f"{in_n1_not_n2=}")
+                # print(f"{in_n2_not_n1=}")
+
+            n1_n2_gap = m.addVar(vtype=GRB.BINARY, name=f"{prefix}{n1}__{n2}")  # type: ignore # incorrect call arguments
+            gap_constraint_vars.append(n1_n2_gap)
+
+            # a gap between n1 and n2 can only exist if n1 comes before n2
+            # not required, maybe improve performance?
+            m.addConstr(n1_n2_gap <= ordering_gp_vars[n1, n2])
 
             # gap between two nodes exists if there are virtual nodes between them
             # but no real nodes
-
             m.addConstr(
                 n1_n2_gap
                 >= (
@@ -348,14 +453,18 @@ def _gen_k_gap_constraints(
 
     # there is a left/right-most gap if any virtual node is the left/right-most node
     for vnode in virtual_nodes:
-        left_constraints = [ordering_gb_vars[vnode, rnode] for rnode in real_nodes]
+        left_of_rnode_constraints = [
+            ordering_gp_vars[vnode, rnode] for rnode in real_nodes
+        ]
         m.addConstr(
-            left_gap >= sum(left_constraints) - len(nodes),
+            left_gap >= sum(left_of_rnode_constraints) - len(real_nodes) + 1,
             f"{prefix}leftgap_caused_by_{vnode}",
         )
-        right_constraints = [ordering_gb_vars[rnode, vnode] for rnode in real_nodes]
+        right_of_rnode_constraints = [
+            ordering_gp_vars[rnode, vnode] for rnode in real_nodes
+        ]
         m.addConstr(
-            right_gap >= sum(right_constraints) - len(nodes),
+            right_gap >= sum(right_of_rnode_constraints) - len(real_nodes) + 1,
             f"{prefix}rightgap_caused_by_{vnode}",
         )
 
@@ -364,7 +473,7 @@ def _gen_k_gap_constraints(
         sum_of_gap_constraints, int
     ), f"{gap_constraint_vars=} should not be empty"
     m.addConstr(sum_of_gap_constraints <= allowed_gaps, f"gap_limit")
-    return gap_constraint_vars
+    return gap_constraint_vars, not_neighbors_vars, direct_neighbors_vars
 
 
 def gurobi_merge_sort(
