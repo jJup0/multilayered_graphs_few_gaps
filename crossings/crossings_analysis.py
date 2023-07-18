@@ -9,6 +9,7 @@ from crossing_minimization.barycenter_heuristic import (
     BarycenterNaiveSorter,
 )
 from crossing_minimization.gurobi_int_lin import GurobiSorter
+from crossing_minimization.gurobi_old import old_few_gaps_gurobi_one_sided
 from crossing_minimization.median_heuristic import (
     ImprovedMedianSorter,
     NaiveMedianSorter,
@@ -21,6 +22,8 @@ from crossings.crossing_analysis_visualization import (
 )
 from multilayered_graph import multilayer_graph_generator
 from multilayered_graph.multilayered_graph import MultiLayeredGraph
+
+DRAW_GRAPH = True
 
 
 @dataclass(frozen=True, slots=True)
@@ -171,32 +174,70 @@ class CrossingsAnalyser:
         draw_crossing_analysis_graph(graph_x_values, data_sets, graph_labels)
 
     def analyze_crossings_k_gaps(self):
-        algorithm_kwargs = {
+        algorithm_kwargs_kgaps = {
             "max_iterations": 1,
             "only_one_up_iteration": True,
             "side_gaps_only": False,
             "max_gaps": 3,
         }
+        algorithm_kwargs_sidegaps = {
+            "max_iterations": 1,
+            "only_one_up_iteration": True,
+            "side_gaps_only": True,
+            "max_gaps": 2,
+        }
         try:
             for round_nr in range(1):
-                graph = self._generate_random_two_layer_graph(
+                graph_and_type = self._generate_random_two_layer_graph(
                     layer1_count=10,
                     layer2_count=10,
                     virtual_nodes_count=10,
                     regular_edges_count=20,
                 )
-                for algorithm in reversed(self.algorithms):
-                    sorted_graph = self._minimize_and_count_crossings(
-                        graph, algorithm, algorithm_kwargs
-                    )
+                for algorithm in [GurobiSorter]:
+                    pass
+                    # sorted_graph = self._minimize_and_count_crossings(
+                    #     graph_and_type, algorithm, algorithm_kwargs_kgaps
+                    # )
+                    # sorted_graph.to_pygraphviz_graph().draw(f"00-kgaps-{algorithm.__name__}.svg", "svg")  # type: ignore # unknown
 
-                    sorted_graph.to_pygraphviz_graph().draw(f"00-{algorithm.__name__}.svg", "svg")  # type: ignore # unknown
+                new_gurobi_sorted = self._minimize_and_count_crossings(
+                    graph_and_type, GurobiSorter, algorithm_kwargs_sidegaps
+                )
+                if DRAW_GRAPH:
+                    new_gurobi_sorted.to_pygraphviz_graph().draw(f"00-sidegaps-NEW-gurobi-{algorithm.__name__}.svg", "svg")  # type: ignore # unknown
+
+                # temp
+                old_gurobi_sorted_graph = copy.deepcopy(graph_and_type.graph)
+                model = old_few_gaps_gurobi_one_sided(
+                    old_gurobi_sorted_graph,
+                    max_iterations=algorithm_kwargs_sidegaps["max_iterations"],
+                    one_sided=algorithm_kwargs_sidegaps["only_one_up_iteration"],  # type: ignore # bool or int
+                )
+                try:
+                    self._assert_sorted_graph_valid(
+                        graph_and_type.graph,
+                        old_gurobi_sorted_graph,
+                        algorithm_kwargs_sidegaps["max_gaps"],
+                        algorithm_kwargs_sidegaps["side_gaps_only"],
+                    )
+                except Exception as err:
+                    print(f"OLD gurobi invalid sort: {err}")
+                print(f"old model {model}")
+                if DRAW_GRAPH:
+                    old_gurobi_sorted_graph.to_pygraphviz_graph().draw(f"00-sidegaps-OLD-gurobi-{algorithm.__name__}.svg", "svg")  # type: ignore # unknown
+
+                print(
+                    f"Crossings:\n"
+                    f"Unsorted: {graph_and_type.graph.get_crossings_per_layer()}\n"
+                    f"New: {new_gurobi_sorted.get_crossings_per_layer()}\n"
+                    f"Old: {old_gurobi_sorted_graph.get_crossings_per_layer()}\n"
+                )
                 print(f"{round_nr=}")
         except KeyboardInterrupt:
             # stop and show results so far
             print(f"Keyboard interrupt, stopping")
-        # self.algorithms
-        self._print_crossing_results()
+        # self._print_crossing_results()
 
     def _print_crossing_results(self):
         for graph_type in self.graph_type_names:
@@ -281,7 +322,7 @@ class CrossingsAnalyser:
 
     def _minimize_and_count_crossings(
         self,
-        graph_and_type: GraphAndType,
+        original_graph_and_type: GraphAndType,
         GraphSorter_type: type[GraphSorter],
         algorithm_kwargs: dict[str, Any],
     ) -> MultiLayeredGraph:
@@ -297,11 +338,13 @@ class CrossingsAnalyser:
         Returns:
             MultiLayeredGraph: A copy of the graph with nodes sorted
         """
-        original_graph = graph_and_type.graph
+        original_graph = original_graph_and_type.graph
 
         graph_copy: MultiLayeredGraph = copy.deepcopy(original_graph)
         self._time_algorithm_and_count_crossings(
-            GraphSorter_type, graph_and_type, algorithm_kwargs
+            GraphSorter_type,
+            GraphAndType(graph_copy, original_graph_and_type.type_name),
+            algorithm_kwargs,
         )
 
         # optional validation step, can be left out if correctness is guaranteed
