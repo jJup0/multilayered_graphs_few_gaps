@@ -1,4 +1,5 @@
 import collections
+import logging
 from typing import Literal
 
 import gurobipy as gp
@@ -11,6 +12,9 @@ from multilayered_graph.multilayered_graph import (
     MLGNodeEdge_T,
     MultiLayeredGraph,
 )
+
+logger = logging.getLogger("Gurobi")
+logger.setLevel(logging.WARNING)
 
 gp.setParam("LogToConsole", 0)
 
@@ -177,41 +181,44 @@ def gurobi_one_sided(
         if m.Status != GRB.OPTIMAL:
             raise Exception(f"Model is not optimal: {m.Status}")
 
-        print_model_info = True
-        if print_model_info:
-            _gurobi_result_info(
-                ml_graph,
-                ordering_gp_vars=ordering_gp_vars,
-                gap_constraint_vars=gap_constraint_vars,
-                real_node_neighbor_vars=real_node_neighbor_vars,
-            )
+        _gurobi_log_result_info(
+            ml_graph,
+            ordering_gp_vars=ordering_gp_vars,
+            gap_constraint_vars=gap_constraint_vars,
+            real_node_neighbor_vars=real_node_neighbor_vars,
+        )
 
         # order graph using gurobi variables
         gurobi_merge_sort(nodes, ordering_gp_vars)
 
 
-def _gurobi_result_info(
+def _gurobi_log_result_info(
     ml_graph: MultiLayeredGraph,
     *,
     ordering_gp_vars: dict[MLGNodeEdge_T, gp.Var],
     gap_constraint_vars: list[gp.Var] | None,
     real_node_neighbor_vars: list[gp.Var] | None,
 ):
+    if logger.getEffectiveLevel() > logging.INFO:
+        return
+
     if gap_constraint_vars is not None and real_node_neighbor_vars is not None:
         total_gaps = 0
         for var in gap_constraint_vars:
             total_gaps += var.X
-        print(f"{len(gap_constraint_vars)} gap vars. Sum/{total_gaps=}")
+        logger.info(f"{len(gap_constraint_vars)} gap vars. Sum/{total_gaps=}")
         right_gap_var = gap_constraint_vars[-1]
         left_gap_var = gap_constraint_vars[-2]
-        print(
+        logger.info(
             f"{right_gap_var.VarName} = {right_gap_var.X} || {left_gap_var.VarName} = {left_gap_var.X}"
         )
 
         total_neighbors = 0
         for var in real_node_neighbor_vars:
             total_neighbors += var.X
-        print(f"{len(real_node_neighbor_vars)} neighbor vars. Sum/{total_neighbors=}")
+        logger.info(
+            f"{len(real_node_neighbor_vars)} neighbor vars. Sum/{total_neighbors=}"
+        )
 
     # virtual_nodes = [n for n in ml_graph.layers_to_nodes[1] if n.is_virtual]
     real_nodes = [n for n in ml_graph.layers_to_nodes[1] if not n.is_virtual]
@@ -224,7 +231,7 @@ def _gurobi_result_info(
         )
         for rnode_right in real_nodes
     }
-    print(f"{sorted(rnodes_left_of_rnode_vars.items(), key=lambda x: x[1])}")
+    logger.info(f"{sorted(rnodes_left_of_rnode_vars.items(), key=lambda x: x[1])}")
 
 
 def _gen_order_var_and_constraints(m: gp.Model, nodes: list[MLGNode], prefix: str = ""):
