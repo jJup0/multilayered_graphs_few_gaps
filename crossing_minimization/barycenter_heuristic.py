@@ -53,7 +53,6 @@ class AbstractBarycenterSorter(GraphSorter):
         only_one_up_iteration: bool,
         max_gaps: int,
     ):
-        logger.critical(f"k-gaps called by {cls.__name__}")
         layer_to_unordered_real_nodes = [
             [n for n in ml_graph.layers_to_nodes[layer_idx] if not n.is_virtual]
             for layer_idx in range(ml_graph.layer_count)
