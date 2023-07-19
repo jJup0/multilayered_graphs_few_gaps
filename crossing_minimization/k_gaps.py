@@ -1,4 +1,3 @@
-import collections
 from functools import cache
 from typing import Literal
 
@@ -92,15 +91,6 @@ def _find_optimal_gaps(
     """
     assert gaps > 0
 
-    INFINITY = 1_000_000_000
-    # dp: list[list[list[tuple[int, list[int]]]]] = [
-    #     [
-    #         [(INFINITY, [-1])] * (len(ordered_real_nodes) + 1)
-    #         for _ in range(len(virtual_nodes))
-    #     ]
-    #     for _ in range(gaps + 1)
-    # ]
-
     virtual_node_to_crossings_in_gap = _get_crossings_for_vnodes_in_gaps(
         ml_graph,
         above_or_below,
@@ -128,10 +118,6 @@ def _find_optimal_gaps(
     ) -> tuple[int, list[int]]:
         assert curr_gaps > 0
         nonlocal ml_graph, virtual_node_to_crossings_in_gap
-        # nonlocal dp
-        # crossing_res, distribution_res = dp[curr_gaps][upto_virtual_idx][gap_idx]
-        # if crossing_res != INFINITY:
-        #     return crossing_res, distribution_res
 
         if gap_idx == 0:
             # BASE CASE
@@ -155,11 +141,9 @@ def _find_optimal_gaps(
                 # rightmost allowed gap produces fewer crossings, update result
                 crossing_res = crossings_in_bunch
                 distribution_res = [gap_idx] * (upto_virtual_idx + 1)
-        # elif upto_virtual_idx == 0:
-        #     # more than one gap allowed, but only one node, so fetch result for when only one gap allowed
-        #     crossing_res, distribution_res = find_crossings(
-        #         1, 0, gap_idx
-        #     )
+        elif upto_virtual_idx == 0:
+            # more than one gap allowed, but only one node, so fetch result for when only one gap allowed
+            crossing_res, distribution_res = find_crossings(1, 0, gap_idx)
         else:
             # default result is packing all into one less gap
             crossing_res, distribution_res = find_crossings(
@@ -169,9 +153,6 @@ def _find_optimal_gaps(
             # by iterating from i:= 0 to upto_virtual_idx-1 for the virtual node index
             # # and from j := 0 to gap_idx-1 for the maximum allowed gap index
             # for each iteration, place the remaining upto_virtual_idx - i nodes in the jth gap
-            # print(
-            #     f"{curr_gaps=}, {upto_virtual_idx=}, {gap_idx=}. One fewer gap: {crossing_res=}"
-            # )
             for prev_vnode_idx in range(upto_virtual_idx):
                 # find best placement for one fewer gap with the virtual
                 # nodes, and few gap-places to use
@@ -182,9 +163,6 @@ def _find_optimal_gaps(
                 crossings_for_new_bunch = one_gap_crossings(
                     prev_vnode_idx + 1, upto_virtual_idx, gap_idx
                 )
-                # print(
-                #     f"  {prev_vnode_idx=}, {with_one_fewer_gaps_crossings=}, {crossings_for_new_bunch=}"
-                # )
                 with_one_fewer_gaps_crossings += crossings_for_new_bunch
 
                 # if the total crossings are less, update the best result
@@ -193,55 +171,21 @@ def _find_optimal_gaps(
                     # make a copy of the previous distribution and place the
                     # remaining virtual nodes in one gap to the right of the
                     # currently rightmost allowed gap-place
-
-                    # assert False, "havent gotten here in a while"
-                    # print(f"found sol at {gap_idx=}")
                     distribution_res = prev_distribution_res + [gap_idx] * (
                         upto_virtual_idx - prev_vnode_idx
                     )
 
         # validation, algorithm should be correct now, this may be removed
-        # assert (
-        #     crossing_res != INFINITY
-        # ), f"{gaps=}, {upto_virtual_idx=}, {gap_idx=}: crossing_res == INFINITY"
         assert (
             len(distribution_res) == upto_virtual_idx + 1
         ), f"WARNING: {curr_gaps=}, {upto_virtual_idx=}, {gap_idx=}: {len(distribution_res)=} != {upto_virtual_idx+1=}"
 
-        # dp[curr_gaps][upto_virtual_idx][gap_idx] = crossing_res, distribution_res
         return crossing_res, distribution_res
 
     if gaps > len(ordered_real_nodes):
         # no need to check gap count higher than possible gaps in layer
         gaps = len(ordered_real_nodes)
-    res = find_crossings(gaps, len(ordered_virtual_nodes) - 1, len(ordered_real_nodes))
-    # temp debug purposes
-    debug_dp = [
-        [
-            [
-                find_crossings(g, vnodes, rnodes)
-                for rnodes in range(len(ordered_real_nodes))
-            ]
-            for vnodes in range(len(ordered_virtual_nodes))
-        ]
-        for g in range(1, gaps + 1)
-    ]
-
-    debug_one_gap_dp = [
-        [
-            [
-                one_gap_crossings(start_node, end_node, gap_idx)
-                for start_node in range(end_node + 1)
-            ]
-            for end_node in range(len(ordered_virtual_nodes))
-        ]
-        for gap_idx in range(len(ordered_real_nodes) + 1)
-    ]
-
-    actual_gaps = collections.Counter(res[1])
-    if len(actual_gaps) == 1:
-        pass
-    return res
+    return find_crossings(gaps, len(ordered_virtual_nodes) - 1, len(ordered_real_nodes))
 
 
 def k_gaps_sort_layer(
