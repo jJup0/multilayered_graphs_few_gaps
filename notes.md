@@ -43,9 +43,30 @@ https://pypi.org/project/ogdf-python/
 
 - [x] k gaps dp algorithm: had extra unnecessary loop over prev_gap_idx, now only looping over prev_vnode_idx
 - [x] gurobi k gaps but only for one-sided (variable for gap between nodes, sum must not exceed k)
+- Median side gaps: virtual node will have identical crossing count in gurobi and heuristic layout so approximation remains
 - [ ] proof for k gaps 3-heuristic
 - [ ] start writing
 - [ ] Bleibt 3-approximation für median heuristic
 - [ ] ILP max size realistic computation time
 - [ ] gurobi set gap node order fixed (order by incoming edge)
 - [ ] side gap heuristic: binary search for splitting point
+
+Qs:
+
+- gurobi two sided mit virtual nodes auf beiden layers? YES
+
+Introduction :
+
+- motivation
+- related work
+- our contribution
+
+Proof gap nodes do not cross
+
+k-gaps proof:
+
+- starting from optimal
+- merge gap nodes into a single node
+- apply median heuristic
+- split merged gap nodes up again
+- this ordering will be found by median + kgaps dp
