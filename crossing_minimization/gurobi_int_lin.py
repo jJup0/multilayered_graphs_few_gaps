@@ -5,7 +5,12 @@ from typing import Literal
 import gurobipy as gp
 from gurobipy import GRB
 
-from crossing_minimization.utils import GraphSorter, generate_layers_to_above_or_below
+from crossing_minimization.k_gaps import virtual_node_to_neighbor_position_sorting_func
+from crossing_minimization.utils import (
+    Above_or_below_T,
+    GraphSorter,
+    generate_layers_to_above_or_below,
+)
 from crossings.calculate_crossings import crossings_uv_vu
 from multilayered_graph.multilayered_graph import (
     MLGNode,
@@ -17,6 +22,162 @@ logger = logging.getLogger("Gurobi")
 logger.setLevel(logging.WARNING)
 
 gp.setParam("LogToConsole", 0)
+
+
+class GurobiFullIntegerSorter_stub(GraphSorter):
+    algorithm_name = "Gurobi_integer_variable"
+
+    @classmethod
+    def _sort_graph(
+        cls,
+        ml_graph: MultiLayeredGraph,
+        *,
+        max_iterations: int,
+        only_one_up_iteration: bool,
+        side_gaps_only: bool,
+        max_gaps: int,
+    ) -> None:
+        layers_to_above_below = generate_layers_to_above_or_below(
+            ml_graph, max_iterations, only_one_up_iteration
+        )
+        layer_to_model: dict[int, gp.Model] = {}
+        layer_to_ordering_vars: dict[int, dict[MLGNode, list[gp.Var]]] = {}
+
+        for layer_idx, above_below in layers_to_above_below:
+            nodes = ml_graph.layers_to_nodes[layer_idx]
+
+            if layer_idx not in layer_to_model:
+                m = gp.Model(
+                    f"Multilayered graph crossing minimization - layer {layer_idx}"
+                )
+                m.Params.LogToConsole = 0
+
+                (
+                    node_to_all_pos_vars,
+                    _pos_to_all_node_vars,
+                ) = cls._gen_pos_vars_and_constraints(m, nodes)
+                layer_to_ordering_vars[layer_idx] = node_to_all_pos_vars
+
+                if side_gaps_only:
+                    cls._gen_virtual_node_vars_and_constraints(m, node_to_all_pos_vars)
+                else:
+                    cls._gen_k_gap_constraints(m, nodes, node_to_all_pos_vars, max_gaps)
+                layer_to_model[layer_idx] = m
+
+            m = layer_to_model[layer_idx]
+            ordering_gp_vars = layer_to_ordering_vars[layer_idx]
+            # always update objective function
+            obj = gp.LinExpr()
+            for n1 in nodes:
+                for n2 in nodes:
+                    if n1 is n2:
+                        continue
+                    above_below = above_below  # just for type check to not complain about unused variable
+                    # TODO add to crossings objective
+                    # seems not worth implementing because need to make helper variables
+                    # that model relative order between nodes, which is what the other
+                    # gurobi model is entirely based on
+                    raise NotImplementedError("Crossings objective not implemented")
+
+            # set objective, update and optimize
+            m.setObjective(obj, GRB.MINIMIZE)
+            m.update()
+            m.optimize()
+
+            if m.Status != GRB.OPTIMAL:
+                raise Exception(f"Model is not optimal: {m.Status}")
+
+            # order graph using gurobi variables
+            cls._sort_nodes(nodes, ordering_gp_vars)
+
+    @classmethod
+    def _gen_pos_vars_and_constraints(
+        cls, m: gp.Model, nodes: list[MLGNode]
+    ) -> tuple[dict[MLGNode, list[gp.Var]], dict[int, list[gp.Var]]]:
+        node_count = len(nodes)
+        node_to_all_pos_vars: dict[MLGNode, list[gp.Var]] = {node: [] for node in nodes}
+        pos_to_all_node_vars: dict[int, list[gp.Var]] = {
+            i: [] for i in range(node_count)
+        }
+
+        for node in nodes:
+            node_to_all_pos_vars[node] = []
+            for position in range(node_count):
+                node_pos_var = m.addVar(vtype=GRB.BINARY, name=f"{node}_at_pos_{position}")  # type: ignore # incorrect call arguments
+                node_to_all_pos_vars[node].append(node_pos_var)
+                pos_to_all_node_vars[position].append(node_pos_var)
+
+            m.addConstr(
+                gp.quicksum(node_to_all_pos_vars[node]) == 1,
+                f"{node}_at_exactly_one_position",
+            )
+
+        for position in range(node_count):
+            m.addConstr(
+                gp.quicksum(pos_to_all_node_vars[position]) == 1,
+                f"one_node_at_pos{position}",
+            )
+
+        return node_to_all_pos_vars, pos_to_all_node_vars
+
+    @classmethod
+    def _gen_virtual_node_vars_and_constraints(
+        cls,
+        m: gp.Model,
+        node_to_all_pos_vars: dict[MLGNode, list[gp.Var]],
+    ):
+        """Generates constraints that force gap nodes to the sides.
+
+        Implemented by forcing real nodes in the middle.
+        n := len(nodes)
+        Generates n variables and n^2 constraints.
+
+        Args:
+            m (gp.Model): Model for which to generate variables and constraints.
+            node_to_all_pos_vars (dict[MLGNode, list[gp.Var]]):
+              Mapping from nodes to their boolean position variables.
+        """
+        node_count = len(node_to_all_pos_vars)
+        real_nodes = [node for node in node_to_all_pos_vars if not node.is_virtual]
+        starting_pos_to_gp_var: dict[int, gp.Var] = {}
+        for real_nodes_starting_pos in range(node_count - len(real_nodes)):
+            curr_starting_pos_gp_var = m.addVar(vtype=GRB.BINARY, name=f"real_nodes_starting_pos_{real_nodes_starting_pos}")  # type: ignore # incorrect call arguments
+            starting_pos_to_gp_var[real_nodes_starting_pos] = curr_starting_pos_gp_var
+            for node in real_nodes:
+                for node_pos, node_pos_var in enumerate(node_to_all_pos_vars[node]):
+                    m.addConstr(
+                        node_pos * node_pos_var
+                        >= real_nodes_starting_pos * curr_starting_pos_gp_var
+                    )
+                    m.addConstr(
+                        node_pos * node_pos_var
+                        <= (node_count - real_nodes_starting_pos)
+                        * curr_starting_pos_gp_var
+                        + (1 - curr_starting_pos_gp_var) * node_count * 2
+                    )
+
+        m.addConstr(gp.quicksum(starting_pos_to_gp_var.values()) == 1)
+
+    @classmethod
+    def _gen_k_gap_constraints(
+        cls,
+        m: gp.Model,
+        nodes: list[MLGNode],
+        node_to_all_pos_vars: dict[MLGNode, list[gp.Var]],
+        allowed_gaps: int,
+    ) -> ...:
+        raise NotImplementedError("Not implemented")
+
+    @classmethod
+    def _sort_nodes(
+        cls, nodes: list[MLGNode], node_to_all_pos_vars: dict[MLGNode, list[gp.Var]]
+    ):
+        for node in tuple(nodes):
+            for i, pos_var in enumerate(node_to_all_pos_vars[node]):
+                if pos_var.X == 1:
+                    nodes[i] = node
+                    break
+        assert len(set(nodes)) == len(nodes)
 
 
 class GurobiSorter(GraphSorter):
@@ -43,7 +204,7 @@ class GurobiSorter(GraphSorter):
             return
 
         # else use general sorter
-        gurobi_one_sided(
+        one_sided(
             ml_graph,
             max_iterations=max_iterations,
             only_one_up_iteration=only_one_up_iteration,
@@ -109,11 +270,11 @@ def side_gaps_gurobi_two_sided(
     m.optimize()
 
     # order graph using gurobi variables
-    gurobi_merge_sort(l1, l1_ordering_gb_vars)
-    gurobi_merge_sort(l2, l2_ordering_gb_vars)
+    _gurobi_merge_sort(l1, l1_ordering_gb_vars)
+    _gurobi_merge_sort(l2, l2_ordering_gb_vars)
 
 
-def gurobi_one_sided(
+def one_sided(
     ml_graph: MultiLayeredGraph,
     *,
     max_iterations: int,
@@ -153,6 +314,9 @@ def gurobi_one_sided(
                 gap_constraint_vars, real_node_neighbor_vars = _gen_k_gap_constraints(
                     m, nodes, ordering_gp_vars, max_gaps
                 )
+            _gen_fixed_constraints_for_virtual_order(
+                ml_graph, m, ordering_gp_vars, above_below, layer_idx
+            )
             layer_to_model[layer_idx] = m
 
         m = layer_to_model[layer_idx]
@@ -189,7 +353,7 @@ def gurobi_one_sided(
         )
 
         # order graph using gurobi variables
-        gurobi_merge_sort(nodes, ordering_gp_vars)
+        _gurobi_merge_sort(nodes, ordering_gp_vars)
 
 
 def _gurobi_log_result_info(
@@ -414,9 +578,10 @@ def _gen_k_gap_constraints(
     return gap_constraint_vars, real_node_neighbor_vars
 
 
-def gurobi_merge_sort(
+def _gurobi_merge_sort(
     arr: list[MLGNode], ordering_gb_vars: dict[tuple[MLGNode, MLGNode], gp.Var]
 ) -> list[MLGNode]:
+    # built-in .sort() with functools.cmp_to_key does not work, so manually implemented merge sort
     def merge(_arr1: list[MLGNode], _arr2: list[MLGNode]) -> list[MLGNode]:
         nonlocal ordering_gb_vars
         a1 = collections.deque(_arr1)
@@ -438,46 +603,33 @@ def gurobi_merge_sort(
 
     if len(arr) > 1:
         m = len(arr) // 2
-        arr1 = gurobi_merge_sort(arr[:m], ordering_gb_vars)
-        arr2 = gurobi_merge_sort(arr[m:], ordering_gb_vars)
+        arr1 = _gurobi_merge_sort(arr[:m], ordering_gb_vars)
+        arr2 = _gurobi_merge_sort(arr[m:], ordering_gb_vars)
         arr[:] = merge(arr1, arr2)
     return arr
 
 
-#### BUILT IN SORT with cmp_to_key does not work! ####
-# from functools import cmp_to_key
-# def sort_nodes_with_gurobi_ordering_BROKEN(
-#     nodes: list[MLGNode], ordering_gb_vars: dict[tuple[MLGNode, MLGNode], gp.Var]
-# ):
-#     def compare(n1: MLGNode, n2: MLGNode):
-#         if ordering_gb_vars[n1, n2].X < 0.5:
-#             return -1
-#         return 1
-
-#     nodes.sort(key=cmp_to_key(compare))
-
-
-# def _check_correctly_sorted(
-#     nodes: list[MLGNode], ordering_gb_vars: dict[tuple[MLGNode, MLGNode], gp.Var]
-# ):
-#     for i, n1 in enumerate(nodes):
-#         for n2 in nodes[i + 1 :]:
-#             if ordering_gb_vars[n1, n2].X < 0.5:
-#                 print(f"ERROR {n1} comes before {n2}")
-#                 exit(1)
-
-
-# def _check_transitive_ordering(
-#     nodes: list[MLGNode], ordering_gb_vars: dict[tuple[MLGNode, MLGNode], gp.Var]
-# ):
-#     for n1 in nodes:
-#         for n2 in nodes:
-#             if n1 is n2:
-#                 continue
-#             if ordering_gb_vars[n1, n2].X < 0.5:
-#                 continue
-#             for n3 in nodes:
-#                 if n3 is n1 or n3 is n2:
-#                     continue
-#                 if ordering_gb_vars[n2, n3].X > 0.5:
-#                     assert ordering_gb_vars[n1, n3].X > 0.5
+def _gen_fixed_constraints_for_virtual_order(
+    ml_graph: MultiLayeredGraph,
+    m: gp.Model,
+    ordering_gp_vars: dict[MLGNodeEdge_T, gp.Var],
+    above_or_below: Above_or_below_T,
+    layer_idx: int,
+):
+    """
+    For a minimal one-sided crossing, the relative order of virtual nodes is fixed.
+    Virtual nodes appear in the same order as their neighbors.
+    """
+    sorted_virtual_nodes = sorted(
+        (n for n in ml_graph.layers_to_nodes[layer_idx] if n.is_virtual),
+        key=lambda node: virtual_node_to_neighbor_position_sorting_func(
+            ml_graph, node, above_or_below
+        ),
+    )
+    for i, vnode1 in enumerate(sorted_virtual_nodes):
+        for j in range(i + 1, len(sorted_virtual_nodes)):
+            vnode2 = sorted_virtual_nodes[j]
+            vn1_vn2_ordering_var = ordering_gp_vars[vnode1, vnode2]
+            m.addConstr(vn1_vn2_ordering_var == 1)
+            vn2_vn1_ordering_var = ordering_gp_vars[vnode2, vnode1]
+            m.addConstr(vn2_vn1_ordering_var == 0)
