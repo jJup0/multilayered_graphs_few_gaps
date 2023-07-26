@@ -51,10 +51,10 @@ https://pypi.org/project/ogdf-python/
 - [x] Gurobi with integer variables:
       modeled with boolean variables instead: not boolean relative ordering variable but boolean to signify whether a node is at position or not
       did not fully implement because crossing objective requires helper variables of relative ordering
+- [x] gurobi set gap node order fixed (order by incoming edge)
 - [ ] proof for k gaps 3-heuristic
 - [ ] Bleibt 3-approximation für median heuristic
 - [ ] ILP max size realistic computation time
-- [ ] gurobi set gap node order fixed (order by incoming edge)
 - [ ] side gap heuristic: binary search for splitting point
 
 Qs:
