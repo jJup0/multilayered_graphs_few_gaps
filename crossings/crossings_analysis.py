@@ -22,7 +22,7 @@ from crossings.crossing_analysis_visualization import (
 from multilayered_graph import multilayer_graph_generator
 from multilayered_graph.multilayered_graph import MultiLayeredGraph
 
-DRAW_GRAPH = True
+DRAW_GRAPH = False
 
 
 class SortGraphArgs(TypedDict):
@@ -189,38 +189,35 @@ class CrossingsAnalyser:
         draw_crossing_analysis_graph(graph_x_values, data_sets, graph_labels)
 
     def analyze_crossings_k_gaps(self):
+        # algorithms_to_test = [alg for alg in self.algorithms if alg != GurobiSorter]
+        algorithms_to_test = self.algorithms
         algorithm_kwargs_kgaps: SortGraphArgs = {
             "max_iterations": 1,
             "only_one_up_iteration": True,
             "side_gaps_only": False,
             "max_gaps": 3,
         }
-        # algorithm_kwargs_sidegaps = {
-        #     "max_iterations": 1,
-        #     "only_one_up_iteration": True,
-        #     "side_gaps_only": True,
-        #     "max_gaps": 2,
-        # }
         try:
-            for round_nr in range(3):
+            for round_nr in range(1):
                 graph_and_type = self._generate_random_two_layer_graph(
                     layer1_count=10,
                     layer2_count=10,
                     virtual_nodes_count=10,
                     regular_edges_count=20,
                 )
-                for algorithm in self.algorithms:
+
+                for algorithm in algorithms_to_test:
                     sorted_graph = self._minimize_and_count_crossings(
                         graph_and_type, algorithm, algorithm_kwargs_kgaps
                     )
                     if DRAW_GRAPH:
-                        sorted_graph.to_pygraphviz_graph().draw(f"00-kgaps-{algorithm.__name__}.svg", "svg")  # type: ignore # unknown
+                        sorted_graph.to_pygraphviz_graph().draw(f"0{round_nr}-kgaps-{algorithm.__name__}.svg", "svg")  # type: ignore # unknown
 
                 print(f"{round_nr=}")
         except KeyboardInterrupt:
             # stop and show results so far
             print(f"Keyboard interrupt, stopping")
-        self._print_crossing_results()
+        self._print_crossing_results(algorithms_to_test)
 
     def temp_test_gurobi_k_gaps(self):
         algorithm_kwargs_kgaps: SortGraphArgs = {
@@ -236,7 +233,7 @@ class CrossingsAnalyser:
         #     "max_gaps": 2,
         # }
         graph_and_type = self._generate_random_two_layer_graph(
-            layer1_count=10,
+            layer1_count=8,
             layer2_count=10,
             virtual_nodes_count=10,
             regular_edges_count=20,
@@ -250,10 +247,14 @@ class CrossingsAnalyser:
         print(f"gurobi crossings:   {sorted_graph.get_crossings_per_layer()}")
         # self._print_crossing_results()
 
-    def _print_crossing_results(self):
+    def _print_crossing_results(
+        self, algorithms: list[type[GraphSorter]] | None = None
+    ):
+        if algorithms is None:
+            algorithms = self.algorithms
         for graph_type in self.graph_type_names:
             print(f'For graph type "{graph_type}":')
-            for GraphSorter_type in self.algorithms:
+            for GraphSorter_type in algorithms:
                 total_crossings = sum(
                     self.algs_graphtype_crossings[GraphSorter_type][graph_type]
                 )
@@ -455,5 +456,5 @@ class CrossingsAnalyser:
 if __name__ == "__main__":
     # CrossingsAnalyser().analyse_crossings_side_gaps()
     # CrossingsAnalyser().analyze_crossings_for_graph_two_layer()
-    # CrossingsAnalyser().analyze_crossings_k_gaps()
-    CrossingsAnalyser().temp_test_gurobi_k_gaps()
+    CrossingsAnalyser().analyze_crossings_k_gaps()
+    # CrossingsAnalyser().temp_test_gurobi_k_gaps()
