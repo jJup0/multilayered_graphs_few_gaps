@@ -202,7 +202,7 @@ def k_gaps_sort_layer(
 
     sorted_virtual_nodes = sorted(
         (n for n in ml_graph.layers_to_nodes[layer_idx] if n.is_virtual),
-        key=lambda node: _virtual_node_to_neighbor_position_sorting_func(
+        key=lambda node: virtual_node_to_neighbor_position_sorting_func(
             ml_graph, node, above_or_below
         ),
     )
@@ -232,7 +232,7 @@ def k_gaps_sort_layer(
     ml_graph.layers_to_nodes[layer_idx] = final_node_order
 
 
-def _virtual_node_to_neighbor_position_sorting_func(
+def virtual_node_to_neighbor_position_sorting_func(
     ml_graph: MultiLayeredGraph,
     vnode: MLGNode,
     neighbors_are_above_or_below: Literal["above"] | Literal["below"],
