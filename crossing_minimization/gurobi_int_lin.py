@@ -172,12 +172,12 @@ def one_sided(
         obj = gp.LinExpr()
         n1__n2_crossings: int
         n2__n1_crossings: int
-        # TODO dont iterate over all both times, results in double objective function, only do:
-        # for i, node in enumerate(nodes): for node in nodes[:i]: <do sth>
-        for n1 in nodes:
-            for n2 in nodes:
-                if n1 is n2:
-                    continue
+
+        for i, n1 in enumerate(nodes):
+            for j in range(i):
+                n2 = nodes[j]
+                # todo could check if both node are virtual, no need to add
+                # to objective function if forced by constraints
                 n1__n2_crossings, n2__n1_crossings = crossings_uv_vu(
                     ml_graph, n1, n2, above_below
                 )
