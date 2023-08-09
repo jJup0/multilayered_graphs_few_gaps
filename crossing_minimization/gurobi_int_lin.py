@@ -1,6 +1,5 @@
 import collections
 import logging
-from typing import Literal
 
 import gurobipy as gp
 from gurobipy import GRB
@@ -173,6 +172,8 @@ def one_sided(
         obj = gp.LinExpr()
         n1__n2_crossings: int
         n2__n1_crossings: int
+        # TODO dont iterate over all both times, results in double objective function, only do:
+        # for i, node in enumerate(nodes): for node in nodes[:i]: <do sth>
         for n1 in nodes:
             for n2 in nodes:
                 if n1 is n2:
@@ -302,33 +303,18 @@ def _gen_virtual_node_vars_and_constraints(
     real_nodes: list[MLGNode],
     ordering_gb_vars: dict[tuple[MLGNode, MLGNode], gp.Var],
     prefix: str = "",
-):
+) -> None:
     # virtual_nodes are either left of all real nodes, or on the right
-    virtual_node_gb_vars: dict[
-        tuple[MLGNode, Literal["left"] | Literal["right"]], gp.Var
-    ] = {}
+    virtual_node_gb_vars: dict[MLGNode, gp.Var] = {}
     for v_node in virtual_nodes:
-        virtual_node_left = m.addVar(vtype=GRB.BINARY, name=f"{prefix}{v_node}...")  # type: ignore # incorrect call arguments
-        virtual_node_right = m.addVar(vtype=GRB.BINARY, name=f"{prefix}...{v_node}")  # type: ignore # incorrect call arguments
-        virtual_node_gb_vars[(v_node, "left")] = virtual_node_left
-        virtual_node_gb_vars[(v_node, "right")] = virtual_node_right
-        m.addConstr(
-            virtual_node_left + virtual_node_right == 1, f"{prefix}...{v_node}..."
-        )
-
-        n1_left_of_reals = [ordering_gb_vars[v_node, n2] for n2 in real_nodes]
-        m.addConstr(
-            sum(n1_left_of_reals) - len(real_nodes) * virtual_node_left == 0,
-            f"{prefix}x{v_node}->->",
-        )
+        virtual_node_right = m.addVar(vtype=GRB.BINARY, name=f"{prefix}>>{v_node}")  # type: ignore # incorrect call arguments
+        virtual_node_gb_vars[v_node] = virtual_node_right
 
         n1_right_of_reals = [ordering_gb_vars[n2, v_node] for n2 in real_nodes]
         m.addConstr(
             sum(n1_right_of_reals) - len(real_nodes) * virtual_node_right == 0,
             f"{prefix}<-<-{v_node}x",
         )
-
-    return virtual_node_gb_vars
 
 
 def _gen_k_gap_constraints(
@@ -532,10 +518,17 @@ class GurobiFullIntegerSorter_stub(GraphSorter):
                     if n1 is n2:
                         continue
                     above_below = above_below  # just for type check to not complain about unused variable
-                    # TODO add to crossings objective
-                    # seems not worth implementing because need to make helper variables
-                    # that model relative order between nodes, which is what the other
-                    # gurobi model is entirely based on
+                    # # seems not worth implementing because need to make helper variables
+                    # # that model relative order between nodes, which is what the other
+                    # # gurobi model is entirely based on
+
+                    # TODO:
+                    # get position of variable by summing up
+                    # pos = gp.Var(GRB.INTEGER sum(i * var[i, node] for i in range(len(nodes))))
+                    # crossings_n1_n2 = GRB.BOOLEAN()
+                    # m.addConstr(crossings_n1_n2 >= (pos_node1 - pos_node2) / sth_large? * get_crossings(n1, n2))
+                    # obj += (pos_node1 - pos_node2)
+
                     raise NotImplementedError("Crossings objective not implemented")
 
             # set objective, update and optimize
@@ -637,3 +630,38 @@ class GurobiFullIntegerSorter_stub(GraphSorter):
                     nodes[i] = node
                     break
         assert len(set(nodes)) == len(nodes)
+
+
+# def _gen_virtual_node_vars_and_constraints_old(
+#     m: gp.Model,
+#     virtual_nodes: list[MLGNode],
+#     real_nodes: list[MLGNode],
+#     ordering_gb_vars: dict[tuple[MLGNode, MLGNode], gp.Var],
+#     prefix: str = "",
+# ):
+#     # virtual_nodes are either left of all real nodes, or on the right
+#     virtual_node_gb_vars: dict[
+#         tuple[MLGNode, Literal["left"] | Literal["right"]], gp.Var
+#     ] = {}
+#     for v_node in virtual_nodes:
+#         virtual_node_left = m.addVar(vtype=GRB.BINARY, name=f"{prefix}{v_node}...")  # type: ignore # incorrect call arguments
+#         virtual_node_right = m.addVar(vtype=GRB.BINARY, name=f"{prefix}...{v_node}")  # type: ignore # incorrect call arguments
+#         virtual_node_gb_vars[(v_node, "left")] = virtual_node_left
+#         virtual_node_gb_vars[(v_node, "right")] = virtual_node_right
+#         m.addConstr(
+#             virtual_node_left + virtual_node_right == 1, f"{prefix}...{v_node}..."
+#         )
+
+#         n1_left_of_reals = [ordering_gb_vars[v_node, n2] for n2 in real_nodes]
+#         m.addConstr(
+#             sum(n1_left_of_reals) - len(real_nodes) * virtual_node_left == 0,
+#             f"{prefix}x{v_node}->->",
+#         )
+
+#         n1_right_of_reals = [ordering_gb_vars[n2, v_node] for n2 in real_nodes]
+#         m.addConstr(
+#             sum(n1_right_of_reals) - len(real_nodes) * virtual_node_right == 0,
+#             f"{prefix}<-<-{v_node}x",
+#         )
+
+#     return virtual_node_gb_vars
