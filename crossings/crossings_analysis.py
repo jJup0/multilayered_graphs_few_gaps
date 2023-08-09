@@ -1,3 +1,4 @@
+# run using `python -m crossings.crossings_analysis`
 import copy
 import time
 from collections import defaultdict
@@ -219,33 +220,44 @@ class CrossingsAnalyser:
             print(f"Keyboard interrupt, stopping")
         self._print_crossing_results(algorithms_to_test)
 
-    def temp_test_gurobi_k_gaps(self):
+    def temp_test_gurobi_side_gaps(self):
         algorithm_kwargs_kgaps: SortGraphArgs = {
             "max_iterations": 1,
             "only_one_up_iteration": True,
-            "side_gaps_only": False,
-            "max_gaps": 3,
+            "side_gaps_only": True,
+            "max_gaps": 2,
         }
-        # algorithm_kwargs_sidegaps = {
-        #     "max_iterations": 1,
-        #     "only_one_up_iteration": True,
-        #     "side_gaps_only": True,
-        #     "max_gaps": 2,
-        # }
-        graph_and_type = self._generate_random_two_layer_graph(
-            layer1_count=8,
-            layer2_count=10,
-            virtual_nodes_count=10,
-            regular_edges_count=20,
-        )
-        sorted_graph = self._minimize_and_count_crossings(
-            graph_and_type, GurobiSorter, algorithm_kwargs_kgaps
-        )
-        if DRAW_GRAPH:
-            sorted_graph.to_pygraphviz_graph().draw(f"00-kgaps-gurobi.svg", "svg")  # type: ignore # unknown
-        print(f"original crossings: {graph_and_type.graph.get_crossings_per_layer()}")
-        print(f"gurobi crossings:   {sorted_graph.get_crossings_per_layer()}")
-        # self._print_crossing_results()
+
+        run_count = 20
+
+        for round_nr in range(run_count):
+            graph_and_type = self._generate_random_two_layer_graph(
+                layer1_count=8,
+                layer2_count=10,
+                virtual_nodes_count=10,
+                regular_edges_count=20,
+            )
+            sorted_graph = self._minimize_and_count_crossings(
+                graph_and_type,
+                GurobiSorter,
+                {
+                    **algorithm_kwargs_kgaps,
+                    "temp_debug_use_reduced_model_virtual_nodes": False,  # type: ignore
+                },
+            )
+            sorted_graph_reduced = self._minimize_and_count_crossings(
+                graph_and_type,
+                GurobiSorter,
+                {
+                    **algorithm_kwargs_kgaps,
+                    "temp_debug_use_reduced_model_virtual_nodes": True,  # type: ignore
+                },
+            )
+            assert (
+                sorted_graph.get_total_crossings()
+                == sorted_graph_reduced.get_total_crossings()
+            )
+            print(f"{round_nr=}, same crossings")
 
     def _print_crossing_results(
         self, algorithms: list[type[GraphSorter]] | None = None
@@ -456,5 +468,5 @@ class CrossingsAnalyser:
 if __name__ == "__main__":
     # CrossingsAnalyser().analyse_crossings_side_gaps()
     # CrossingsAnalyser().analyze_crossings_for_graph_two_layer()
-    CrossingsAnalyser().analyze_crossings_k_gaps()
+    CrossingsAnalyser().temp_test_gurobi_side_gaps()
     # CrossingsAnalyser().temp_test_gurobi_k_gaps()
