@@ -74,7 +74,7 @@ def side_gaps_gurobi_two_sided(
     ):
         real_nodes_layer = [n for n in nodes_in_layer if not n.is_virtual]
         virtual_nodes_layer = [n for n in nodes_in_layer if n.is_virtual]
-        _gen_virtual_node_vars_and_constraints(
+        _gen_virtual_node_sidegap_vars_and_constraints(
             m,
             virtual_nodes=virtual_nodes_layer,
             real_nodes=real_nodes_layer,
@@ -151,7 +151,7 @@ def one_sided(
             real_nodes = [n for n in nodes if not n.is_virtual]
             virtual_nodes = [n for n in nodes if n.is_virtual]
             if side_gaps_only:
-                _gen_virtual_node_vars_and_constraints(
+                _gen_virtual_node_sidegap_vars_and_constraints(
                     m,
                     virtual_nodes=virtual_nodes,
                     real_nodes=real_nodes,
@@ -297,7 +297,7 @@ def _gen_order_var_and_constraints(m: gp.Model, nodes: list[MLGNode], prefix: st
     )
 
 
-def _gen_virtual_node_vars_and_constraints(
+def _gen_virtual_node_sidegap_vars_and_constraints(
     m: gp.Model,
     virtual_nodes: list[MLGNode],
     real_nodes: list[MLGNode],
@@ -355,7 +355,7 @@ def _gen_k_gap_constraints(
                 #
                 # if n2 is left neighbor of n1, then this sum will only be 1 if n2 is the next real node after n1
                 # otherwise it will be 0 or negative
-                - sum(rnodes_left_of_rnode_vars[n2]) + sum(rnodes_left_of_rnode_vars[n1]) + 2 
+                + sum(rnodes_left_of_rnode_vars[n1]) - sum(rnodes_left_of_rnode_vars[n2]) + 2 
             )
             # fmt: on
 
@@ -469,167 +469,167 @@ def _gen_fixed_constraints_for_virtual_order(
             m.addConstr(vn2_vn1_ordering_var == 0)
 
 
-class GurobiFullIntegerSorter_stub(GraphSorter):
-    algorithm_name = "Gurobi_integer_variable"
+# class GurobiFullIntegerSorter_stub(GraphSorter):
+#     algorithm_name = "Gurobi_integer_variable"
 
-    @classmethod
-    def _sort_graph(
-        cls,
-        ml_graph: MultiLayeredGraph,
-        *,
-        max_iterations: int,
-        only_one_up_iteration: bool,
-        side_gaps_only: bool,
-        max_gaps: int,
-    ) -> None:
-        layers_to_above_below = generate_layers_to_above_or_below(
-            ml_graph, max_iterations, only_one_up_iteration
-        )
-        layer_to_model: dict[int, gp.Model] = {}
-        layer_to_ordering_vars: dict[int, dict[MLGNode, list[gp.Var]]] = {}
+#     @classmethod
+#     def _sort_graph(
+#         cls,
+#         ml_graph: MultiLayeredGraph,
+#         *,
+#         max_iterations: int,
+#         only_one_up_iteration: bool,
+#         side_gaps_only: bool,
+#         max_gaps: int,
+#     ) -> None:
+#         layers_to_above_below = generate_layers_to_above_or_below(
+#             ml_graph, max_iterations, only_one_up_iteration
+#         )
+#         layer_to_model: dict[int, gp.Model] = {}
+#         layer_to_ordering_vars: dict[int, dict[MLGNode, list[gp.Var]]] = {}
 
-        for layer_idx, above_below in layers_to_above_below:
-            nodes = ml_graph.layers_to_nodes[layer_idx]
+#         for layer_idx, above_below in layers_to_above_below:
+#             nodes = ml_graph.layers_to_nodes[layer_idx]
 
-            if layer_idx not in layer_to_model:
-                m = gp.Model(
-                    f"Multilayered graph crossing minimization - layer {layer_idx}"
-                )
-                m.Params.LogToConsole = 0
+#             if layer_idx not in layer_to_model:
+#                 m = gp.Model(
+#                     f"Multilayered graph crossing minimization - layer {layer_idx}"
+#                 )
+#                 m.Params.LogToConsole = 0
 
-                (
-                    node_to_all_pos_vars,
-                    _pos_to_all_node_vars,
-                ) = cls._gen_pos_vars_and_constraints(m, nodes)
-                layer_to_ordering_vars[layer_idx] = node_to_all_pos_vars
+#                 (
+#                     node_to_all_pos_vars,
+#                     _pos_to_all_node_vars,
+#                 ) = cls._gen_pos_vars_and_constraints(m, nodes)
+#                 layer_to_ordering_vars[layer_idx] = node_to_all_pos_vars
 
-                if side_gaps_only:
-                    cls._gen_virtual_node_vars_and_constraints(m, node_to_all_pos_vars)
-                else:
-                    cls._gen_k_gap_constraints(m, nodes, node_to_all_pos_vars, max_gaps)
-                layer_to_model[layer_idx] = m
+#                 if side_gaps_only:
+#                     cls._gen_virtual_node_vars_and_constraints(m, node_to_all_pos_vars)
+#                 else:
+#                     cls._gen_k_gap_constraints(m, nodes, node_to_all_pos_vars, max_gaps)
+#                 layer_to_model[layer_idx] = m
 
-            m = layer_to_model[layer_idx]
-            ordering_gp_vars = layer_to_ordering_vars[layer_idx]
-            # always update objective function
-            obj = gp.LinExpr()
-            for n1 in nodes:
-                for n2 in nodes:
-                    if n1 is n2:
-                        continue
-                    above_below = above_below  # just for type check to not complain about unused variable
-                    # # seems not worth implementing because need to make helper variables
-                    # # that model relative order between nodes, which is what the other
-                    # # gurobi model is entirely based on
+#             m = layer_to_model[layer_idx]
+#             ordering_gp_vars = layer_to_ordering_vars[layer_idx]
+#             # always update objective function
+#             obj = gp.LinExpr()
+#             for n1 in nodes:
+#                 for n2 in nodes:
+#                     if n1 is n2:
+#                         continue
+#                     above_below = above_below  # just for type check to not complain about unused variable
+#                     # # seems not worth implementing because need to make helper variables
+#                     # # that model relative order between nodes, which is what the other
+#                     # # gurobi model is entirely based on
 
-                    # TODO:
-                    # get position of variable by summing up
-                    # pos = gp.Var(GRB.INTEGER sum(i * var[i, node] for i in range(len(nodes))))
-                    # crossings_n1_n2 = GRB.BOOLEAN()
-                    # m.addConstr(crossings_n1_n2 >= (pos_node1 - pos_node2) / sth_large? * get_crossings(n1, n2))
-                    # obj += (pos_node1 - pos_node2)
+#                     # TODO:
+#                     # get position of variable by summing up
+#                     # pos = gp.Var(GRB.INTEGER sum(i * var[i, node] for i in range(len(nodes))))
+#                     # crossings_n1_n2 = GRB.BOOLEAN()
+#                     # m.addConstr(crossings_n1_n2 >= (pos_node1 - pos_node2) / sth_large? * get_crossings(n1, n2))
+#                     # obj += (pos_node1 - pos_node2)
 
-                    raise NotImplementedError("Crossings objective not implemented")
+#                     raise NotImplementedError("Crossings objective not implemented")
 
-            # set objective, update and optimize
-            m.setObjective(obj, GRB.MINIMIZE)
-            m.update()
-            m.optimize()
+#             # set objective, update and optimize
+#             m.setObjective(obj, GRB.MINIMIZE)
+#             m.update()
+#             m.optimize()
 
-            if m.Status != GRB.OPTIMAL:
-                raise Exception(f"Model is not optimal: {m.Status}")
+#             if m.Status != GRB.OPTIMAL:
+#                 raise Exception(f"Model is not optimal: {m.Status}")
 
-            # order graph using gurobi variables
-            cls._sort_nodes(nodes, ordering_gp_vars)
+#             # order graph using gurobi variables
+#             cls._sort_nodes(nodes, ordering_gp_vars)
 
-    @classmethod
-    def _gen_pos_vars_and_constraints(
-        cls, m: gp.Model, nodes: list[MLGNode]
-    ) -> tuple[dict[MLGNode, list[gp.Var]], dict[int, list[gp.Var]]]:
-        node_count = len(nodes)
-        node_to_all_pos_vars: dict[MLGNode, list[gp.Var]] = {node: [] for node in nodes}
-        pos_to_all_node_vars: dict[int, list[gp.Var]] = {
-            i: [] for i in range(node_count)
-        }
+#     @classmethod
+#     def _gen_pos_vars_and_constraints(
+#         cls, m: gp.Model, nodes: list[MLGNode]
+#     ) -> tuple[dict[MLGNode, list[gp.Var]], dict[int, list[gp.Var]]]:
+#         node_count = len(nodes)
+#         node_to_all_pos_vars: dict[MLGNode, list[gp.Var]] = {node: [] for node in nodes}
+#         pos_to_all_node_vars: dict[int, list[gp.Var]] = {
+#             i: [] for i in range(node_count)
+#         }
 
-        for node in nodes:
-            node_to_all_pos_vars[node] = []
-            for position in range(node_count):
-                node_pos_var = m.addVar(vtype=GRB.BINARY, name=f"{node}_at_pos_{position}")  # type: ignore # incorrect call arguments
-                node_to_all_pos_vars[node].append(node_pos_var)
-                pos_to_all_node_vars[position].append(node_pos_var)
+#         for node in nodes:
+#             node_to_all_pos_vars[node] = []
+#             for position in range(node_count):
+#                 node_pos_var = m.addVar(vtype=GRB.BINARY, name=f"{node}_at_pos_{position}")  # type: ignore # incorrect call arguments
+#                 node_to_all_pos_vars[node].append(node_pos_var)
+#                 pos_to_all_node_vars[position].append(node_pos_var)
 
-            m.addConstr(
-                gp.quicksum(node_to_all_pos_vars[node]) == 1,
-                f"{node}_at_exactly_one_position",
-            )
+#             m.addConstr(
+#                 gp.quicksum(node_to_all_pos_vars[node]) == 1,
+#                 f"{node}_at_exactly_one_position",
+#             )
 
-        for position in range(node_count):
-            m.addConstr(
-                gp.quicksum(pos_to_all_node_vars[position]) == 1,
-                f"one_node_at_pos{position}",
-            )
+#         for position in range(node_count):
+#             m.addConstr(
+#                 gp.quicksum(pos_to_all_node_vars[position]) == 1,
+#                 f"one_node_at_pos{position}",
+#             )
 
-        return node_to_all_pos_vars, pos_to_all_node_vars
+#         return node_to_all_pos_vars, pos_to_all_node_vars
 
-    @classmethod
-    def _gen_virtual_node_vars_and_constraints(
-        cls,
-        m: gp.Model,
-        node_to_all_pos_vars: dict[MLGNode, list[gp.Var]],
-    ):
-        """Generates constraints that force gap nodes to the sides.
+#     @classmethod
+#     def _gen_virtual_node_vars_and_constraints(
+#         cls,
+#         m: gp.Model,
+#         node_to_all_pos_vars: dict[MLGNode, list[gp.Var]],
+#     ):
+#         """Generates constraints that force gap nodes to the sides.
 
-        Implemented by forcing real nodes in the middle.
-        n := len(nodes)
-        Generates n variables and n^2 constraints.
+#         Implemented by forcing real nodes in the middle.
+#         n := len(nodes)
+#         Generates n variables and n^2 constraints.
 
-        Args:
-            m (gp.Model): Model for which to generate variables and constraints.
-            node_to_all_pos_vars (dict[MLGNode, list[gp.Var]]):
-              Mapping from nodes to their boolean position variables.
-        """
-        node_count = len(node_to_all_pos_vars)
-        real_nodes = [node for node in node_to_all_pos_vars if not node.is_virtual]
-        starting_pos_to_gp_var: dict[int, gp.Var] = {}
-        for real_nodes_starting_pos in range(node_count - len(real_nodes)):
-            curr_starting_pos_gp_var = m.addVar(vtype=GRB.BINARY, name=f"real_nodes_starting_pos_{real_nodes_starting_pos}")  # type: ignore # incorrect call arguments
-            starting_pos_to_gp_var[real_nodes_starting_pos] = curr_starting_pos_gp_var
-            for node in real_nodes:
-                for node_pos, node_pos_var in enumerate(node_to_all_pos_vars[node]):
-                    m.addConstr(
-                        node_pos * node_pos_var
-                        >= real_nodes_starting_pos * curr_starting_pos_gp_var
-                    )
-                    m.addConstr(
-                        node_pos * node_pos_var
-                        <= (node_count - real_nodes_starting_pos)
-                        * curr_starting_pos_gp_var
-                        + (1 - curr_starting_pos_gp_var) * node_count * 2
-                    )
+#         Args:
+#             m (gp.Model): Model for which to generate variables and constraints.
+#             node_to_all_pos_vars (dict[MLGNode, list[gp.Var]]):
+#               Mapping from nodes to their boolean position variables.
+#         """
+#         node_count = len(node_to_all_pos_vars)
+#         real_nodes = [node for node in node_to_all_pos_vars if not node.is_virtual]
+#         starting_pos_to_gp_var: dict[int, gp.Var] = {}
+#         for real_nodes_starting_pos in range(node_count - len(real_nodes)):
+#             curr_starting_pos_gp_var = m.addVar(vtype=GRB.BINARY, name=f"real_nodes_starting_pos_{real_nodes_starting_pos}")  # type: ignore # incorrect call arguments
+#             starting_pos_to_gp_var[real_nodes_starting_pos] = curr_starting_pos_gp_var
+#             for node in real_nodes:
+#                 for node_pos, node_pos_var in enumerate(node_to_all_pos_vars[node]):
+#                     m.addConstr(
+#                         node_pos * node_pos_var
+#                         >= real_nodes_starting_pos * curr_starting_pos_gp_var
+#                     )
+#                     m.addConstr(
+#                         node_pos * node_pos_var
+#                         <= (node_count - real_nodes_starting_pos)
+#                         * curr_starting_pos_gp_var
+#                         + (1 - curr_starting_pos_gp_var) * node_count * 2
+#                     )
 
-        m.addConstr(gp.quicksum(starting_pos_to_gp_var.values()) == 1)
+#         m.addConstr(gp.quicksum(starting_pos_to_gp_var.values()) == 1)
 
-    @classmethod
-    def _gen_k_gap_constraints(
-        cls,
-        m: gp.Model,
-        nodes: list[MLGNode],
-        node_to_all_pos_vars: dict[MLGNode, list[gp.Var]],
-        allowed_gaps: int,
-    ) -> ...:
-        raise NotImplementedError("Not implemented")
+#     @classmethod
+#     def _gen_k_gap_constraints(
+#         cls,
+#         m: gp.Model,
+#         nodes: list[MLGNode],
+#         node_to_all_pos_vars: dict[MLGNode, list[gp.Var]],
+#         allowed_gaps: int,
+#     ) -> ...:
+#         raise NotImplementedError("Not implemented")
 
-    @classmethod
-    def _sort_nodes(
-        cls, nodes: list[MLGNode], node_to_all_pos_vars: dict[MLGNode, list[gp.Var]]
-    ):
-        for node in tuple(nodes):
-            for i, pos_var in enumerate(node_to_all_pos_vars[node]):
-                if pos_var.X == 1:
-                    nodes[i] = node
-                    break
-        assert len(set(nodes)) == len(nodes)
+#     @classmethod
+#     def _sort_nodes(
+#         cls, nodes: list[MLGNode], node_to_all_pos_vars: dict[MLGNode, list[gp.Var]]
+#     ):
+#         for node in tuple(nodes):
+#             for i, pos_var in enumerate(node_to_all_pos_vars[node]):
+#                 if pos_var.X == 1:
+#                     nodes[i] = node
+#                     break
+#         assert len(set(nodes)) == len(nodes)
 
 
 # def _gen_virtual_node_vars_and_constraints_old(
