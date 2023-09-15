@@ -68,3 +68,29 @@ k-gaps proof:
 - apply median heuristic
 - split merged gap nodes up again
 - this ordering will be found by median + kgaps dp
+
+Approximation ratio/factor
+can define function in preliminaries e.g. get virtual nodes in order of neighbor
+one/two sentence summary oflonger proofs if simple explanation is possible
+
+- [ ] no need for explicitly explaining binary search and having it in the pseudo code, just state that partition index needs to be found and this can be done with binary search
+      "our algorithm computes a 3-approximation to the problem <give probem a name like SG-OSCM (side gap one sided crossing minimization)>"
+      not clear what c\_{opt} i referring to exactly (optimal crossings for real nodes) [on page 11]
+      where to fit in two layer ILP formulations (does not fit into one sided thoery chapters)
+      give exact big-O notation runtimes for algorithms
+
+look for a case study example graph in existing papers
+
+Chapter: Experimention
+
+- implementierung
+- quantitative evalutation
+- case study
+
+Meeting 24-08
+
+- layered graph drawing a pi for a layered graph G
+- gap is maximal sequence of consecutive nodes s.t...
+- "preliminary experiments show that one gap creates unreadable graph"
+- this heuristic may have an approximation ratio
+- \textrm may be not cursive, check how it compares to \text
