@@ -1,3 +1,4 @@
+import json
 from collections import defaultdict
 from copy import deepcopy
 from typing import Any, TypeAlias
@@ -248,3 +249,52 @@ class MultiLayeredGraph:
         return {
             node: index for index, node in enumerate(self.layers_to_nodes[layer_idx])
         }
+
+    def serialize_proprietary(self, path: str):
+        # MAYBE THERE ARE SOME __pickle__ or similar methods to use
+        serialized_graph: dict[str, Any] = {}
+        all_nodes_as_list = self.all_nodes_as_list()
+
+        serialized_nodes: list[list[int]] = []
+        node_to_id = {node: _id for _id, node in enumerate(all_nodes_as_list)}
+        for layer in range(self.layer_count):
+            curr_layer_with_indices: list[int] = []
+            for node in self.layers_to_nodes[layer]:
+                curr_layer_with_indices.append(node_to_id[node])
+            serialized_nodes.append(curr_layer_with_indices)
+        serialized_graph["nodes"] = serialized_nodes
+
+        ids_to_virtual = {node: node.is_virtual for node in all_nodes_as_list}
+        serialized_graph["virtual"] = ids_to_virtual
+
+        serialized_edges = [
+            [node_to_id[a], node_to_id[b]] for a, b in self.all_edges_as_list()
+        ]
+
+        serialized_graph["edges"] = serialized_edges
+
+        with open(path, "w") as f:
+            json.dump(serialized_graph, f)
+
+    @classmethod
+    def from_proprietary_serialized(cls, path: str):
+        with open(path) as f:
+            graph_as_json = json.load(f)
+
+        graph = cls(len(graph_as_json["nodes"]))
+        node_id_to_virtual = graph_as_json["virtual"]
+        node_id_to_node: dict[int, MLGNode] = {}
+        for layer_idx, nodes in graph_as_json["nodes"]:
+            for node_id in nodes:
+                if node_id_to_virtual[node_id]:
+                    node = graph.add_virtual_node(layer_idx, str(node_id))
+                else:
+                    node = graph.add_real_node(layer_idx, str(node_id))
+                node_id_to_node[node_id] = node
+
+        for id_source, id_target in graph_as_json["edges"]:
+            graph._add_short_edge(
+                node_id_to_node[id_source], node_id_to_node[id_target]
+            )
+            
+        return graph
