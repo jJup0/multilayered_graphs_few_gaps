@@ -242,7 +242,7 @@ def virtual_node_to_neighbor_position_sorting_func(
         if neighbors_are_above_or_below == "below"
         else ml_graph.nodes_to_out_edges[vnode]
     )
-    assert len(neighbors) == 1
+    assert len(neighbors) == 1, f"{vnode=} has {len(neighbors)} neighbors"
 
     neighbor = next(iter(neighbors))
     neighbor_layer_idx = vnode.layer - 1 if "below" else vnode.layer + 1
