@@ -68,23 +68,23 @@ def generate_oscm_graph(
         vnodes_l2.add(ml_graph.add_virtual_node(1, ""))
 
     # then add edges for each virtual node
-    all_nodes_l1 = list(ml_graph.layers_to_nodes[0])
-    all_nodes_l2 = list(ml_graph.layers_to_nodes[1])
+    # all_nodes_l2 = list(ml_graph.layers_to_nodes[1])
+    # TODO TEMP
+    all_nodes_l2 = [n for n in ml_graph.layers_to_nodes[1] if not n.is_virtual]
+
     while vnodes_l1:
         vnode1 = vnodes_l1.pop()
         neighbor_in_l2 = random.choice(all_nodes_l2)
         ml_graph.add_edge(vnode1, neighbor_in_l2)
         if neighbor_in_l2 is vnodes_l2:
-            all_nodes_l2.remove(neighbor_in_l2)
+            all_nodes_l2.remove(neighbor_in_l2)  # O(n) operation
             vnodes_l2.remove(neighbor_in_l2)
 
+    real_nodes_l1 = [n for n in ml_graph.layers_to_nodes[0] if not n.is_virtual]
     while vnodes_l2:
         vnode2 = vnodes_l2.pop()
-        neighbor_in_l1 = random.choice(all_nodes_l2)
+        neighbor_in_l1 = random.choice(real_nodes_l1)
         ml_graph.add_edge(neighbor_in_l1, vnode2)
-        if neighbor_in_l1 is vnodes_l1:
-            all_nodes_l1.remove(neighbor_in_l1)
-            vnodes_l1.remove(neighbor_in_l1)
 
     return ml_graph
 
@@ -115,4 +115,5 @@ if __name__ == "__main__":
             + f"_p={regular_edge_density}"
             + f"_id={str(i).zfill(graph_count_str_len)}.json"
         )
+        os.makedirs(out_dir, exist_ok=True)
         g.serialize_proprietary(os.path.realpath(os.path.join(".", out_dir, file_name)))
