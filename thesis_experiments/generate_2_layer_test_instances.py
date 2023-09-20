@@ -64,27 +64,42 @@ def generate_oscm_graph(
     vnodes_l1: set[MLGNode] = set()
     vnodes_l2: set[MLGNode] = set()
     for i in range(virtual_node_count):
-        vnodes_l1.add(ml_graph.add_virtual_node(0, ""))
-        vnodes_l2.add(ml_graph.add_virtual_node(1, ""))
+        vnodes_l1.add(ml_graph.add_virtual_node(0, f"{i}"))
+        vnodes_l2.add(ml_graph.add_virtual_node(1, f"{i}"))
 
     # then add edges for each virtual node
-    # all_nodes_l2 = list(ml_graph.layers_to_nodes[1])
     # TODO TEMP
-    all_nodes_l2 = [n for n in ml_graph.layers_to_nodes[1] if not n.is_virtual]
+    all_nodes_l2 = list(ml_graph.layers_to_nodes[1])
+    # all_nodes_l2 = [n for n in ml_graph.layers_to_nodes[1] if not n.is_virtual]
+    # print(
+    #     f"{vnodes_l1=}",
+    #     f"{vnodes_l2=}",
+    #     f"{all_nodes_l2=}",
+    #     f"intersection: {vnodes_l2.intersection(all_nodes_l2)}",
+    #     sep="\n",
+    # )
 
-    while vnodes_l1:
-        vnode1 = vnodes_l1.pop()
+    def check_vnodes_have_single_neighbor(curr_node: MLGNode | None = None):
+        for vnode in [n for n in ml_graph.all_nodes_as_list() if n.is_virtual]:
+            assert (
+                len(ml_graph.nodes_to_in_edges[vnode])
+                + len(ml_graph.nodes_to_out_edges[vnode])
+            ) <= 1, f"{vnode=} got second neighbor. || {curr_node=}"
+
+    for vnode1 in vnodes_l1:
         neighbor_in_l2 = random.choice(all_nodes_l2)
         ml_graph.add_edge(vnode1, neighbor_in_l2)
-        if neighbor_in_l2 is vnodes_l2:
+        if neighbor_in_l2 in vnodes_l2:
             all_nodes_l2.remove(neighbor_in_l2)  # O(n) operation
             vnodes_l2.remove(neighbor_in_l2)
+        check_vnodes_have_single_neighbor(vnode1)
+        # temp check
 
     real_nodes_l1 = [n for n in ml_graph.layers_to_nodes[0] if not n.is_virtual]
-    while vnodes_l2:
-        vnode2 = vnodes_l2.pop()
+    for vnode2 in vnodes_l2:
         neighbor_in_l1 = random.choice(real_nodes_l1)
         ml_graph.add_edge(neighbor_in_l1, vnode2)
+        check_vnodes_have_single_neighbor(vnode2)
 
     return ml_graph
 
