@@ -1,5 +1,6 @@
 import collections
 import logging
+import warnings
 
 import gurobipy as gp
 from gurobipy import GRB
@@ -189,10 +190,17 @@ def one_sided(
         # set objective, update and optimize
         m.setObjective(obj, GRB.MINIMIZE)
         m.update()
+
+        time_limit_seconds = 60
+        m.setParam(GRB.Param.TimeLimit, time_limit_seconds)
         m.optimize()
 
-        if m.Status != GRB.OPTIMAL:
-            raise Exception(f"Model is not optimal: {m.Status}")
+        if m.status == GRB.OPTIMAL:
+            pass
+        elif m.Status != GRB.TIME_LIMIT:
+            warnings.warn("Hit time limit while solving model")
+        else:
+            warnings.warn(f"ENCOUNTERED ISSUE WHILE SOLVING MODEL: {m.Status}")
 
         _gurobi_log_result_info(
             ml_graph,
