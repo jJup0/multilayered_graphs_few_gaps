@@ -64,7 +64,7 @@ def generate_oscm_graph(
     vnodes_l1: set[MLGNode] = set()
     vnodes_l2: set[MLGNode] = set()
     for i in range(virtual_node_count):
-        vnodes_l1.add(ml_graph.add_virtual_node(1, ""))
+        vnodes_l1.add(ml_graph.add_virtual_node(0, ""))
         vnodes_l2.add(ml_graph.add_virtual_node(1, ""))
 
     # then add edges for each virtual node
