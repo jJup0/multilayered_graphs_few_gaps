@@ -120,40 +120,20 @@ for file_path in in_file_paths:
         side_gaps_only=side_gaps,
         max_gaps=max_gaps,
     )
-    total_s = time.perf_counter_ns() - start_ns / 1_000_000_000
+    total_s = (time.perf_counter_ns() - start_ns) / 1_000_000_000
 
-    if not os.path.isfile(out_csv_file):
-        # write csv header
-        with open(out_csv_file, "w", newline="") as f:
-            csv_writer = csv.writer(f)
-            csv_writer.writerow(
-                (
-                    "alg_name",
-                    "real_nodes_per_layer_count",
-                    "virtual_nodes_l2_count",
-                    "real_edge_density",
-                    "instance_name",
-                    "crossings",
-                    "time_s",
-                )
-            )
+    all_nodes_as_list = ml_graph.all_nodes_as_list()
 
+    real_nodes_count = file_path[file_path.find("_r=") + 3 : file_path.find("_v=")]
+    virtual_nodes_count = file_path[file_path.find("_v=") + 3 : file_path.find("_p=")]
+    real_edge_density = file_path[file_path.find("_p=") + 3 : file_path.find("_id=")]
+    # print(
+    #     f"{file_path=},{real_nodes_count=}, {virtual_nodes_count=}, {real_edge_density=}"
+    # )
+    instance = file_path.strip(".json")
+    crossings = ml_graph.get_total_crossings()
     with open(out_csv_file, "a", newline="") as f:
         csv_writer = csv.writer(f)
-        all_nodes_as_list = ml_graph.all_nodes_as_list()
-
-        real_nodes_count = file_path[file_path.find("_r=") + 3 : file_path.find("_v=")]
-        virtual_nodes_count = file_path[
-            file_path.find("_v=") + 3 : file_path.find("_p=")
-        ]
-        real_edge_density = file_path[
-            file_path.find("_p=") + 3 : file_path.find("_id=")
-        ]
-        # print(
-        #     f"{file_path=},{real_nodes_count=}, {virtual_nodes_count=}, {real_edge_density=}"
-        # )
-        instance = file_path.strip(".json")
-        crossings = ml_graph.get_total_crossings()
         csv_writer.writerow(
             (
                 alg_name,
