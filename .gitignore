@@ -1,5 +1,6 @@
 # virtual environment
 venv
+acgroup_venv
 
 # IDEs
 .idea
