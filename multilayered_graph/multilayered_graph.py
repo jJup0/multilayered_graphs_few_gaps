@@ -264,7 +264,7 @@ class MultiLayeredGraph:
             serialized_nodes.append(curr_layer_with_indices)
         serialized_graph["nodes"] = serialized_nodes
 
-        ids_to_virtual = {node: node.is_virtual for node in all_nodes_as_list}
+        ids_to_virtual = [node.is_virtual for node in all_nodes_as_list]
         serialized_graph["virtual"] = ids_to_virtual
 
         serialized_edges = [
@@ -284,7 +284,7 @@ class MultiLayeredGraph:
         graph = cls(len(graph_as_json["nodes"]))
         node_id_to_virtual = graph_as_json["virtual"]
         node_id_to_node: dict[int, MLGNode] = {}
-        for layer_idx, nodes in graph_as_json["nodes"]:
+        for layer_idx, nodes in enumerate(graph_as_json["nodes"]):
             for node_id in nodes:
                 if node_id_to_virtual[node_id]:
                     node = graph.add_virtual_node(layer_idx, str(node_id))
@@ -296,5 +296,5 @@ class MultiLayeredGraph:
             graph._add_short_edge(
                 node_id_to_node[id_source], node_id_to_node[id_target]
             )
-            
+
         return graph
