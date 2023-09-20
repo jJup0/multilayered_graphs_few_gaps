@@ -4,7 +4,8 @@ from copy import deepcopy
 from typing import Any, TypeAlias
 
 import networkx as nx
-import pygraphviz as pgv  # type: ignore # stubfile not found
+
+# import pygraphviz as pgv  # type: ignore # stubfile not found
 
 
 class InvalidEdgeParamError(ValueError):
@@ -166,33 +167,33 @@ class MultiLayeredGraph:
         nx_graph.add_edges_from(self.all_edges_as_list())  # type: ignore # partially unknown
         return nx_graph
 
-    def to_pygraphviz_graph(self) -> pgv.AGraph:
-        pgv_graph = pgv.AGraph()
-        pgv_graph.has_layout = True
-        pgv_graph.graph_attr["splines"] = "spline"
+    # def to_pygraphviz_graph(self) -> pgv.AGraph:
+    #     pgv_graph = pgv.AGraph()
+    #     pgv_graph.has_layout = True
+    #     pgv_graph.graph_attr["splines"] = "spline"
 
-        position_scale = 150
-        positions = self.nodes_to_integer_relative_coordinates()
-        for node in self.all_nodes_as_list():
-            pos_x, pos_y = positions[node]
-            pos_str = f"{pos_x * position_scale},{pos_y * position_scale}"
-            attrs: dict[str, Any] = {"pos": pos_str}
-            if node.is_virtual:
-                attrs["label"] = ""
-                # attrs["style"] = "invis"
-                attrs["fixedsize"] = True
-                attrs["width"] = 0.01
-                attrs["height"] = 0.01
+    #     position_scale = 150
+    #     positions = self.nodes_to_integer_relative_coordinates()
+    #     for node in self.all_nodes_as_list():
+    #         pos_x, pos_y = positions[node]
+    #         pos_str = f"{pos_x * position_scale},{pos_y * position_scale}"
+    #         attrs: dict[str, Any] = {"pos": pos_str}
+    #         if node.is_virtual:
+    #             attrs["label"] = ""
+    #             # attrs["style"] = "invis"
+    #             attrs["fixedsize"] = True
+    #             attrs["width"] = 0.01
+    #             attrs["height"] = 0.01
 
-            # attrs["label"] = f"{(pos_x, pos_y)}"
-            attrs["label"] = f"{node}"
-            if node.text_info:
-                attrs["label"] += f"\n{node.text_info}"
+    #         # attrs["label"] = f"{(pos_x, pos_y)}"
+    #         attrs["label"] = f"{node}"
+    #         if node.text_info:
+    #             attrs["label"] += f"\n{node.text_info}"
 
-            pgv_graph.add_node(node, **attrs)  # type: ignore # partially unknown
+    #         pgv_graph.add_node(node, **attrs)  # type: ignore # partially unknown
 
-        pgv_graph.add_edges_from(self.all_edges_as_list())  # type: ignore # partially unknown
-        return pgv_graph
+    #     pgv_graph.add_edges_from(self.all_edges_as_list())  # type: ignore # partially unknown
+    #     return pgv_graph
 
     def all_edges_as_list(self) -> list[tuple[MLGNode, MLGNode]]:
         all_edges: list[MLGNodeEdge_T] = []
