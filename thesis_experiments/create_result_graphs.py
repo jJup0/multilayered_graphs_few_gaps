@@ -4,10 +4,10 @@ import seaborn as sns
 
 # TODO aggregate csvs
 
-df = pd.read_csv("thesis_experiments/local_tests/out/out2.csv")
+df = pd.read_csv(r"thesis_experiments\local_tests\testcase1\out.csv")
 
 
-sns.lineplot(data=df, x="time_s", y="crossings", hue="alg_name")
+sns.lineplot(data=df, x="real_nodes_per_layer_count ", y="time_s", hue="alg_name")
 
 # Optionally, you can customize the plot using Seaborn functions or Matplotlib settings
 # For example, setting labels and title:
