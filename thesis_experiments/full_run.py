@@ -1,6 +1,7 @@
 import csv
 import os
 import subprocess
+from typing import Iterable
 
 cwd = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 
@@ -12,21 +13,25 @@ def in_dir_name(test_case_name: str):
 
 
 # TODO parameterize this
-def create_graphs(test_case_name: str):
-    # graph_gen_count = 20
-    graph_gen_count = 20
-    # for real_node_count in (10, 20, 30, 40, 50):
-    for real_node_count in (50,):
-        # for real_node_count in (10, 15, 20):
-        virtual_node_count = real_node_count // 2
+def create_graphs(
+    test_case_name: str,
+    *,
+    graph_gen_count: int,
+    real_node_counts: Iterable[int],
+    virtual_node_counts: Iterable[int],
+    real_edge_density: float,
+):
+    for real_node_count, vnode_count in zip(
+        real_node_counts, virtual_node_counts, strict=True
+    ):
         generate_cmd_args = [
             "python",
             "-m",
             f"{thesis_experiments_dirname}.generate_2_layer_test_instances",
             f"{graph_gen_count}",
             f"{real_node_count}",
-            f"{virtual_node_count}",
-            "0.2",
+            f"{vnode_count}",
+            f"{real_edge_density}",
             in_dir_name(test_case_name),
         ]
         print(f"generating {graph_gen_count} graphs with {real_node_count=}")
@@ -43,9 +48,9 @@ def create_csv_out(test_case_name: str) -> str:
             (
                 "alg_name",
                 "gap_type",
-                "gaps",
+                "gap_count",
                 "real_nodes_per_layer_count",
-                "virtual_nodes_l2_count",
+                "virtual_nodes_per_layer_count",
                 "real_edge_density",
                 "instance_name",
                 "crossings",
@@ -56,7 +61,13 @@ def create_csv_out(test_case_name: str) -> str:
 
 
 def run_regular_side_gaps(test_case_name: str):
-    create_graphs(test_case_name)
+    create_graphs(
+        test_case_name,
+        graph_gen_count=20,
+        real_node_counts=[10, 20, 30, 40, 50],
+        virtual_node_counts=[5, 10, 15, 20, 25],
+        real_edge_density=0.1,
+    )
     out_csv_file = create_csv_out(test_case_name)
 
     minimize_cmd_args = [
@@ -75,7 +86,13 @@ def run_regular_side_gaps(test_case_name: str):
 
 
 def run_regular_k_gaps(test_case_name: str):
-    create_graphs(test_case_name)
+    create_graphs(
+        test_case_name,
+        graph_gen_count=20,
+        real_node_counts=[10, 20, 30, 40, 50],
+        virtual_node_counts=[5, 10, 15, 20, 25],
+        real_edge_density=0.1,
+    )
     out_csv_file = create_csv_out(test_case_name)
 
     for k in (1, 2, 3, 100):
@@ -97,8 +114,14 @@ def run_regular_k_gaps(test_case_name: str):
             subprocess.run(minimize_cmd_args, cwd=cwd, shell=True)
 
 
-def run_batch(test_case_name: str):
-    create_graphs(test_case_name)
+def run_sidegaps_batch(test_case_name: str):
+    create_graphs(
+        test_case_name,
+        graph_gen_count=20,
+        real_node_counts=[10, 20, 30, 40, 50],
+        virtual_node_counts=[5, 10, 15, 20, 25],
+        real_edge_density=0.1,
+    )
     out_csv_file = create_csv_out(test_case_name)
     files = os.listdir(in_dir_name(test_case_name))
 
@@ -144,3 +167,7 @@ if __name__ == "__main__":
     # )
     run_regular_k_gaps("testcase_50_kgaps2")
     # run_regular_k_gaps("testcase_temp")
+
+
+# tests to do
+# r = 50, v = 30, p=0.1, kgaps, k
