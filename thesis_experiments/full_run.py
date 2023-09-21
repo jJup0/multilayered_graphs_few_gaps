@@ -11,10 +11,13 @@ def in_dir_name(test_case_name: str):
     return f"{thesis_experiments_dirname}/local_tests/{test_case_name}/in"
 
 
+# TODO parameterize this
 def create_graphs(test_case_name: str):
+    # graph_gen_count = 20
     graph_gen_count = 20
     # for real_node_count in (10, 20, 30, 40, 50):
-    for real_node_count in (10, 15, 20):
+    for real_node_count in (50,):
+        # for real_node_count in (10, 15, 20):
         virtual_node_count = real_node_count // 2
         generate_cmd_args = [
             "python",
@@ -39,6 +42,8 @@ def create_csv_out(test_case_name: str) -> str:
         csv_writer.writerow(
             (
                 "alg_name",
+                "gap_type",
+                "gaps",
                 "real_nodes_per_layer_count",
                 "virtual_nodes_l2_count",
                 "real_edge_density",
@@ -50,7 +55,7 @@ def create_csv_out(test_case_name: str) -> str:
     return out_csv_file
 
 
-def run_regular(test_case_name: str):
+def run_regular_side_gaps(test_case_name: str):
     create_graphs(test_case_name)
     out_csv_file = create_csv_out(test_case_name)
 
@@ -67,6 +72,29 @@ def run_regular(test_case_name: str):
     for alg_name in ["median", "barycenter", "ilp"]:
         minimize_cmd_args[-2] = alg_name
         subprocess.run(minimize_cmd_args, cwd=cwd, shell=True)
+
+
+def run_regular_k_gaps(test_case_name: str):
+    create_graphs(test_case_name)
+    out_csv_file = create_csv_out(test_case_name)
+
+    for k in (1, 2, 3, 100):
+        # for k in (2, 3, 100):
+        minimize_cmd_args = [
+            "python",
+            "-m",
+            f"{thesis_experiments_dirname}.minimize_crossings",
+            "--kgaps",
+            f"{k}",
+            "--in_dir",
+            in_dir_name(test_case_name),
+            "<<alg_name>>",
+            out_csv_file,
+        ]
+        for alg_name in ["median", "barycenter", "ilp"]:
+            minimize_cmd_args[-2] = alg_name
+            # print(f"{minimize_cmd_args=}")
+            subprocess.run(minimize_cmd_args, cwd=cwd, shell=True)
 
 
 def run_batch(test_case_name: str):
@@ -114,4 +142,5 @@ if __name__ == "__main__":
     #     os.path.realpath("./performance_tests/in"),
     #     os.path.realpath("./performance_tests/out/out2.csv"),
     # )
-    run_regular("testcase_temp")
+    run_regular_k_gaps("testcase_50_kgaps2")
+    # run_regular_k_gaps("testcase_temp")
