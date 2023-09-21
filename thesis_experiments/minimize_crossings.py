@@ -99,18 +99,20 @@ if in_file is not None:
         print_and_exit(f"{in_file=} is not a file")
     in_file_paths = [in_file]
 
+if side_gaps is None:
+    side_gaps = False
+    assert k_gaps is not None
+    max_gaps = k_gaps
+    gap_type = "kgaps"
+else:
+    gap_type = "sidegaps"
+    max_gaps = 2
 
 alg = alg_names_to_algs[alg_name]
 for file_path in in_file_paths:
     ml_graph = MultiLayeredGraph.from_proprietary_serialized(
         os.path.join(in_dir, file_path)
     )
-    if side_gaps is None:
-        side_gaps = False
-        assert k_gaps is not None
-        max_gaps = k_gaps
-    else:
-        max_gaps = 2
 
     start_ns = time.perf_counter_ns()
     alg().sort_graph(
@@ -137,6 +139,8 @@ for file_path in in_file_paths:
         csv_writer.writerow(
             (
                 alg_name,
+                gap_type,
+                max_gaps,
                 real_nodes_count,
                 virtual_nodes_count,
                 real_edge_density,
