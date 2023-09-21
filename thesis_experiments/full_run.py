@@ -142,5 +142,5 @@ if __name__ == "__main__":
     #     os.path.realpath("./performance_tests/in"),
     #     os.path.realpath("./performance_tests/out/out2.csv"),
     # )
-    run_regular_k_gaps("testcase_50_kgaps")
+    run_regular_k_gaps("testcase_50_kgaps2")
     # run_regular_k_gaps("testcase_temp")
