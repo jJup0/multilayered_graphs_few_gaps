@@ -191,13 +191,13 @@ def one_sided(
         m.setObjective(obj, GRB.MINIMIZE)
         m.update()
 
-        time_limit_seconds = 60
+        time_limit_seconds = 15
         m.setParam(GRB.Param.TimeLimit, time_limit_seconds)
         m.optimize()
 
         if m.status == GRB.OPTIMAL:
             pass
-        elif m.Status != GRB.TIME_LIMIT:
+        elif m.Status == GRB.TIME_LIMIT:
             warnings.warn("Hit time limit while solving model")
         else:
             warnings.warn(f"ENCOUNTERED ISSUE WHILE SOLVING MODEL: {m.Status}")
