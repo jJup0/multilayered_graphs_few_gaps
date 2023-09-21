@@ -102,11 +102,11 @@ if in_file is not None:
 if side_gaps is None:
     side_gaps = False
     assert k_gaps is not None
-    max_gaps = k_gaps
+    gap_count = k_gaps
     gap_type = "kgaps"
 else:
     gap_type = "sidegaps"
-    max_gaps = 2
+    gap_count = 2
 
 alg = alg_names_to_algs[alg_name]
 for file_path in in_file_paths:
@@ -120,7 +120,7 @@ for file_path in in_file_paths:
         max_iterations=1,
         only_one_up_iteration=True,
         side_gaps_only=side_gaps,
-        max_gaps=max_gaps,
+        max_gaps=gap_count,
     )
     total_s = (time.perf_counter_ns() - start_ns) / 1_000_000_000
 
@@ -134,19 +134,30 @@ for file_path in in_file_paths:
     # )
     instance = file_path.strip(".json")
     crossings = ml_graph.get_total_crossings()
+    field_names = [
+        "alg_name",
+        "gap_type",
+        "gap_count",
+        "real_nodes_per_layer_count",
+        "virtual_nodes_per_layer_count",
+        "real_edge_density",
+        "instance_name",
+        "crossings",
+        "time_s",
+    ]
     with open(out_csv_file, "a", newline="") as f:
-        csv_writer = csv.writer(f)
+        csv_writer = csv.DictWriter(f, fieldnames=field_names)
         csv_writer.writerow(
-            (
-                alg_name,
-                gap_type,
-                max_gaps,
-                real_nodes_count,
-                virtual_nodes_count,
-                real_edge_density,
-                instance,
-                crossings,
-                total_s,
-            )
+            {
+                "alg_name": alg_name,
+                "gap_type": gap_type,
+                "gap_count": gap_count,
+                "real_nodes_per_layer_count": real_nodes_count,
+                "virtual_nodes_per_layer_count": virtual_nodes_count,
+                "real_edge_density": real_edge_density,
+                "instance_name": instance,
+                "crossings": crossings,
+                "time_s": total_s,
+            }
         )
 print("minimize done")
