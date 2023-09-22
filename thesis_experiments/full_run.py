@@ -28,6 +28,8 @@ def log_path(test_case_name: str):
         f"{thesis_experiments_dirname}/local_tests/{test_case_name}/log.txt"
     )
 
+minimize_crossings_wrapper_path = os.path.realpath(f"{thesis_experiments_dirname}/minimize_crossings_wrapper.sh")
+
 
 # TODO parameterize this
 def create_graphs(
@@ -150,6 +152,10 @@ def run_sidegaps_batch(
     )
     out_csv_file = create_csv_out(test_case_name)
     files = os.listdir(in_dir_name(test_case_name))
+
+    with open(log_path(test_case_name), "w"):
+        pass
+
     standard_run_cmds = [
         "qsub",
         "-N",
@@ -169,29 +175,30 @@ def run_sidegaps_batch(
         log_path(test_case_name),
         "-o",
         log_path(test_case_name),
-        "minimize_crossings_wrapper.sh",
+        minimize_crossings_wrapper_path,
         "--sidegaps",
         "--in_file",
         f"<<file_name>>",
         "<<algorithm_name>>",
         f"{out_csv_file}",
     ]
-    for alg_name in ["median", "barycenter", "ilp"]:
+    # for alg_name in ["median", "barycenter", "ilp"]:
+    for alg_name in ["median"]:
         standard_run_cmds[-2] = alg_name
         for filename in files:
-            standard_run_cmds[-3] = filename
+            standard_run_cmds[-3] = os.path.realpath(os.path.join(in_dir_name(test_case_name), filename))
             subprocess.Popen(standard_run_cmds)
-
+    print("done")
 
 if __name__ == "__main__":
     # run_regular_k_gaps("testcase_50_kgaps2")
     # create_csv_out("testcase_50_kgaps2")
     # run_regular_k_gaps("testcase_temp")
     run_sidegaps_batch(
-        "testcase_10-50_sidegaps_batched",
-        graph_gen_count=5,
-        real_node_counts=[50],
-        virtual_node_counts=[25],
+        "testcase_cluster_1",
+        graph_gen_count=1,
+        real_node_counts=[10],
+        virtual_node_counts=[5],
         real_edge_density=0.1,
     )
 
