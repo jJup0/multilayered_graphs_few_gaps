@@ -91,7 +91,6 @@ def _generate_constraints(
         else:
             constraints.update((r_node, v_node) for r_node in real_nodes)
 
-    print("constraints:", *sorted(constraints, key=lambda x: str(x[1])), sep="\n")
     return constraints
 
 
@@ -188,8 +187,6 @@ def _constrained_crossing_reduction(
     for node in V_dash_dash:
         other_L.extend(L[node])
 
-    # print(ml_graph.layers_to_nodes[layer_idx])
-    # print(other_L)
     ml_graph.layers_to_nodes[layer_idx][:] = other_L
 
 

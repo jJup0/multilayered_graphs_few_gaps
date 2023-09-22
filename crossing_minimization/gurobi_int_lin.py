@@ -182,7 +182,6 @@ def one_sided(
                 n1__n2_crossings, n2__n1_crossings = crossings_uv_vu(
                     ml_graph, n1, n2, above_below
                 )
-                # print(f"{(n1__n2_crossings, n2__n1_crossings)=}")
                 n1__n2 = ordering_gp_vars[(n1, n2)]
                 n2__n1 = ordering_gp_vars[(n2, n1)]
                 obj += n1__n2_crossings * n1__n2 + n2__n1_crossings * n2__n1

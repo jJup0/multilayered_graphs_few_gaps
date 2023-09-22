@@ -23,10 +23,12 @@ from crossing_minimization.barycenter_heuristic import BarycenterImprovedSorter
 from crossing_minimization.gurobi_int_lin import GurobiSorter
 from crossing_minimization.median_heuristic import ImprovedMedianSorter
 from multilayered_graph.multilayered_graph import MultiLayeredGraph
+import logging
 
+logger = logging.getLogger(__name__)
 
-def print_and_exit(string: str, err_code: int = 1) -> NoReturn:
-    print(string)
+def log_and_exit(string: str, err_code: int = 1) -> NoReturn:
+    logger.error(string)
     exit(err_code)
 
 
@@ -46,7 +48,7 @@ try:
         argument_list, options, long_options
     )
 except getopt.error as err:
-    print_and_exit(str(err))
+    log_and_exit(str(err))
 
 side_gaps = k_gaps = in_dir = in_file = None
 
@@ -66,37 +68,37 @@ for current_argument, current_value in options_and_values:
         in_file = current_value
 
 if not ((side_gaps is None) ^ (k_gaps is None)):
-    print_and_exit(
+    log_and_exit(
         f"either --sidegaps or --kgaps needs to be given. {side_gaps=}, {k_gaps=}. {sys.argv=}"
     )
 
 if not ((in_dir is None) ^ (in_file is None)):
-    print_and_exit("either --in_dir or --file needs to be given")
+    log_and_exit("either --in_dir or --file needs to be given")
 
 if len(normal_args) != 2:
-    print_and_exit(
+    log_and_exit(
         f"Expected 2 arguments, received {len(normal_args)}. Usage: python minimize_crossings_cli.py <flags> <algorithm_to_use> <out_dir>"
     )
 
 alg_name, out_csv_file = normal_args
 if alg_name not in alg_names_to_algs:
-    print_and_exit(f"Only the following algorithms can be used: {alg_names_to_algs}")
+    log_and_exit(f"Only the following algorithms can be used: {alg_names_to_algs}")
 
 # if not os.path.isdir(out_csv_file):
-#     print_and_exit(f'"{out_csv_file}" is not a directory')
+#     log_and_exit(f'"{out_csv_file}" is not a directory')
 
 
 in_file_paths: list[str] = []
 if in_dir is not None:
     if not os.path.isdir(in_dir):
-        print_and_exit(f"{in_dir=} is not a directory")
+        log_and_exit(f"{in_dir=} is not a directory")
     in_file_paths = os.listdir(in_dir)
 else:
     in_dir = "."
 
 if in_file is not None:
     if not os.path.isfile(in_file):
-        print_and_exit(f"{in_file=} is not a file")
+        log_and_exit(f"{in_file=} is not a file")
     in_file_paths = [in_file]
 
 if side_gaps is None:
@@ -129,9 +131,6 @@ for file_path in in_file_paths:
     real_nodes_count = file_path[file_path.find("_r=") + 3 : file_path.find("_v=")]
     virtual_nodes_count = file_path[file_path.find("_v=") + 3 : file_path.find("_p=")]
     real_edge_density = file_path[file_path.find("_p=") + 3 : file_path.find("_id=")]
-    # print(
-    #     f"{file_path=},{real_nodes_count=}, {virtual_nodes_count=}, {real_edge_density=}"
-    # )
     instance = file_path.strip(".json")
     crossings = ml_graph.get_total_crossings()
     field_names = [
@@ -160,4 +159,3 @@ for file_path in in_file_paths:
                 "time_s": total_s,
             }
         )
-print("minimize done")

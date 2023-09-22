@@ -1,4 +1,7 @@
 import random
+import logging
+
+logger = logging.getLogger(__name__)
 
 from multilayered_graph.multilayered_graph import (
     MLGNode,
@@ -163,7 +166,7 @@ def _generate_random_edges(
     random.shuffle(all_possible_short_edges)
     if short_edges_to_generate > len(all_possible_short_edges):
         short_edges_to_generate = len(all_possible_short_edges)
-        print(
+        logger.warning(
             "EDGE DENSITY IS LOWER THAN GIVEN, AS NOT ENOUGH NODES ARE AVAILABLE. ALL POSSIBLE SHORT EDGES GENERATED"
         )
 
@@ -190,7 +193,7 @@ def _generate_random_edges(
     random.shuffle(all_possible_long_edges)
     if long_edges_to_generate > len(all_possible_long_edges):
         long_edges_to_generate = len(all_possible_long_edges)
-        print(
+        logger.warning(
             "EDGE DENSITY IS LOWER THAN GIVEN, AS NOT ENOUGH NODES ARE AVAILABLE. ALL POSSIBLE LONG EDGES GENERATED"
         )
     for i in range(long_edges_to_generate):

@@ -2,7 +2,9 @@ import csv
 import os
 import subprocess
 from typing import Iterable
+import logging
 
+logger = logging.getLogger(__name__)
 cwd = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 
 thesis_experiments_dirname = "thesis_experiments"
@@ -33,7 +35,6 @@ def log_path(test_case_name: str):
 minimize_crossings_wrapper_path = os.path.realpath(f"{thesis_experiments_dirname}/minimize_crossings_wrapper.sh")
 
 
-# TODO parameterize this
 def create_graphs(
     test_case_name: str,
     *,
@@ -42,7 +43,7 @@ def create_graphs(
     virtual_node_counts: Iterable[int],
     real_edge_density: float,
 ):
-    print(
+    logger.info(
         f"about to generate {graph_gen_count * len(real_node_counts)} graph instances"
     )
     for real_node_count, vnode_count in zip(
@@ -58,7 +59,7 @@ def create_graphs(
             f"{real_edge_density}",
             in_dir_name(test_case_name),
         ]
-        # print(f"generating {graph_gen_count} graphs with {real_node_count=}")
+        logger.info(f"generating {graph_gen_count} graphs with {real_node_count=}")
         subprocess.run(generate_cmd_args, cwd=cwd)
 
 
@@ -189,7 +190,6 @@ def run_sidegaps_batch(
         for filename in files:
             standard_run_cmds[-3] = os.path.realpath(os.path.join(in_dir_name(test_case_name), filename))
             GL_OPEN_PROCESSES.append((standard_run_cmds, subprocess.Popen(standard_run_cmds)))
-    print("done")
 
 if __name__ == "__main__":
     # run_regular_k_gaps("testcase_50_kgaps2")
@@ -208,10 +208,10 @@ if __name__ == "__main__":
         _path, process = GL_OPEN_PROCESSES[-1]
         try:
             exit_code = process.wait(timeout=timeout_s)
-            print(f"process finished with {exit_code=}")
+            logger.info(f"process finished with {exit_code=}")
             GL_OPEN_PROCESSES.pop()
         except subprocess.TimeoutExpired:
-            print(f"Subprocess did not complete within the {timeout_s}s timeout.")
+            logger.warning(f"Subprocess did not complete within the {timeout_s}s timeout.")
 
 
 # tests to do

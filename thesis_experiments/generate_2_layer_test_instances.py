@@ -10,27 +10,6 @@ import sys
 
 from multilayered_graph.multilayered_graph import MLGNode, MultiLayeredGraph
 
-# try:
-#     # Parsing argument
-#     argument_list = sys.argv[1:]
-#     options = ""
-#     long_options = ["two_sided"]
-#     options_and_values, normal_args = getopt.getopt(
-#         argument_list, options, long_options
-#     )
-# except getopt.error as err:
-#     print(str(err))
-#     exit()
-
-# two_sided = None
-
-
-# # checking each argument
-# for current_argument, current_value in options_and_values:
-#     if current_argument == "--two_sided":
-#         two_sided = True
-
-
 def generate_oscm_graph(
     nodes_per_layer: int,
     virtual_node_count: int,
@@ -68,16 +47,7 @@ def generate_oscm_graph(
         vnodes_l2.add(ml_graph.add_virtual_node(1, f"{i}"))
 
     # then add edges for each virtual node
-    # TODO TEMP
     all_nodes_l2 = list(ml_graph.layers_to_nodes[1])
-    # all_nodes_l2 = [n for n in ml_graph.layers_to_nodes[1] if not n.is_virtual]
-    # print(
-    #     f"{vnodes_l1=}",
-    #     f"{vnodes_l2=}",
-    #     f"{all_nodes_l2=}",
-    #     f"intersection: {vnodes_l2.intersection(all_nodes_l2)}",
-    #     sep="\n",
-    # )
 
     def check_vnodes_have_single_neighbor(curr_node: MLGNode | None = None):
         for vnode in [n for n in ml_graph.all_nodes_as_list() if n.is_virtual]:

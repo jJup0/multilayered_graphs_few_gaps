@@ -38,11 +38,6 @@ def crossings_for_node_pair(
     if not u.layer == v.layer:
         raise ValueError("Nodes must be on same layer")
 
-    # nodes_to_index2 = ml_graph.nodes_to_index_within_layer()
-    # if 0 in nodes_to_index2:
-    #     print("", end="")
-    # nodes_to_index = ml_graph.nodes_to_indices_at_layer(u.layer)
-
     # v_idx must set to any number bigger than u_idx
     u_idx = 1
     v_idx = 2
