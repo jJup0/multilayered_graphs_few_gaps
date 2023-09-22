@@ -41,7 +41,7 @@ try:
     # Parsing argument
     argument_list = sys.argv[1:]
     options = ""
-    long_options = ["sidegaps", "kgaps=", "in_dir=", "file="]
+    long_options = ["sidegaps", "kgaps=", "in_dir=", "in_file="]
     options_and_values, normal_args = getopt.getopt(
         argument_list, options, long_options
     )
@@ -62,12 +62,12 @@ for current_argument, current_value in options_and_values:
     elif current_argument == "--in_dir":
         in_dir = current_value
 
-    elif current_argument == "--file":
+    elif current_argument == "--in_file":
         in_file = current_value
 
 if not ((side_gaps is None) ^ (k_gaps is None)):
     print_and_exit(
-        f"either --sidegaps or --kgaps needs to be given. {side_gaps=}, {k_gaps=}"
+        f"either --sidegaps or --kgaps needs to be given. {side_gaps=}, {k_gaps=}. {sys.argv=}"
     )
 
 if not ((in_dir is None) ^ (in_file is None)):
@@ -95,7 +95,7 @@ else:
     in_dir = "."
 
 if in_file is not None:
-    if not os.path.isdir(in_file):
+    if not os.path.isfile(in_file):
         print_and_exit(f"{in_file=} is not a file")
     in_file_paths = [in_file]
 
