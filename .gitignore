@@ -22,3 +22,4 @@ temp_idea
 # graph instances
 thesis_experiments/local_tests/**/*.json
 thesis_experiments/local_tests/**/*.csv
+thesis_experiments/local_tests/**/log.txt
