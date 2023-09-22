@@ -7,6 +7,8 @@ cwd = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 
 thesis_experiments_dirname = "thesis_experiments"
 
+GL_OPEN_PROCESSES = []
+
 
 def in_dir_name(test_case_name: str):
     # return os.path.realpath(f"local_tests/{test_case_name}/in")
@@ -104,7 +106,7 @@ def run_regular_side_gaps(test_case_name: str):
     ]
     for alg_name in ["median", "barycenter", "ilp"]:
         minimize_cmd_args[-2] = alg_name
-        subprocess.Popen(minimize_cmd_args, cwd=cwd)
+        GL_OPEN_PROCESSES.append((minimize_cmd_args, subprocess.Popen(minimize_cmd_args, cwd=cwd)))
 
 
 def run_regular_k_gaps(test_case_name: str):
@@ -132,7 +134,7 @@ def run_regular_k_gaps(test_case_name: str):
         ]
         for alg_name in ["median", "barycenter", "ilp"]:
             minimize_cmd_args[-2] = alg_name
-            subprocess.Popen(minimize_cmd_args, cwd=cwd)
+            GL_OPEN_PROCESSES.append((minimize_cmd_args, subprocess.Popen(minimize_cmd_args, cwd=cwd)))
 
 
 def run_sidegaps_batch(
@@ -182,12 +184,11 @@ def run_sidegaps_batch(
         "<<algorithm_name>>",
         f"{out_csv_file}",
     ]
-    # for alg_name in ["median", "barycenter", "ilp"]:
-    for alg_name in ["median"]:
+    for alg_name in ["median", "barycenter", "ilp"]:
         standard_run_cmds[-2] = alg_name
         for filename in files:
             standard_run_cmds[-3] = os.path.realpath(os.path.join(in_dir_name(test_case_name), filename))
-            subprocess.Popen(standard_run_cmds)
+            GL_OPEN_PROCESSES.append((standard_run_cmds, subprocess.Popen(standard_run_cmds)))
     print("done")
 
 if __name__ == "__main__":
@@ -195,12 +196,22 @@ if __name__ == "__main__":
     # create_csv_out("testcase_50_kgaps2")
     # run_regular_k_gaps("testcase_temp")
     run_sidegaps_batch(
-        "testcase_cluster_1",
-        graph_gen_count=1,
-        real_node_counts=[10],
-        virtual_node_counts=[5],
+        "testcase_cluster_3",
+        graph_gen_count=5,
+        real_node_counts=[10, 20],
+        virtual_node_counts=[5, 10],
         real_edge_density=0.1,
     )
+
+    timeout_s = 1
+    while GL_OPEN_PROCESSES:
+        _path, process = GL_OPEN_PROCESSES[-1]
+        try:
+            exit_code = process.wait(timeout=timeout_s)
+            print(f"process finished with {exit_code=}")
+            GL_OPEN_PROCESSES.pop()
+        except subprocess.TimeoutExpired:
+            print(f"Subprocess did not complete within the {timeout_s}s timeout.")
 
 
 # tests to do
