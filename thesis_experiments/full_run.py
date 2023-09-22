@@ -5,6 +5,8 @@ from typing import Iterable
 import logging
 
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
+
 cwd = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 
 thesis_experiments_dirname = "thesis_experiments"
@@ -192,15 +194,14 @@ def run_sidegaps_batch(
             GL_OPEN_PROCESSES.append((standard_run_cmds, subprocess.Popen(standard_run_cmds)))
 
 if __name__ == "__main__":
-    # run_regular_k_gaps("testcase_50_kgaps2")
-    # create_csv_out("testcase_50_kgaps2")
-    # run_regular_k_gaps("testcase_temp")
+    real_node_counts = list(range(10, 90, 10))
+    virtual_node_counts = [c//2 for c in real_node_counts]
     run_sidegaps_batch(
-        "testcase_cluster_3",
+        "testcase_cluster_4",
         graph_gen_count=5,
-        real_node_counts=[10, 20],
-        virtual_node_counts=[5, 10],
-        real_edge_density=0.1,
+        real_node_counts=real_node_counts,
+        virtual_node_counts=virtual_node_counts,
+        real_edge_density=0.01,
     )
 
     timeout_s = 1
