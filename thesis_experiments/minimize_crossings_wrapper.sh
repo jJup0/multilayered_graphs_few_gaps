@@ -8,8 +8,7 @@ if [ -z "$PYTHONPATH" ]; then
 fi
 
 
-echo "python path: " $PYTHONPATH
-sync
+
 
 
 # GUROBI
@@ -21,5 +20,8 @@ if [ -n "$LD_LIBRARY_PATH" ]; then
 else
   export LD_LIBRARY_PATH="${LD_LIBRARY_PATH}:${GUROBI_HOME}/lib"
 fi
+
+echo "python path: " $PYTHONPATH " PATH " $PATH " LD_LIBRARY_PATH " $LD_LIBRARY_PATH
+sync
 
 /home1/e52009269/.pyenv/versions/3.10.9/bin/python -m thesis_experiments.minimize_crossings "$@"
