@@ -1,8 +1,7 @@
 import csv
+import logging
 import os
 import subprocess
-from typing import Iterable
-import logging
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
@@ -11,7 +10,7 @@ cwd = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 
 thesis_experiments_dirname = "thesis_experiments"
 
-GL_OPEN_PROCESSES = []
+GL_OPEN_PROCESSES: list[tuple[list[str], subprocess.Popen[bytes]]] = []
 
 
 def in_dir_name(test_case_name: str):
@@ -34,15 +33,46 @@ def log_path(test_case_name: str):
         f"{thesis_experiments_dirname}/local_tests/{test_case_name}/log.txt"
     )
 
-minimize_crossings_wrapper_path = os.path.realpath(f"{thesis_experiments_dirname}/minimize_crossings_wrapper.sh")
+def get_qsub_args(alggap_type_as_flag: str, gap_count: int | None = None):
+    return standard_run_cmds = [
+                "qsub",
+                "-N",
+                "crossing_minimization_gaps",
+                # memory
+                "-l",
+                "s_vmem={}G",
+                "-l",
+                "h_vmem={}G",
+                "-l",
+                "mem_free={}G",
+                # restart on fail
+                "-r",
+                "y",
+                # output
+                "-e",
+                log_path(test_case_name),
+                "-o",
+                log_path(test_case_name),
+                minimize_crossings_wrapper_path,
+                **gap_type_and_args,
+                "--in_file",
+                f"{filepath}",
+                f"{alg_name}",
+                f"{out_csv_file}",
+            ]
+
+
+minimize_crossings_wrapper_path = os.path.realpath(
+    f"{thesis_experiments_dirname}/minimize_crossings_wrapper.sh"
+)
 
 
 def create_graphs(
     test_case_name: str,
     *,
     graph_gen_count: int,
-    real_node_counts: Iterable[int],
-    virtual_node_counts: Iterable[int],
+    real_node_counts: list[int],
+    virtual_node_counts: list[int],
     real_edge_density: float,
 ):
     logger.info(
@@ -109,7 +139,9 @@ def run_regular_side_gaps(test_case_name: str):
     ]
     for alg_name in ["median", "barycenter", "ilp"]:
         minimize_cmd_args[-2] = alg_name
-        GL_OPEN_PROCESSES.append((minimize_cmd_args, subprocess.Popen(minimize_cmd_args, cwd=cwd)))
+        GL_OPEN_PROCESSES.append(
+            (minimize_cmd_args, subprocess.Popen(minimize_cmd_args, cwd=cwd))
+        )
 
 
 def run_regular_k_gaps(test_case_name: str):
@@ -137,67 +169,65 @@ def run_regular_k_gaps(test_case_name: str):
         ]
         for alg_name in ["median", "barycenter", "ilp"]:
             minimize_cmd_args[-2] = alg_name
-            GL_OPEN_PROCESSES.append((minimize_cmd_args, subprocess.Popen(minimize_cmd_args, cwd=cwd)))
+            GL_OPEN_PROCESSES.append(
+                (minimize_cmd_args, subprocess.Popen(minimize_cmd_args, cwd=cwd))
+            )
 
 
 def run_sidegaps_batch(
     test_case_name: str,
     *,
     graph_gen_count: int,
-    real_node_counts: Iterable[int],
-    virtual_node_counts: Iterable[int],
+    real_node_counts: list[int],
+    virtual_node_counts: list[int],
     real_edge_density: float,
+    run_k_gaps: bool,
+    gap_counts: list[int] = []
 ):
-    create_graphs(
-        test_case_name,
-        graph_gen_count=graph_gen_count,
-        real_node_counts=real_node_counts,
-        virtual_node_counts=virtual_node_counts,
-        real_edge_density=real_edge_density,
-    )
-    out_csv_file = create_csv_out(test_case_name)
+    # create_graphs(
+    #     test_case_name,
+    #     graph_gen_count=graph_gen_count,
+    #     real_node_counts=real_node_counts,
+    #     virtual_node_counts=virtual_node_counts,
+    #     real_edge_density=real_edge_density,
+    # )
+    # out_csv_file = create_csv_out(test_case_name)
+    out_csv_file = out_csv_path(test_case_name)
     files = os.listdir(in_dir_name(test_case_name))
 
     with open(log_path(test_case_name), "w"):
         pass
 
-    standard_run_cmds = [
-        "qsub",
-        "-N",
-        "crossing_minimization_gaps",
-        # memory
-        "-l",
-        "s_vmem=1.8G",
-        "-l",
-        "h_vmem=1.9G",
-        "-l",
-        "mem_free=1.9G",
-        # restart on fail
-        "-r",
-        "y",
-        # output
-        "-e",
-        log_path(test_case_name),
-        "-o",
-        log_path(test_case_name),
-        minimize_crossings_wrapper_path,
-        "--sidegaps",
-        "--in_file",
-        f"<<file_name>>",
-        "<<algorithm_name>>",
-        f"{out_csv_file}",
-    ]
-    for alg_name in ["median", "barycenter", "ilp"]:
-        standard_run_cmds[-2] = alg_name
+
+    # for alg_name in ["median", "barycenter", "ilp"]:
+    # for alg_name in ["ilp"]:
+    if not run_k_gaps:
+        gap_counts=[-1]
+    
+    for alg_name in ["median"]:
         for filename in files:
-            standard_run_cmds[-3] = os.path.realpath(os.path.join(in_dir_name(test_case_name), filename))
-            GL_OPEN_PROCESSES.append((standard_run_cmds, subprocess.Popen(standard_run_cmds)))
+            filepath = os.path.realpath(
+                os.path.join(in_dir_name(test_case_name), filename)
+            )
+            filesize = os.path.getsize(filepath)
+            if alg_name == "ilp":
+                mem_required = 0.5 + 0.0001 * filesize
+            else:
+                mem_required = 0.1 + 0.00003 * filesize
+            print(f"{filename=} {alg_name=} {mem_required=}")
+
+            get_standard_qsub_args()
+
+            # GL_OPEN_PROCESSES.append(
+            #     (standard_run_cmds, subprocess.Popen(standard_run_cmds))
+            # )
+
 
 if __name__ == "__main__":
-    real_node_counts = list(range(10, 90, 10))
-    virtual_node_counts = [c//2 for c in real_node_counts]
+    real_node_counts = list(range(10, 11, 10))
+    virtual_node_counts = [c // 2 for c in real_node_counts]
     run_sidegaps_batch(
-        "testcase_cluster_4",
+        "testcase1",
         graph_gen_count=5,
         real_node_counts=real_node_counts,
         virtual_node_counts=virtual_node_counts,
@@ -212,7 +242,9 @@ if __name__ == "__main__":
             logger.info(f"process finished with {exit_code=}")
             GL_OPEN_PROCESSES.pop()
         except subprocess.TimeoutExpired:
-            logger.warning(f"Subprocess did not complete within the {timeout_s}s timeout.")
+            logger.warning(
+                f"Subprocess did not complete within the {timeout_s}s timeout."
+            )
 
 
 # tests to do
