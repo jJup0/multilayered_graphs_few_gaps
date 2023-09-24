@@ -202,10 +202,9 @@ def get_qsub_args(
         "-o",
         log_path(test_case_name),
         minimize_crossings_wrapper_path,
-        *gap_type_and_args,
         "--in_file",
         f"{filepath}",
-        f"{gap_type_as_flag}",
+        *gap_type_and_args,
         f"{out_csv_path(test_case_name)}",
     ]
 
@@ -241,7 +240,6 @@ def run_sidegaps_batch(
                 standard_run_cmds = get_qsub_args(
                     test_case_name, file_name, alg_name, "--kgaps", gap_count
                 )
-
                 GL_OPEN_PROCESSES.append(
                     (standard_run_cmds, subprocess.Popen(standard_run_cmds))
                 )
@@ -264,7 +262,7 @@ def wait_for_processes_to_finish():
 class ClusterExperiments:
     """Not a real class, just a container for all experiments that should be run for the thesis."""
 
-    STANDARD_GRAPH_GEN_COUNT = 30
+    STANDARD_GRAPH_GEN_COUNT = 1
 
     @classmethod
     def vary_gap_count(cls):
@@ -272,9 +270,10 @@ class ClusterExperiments:
         virtual_node_ratios = [0.1]
         average_node_degrees = [5.0]
         run_k_gaps = True
-        gap_counts = [1, 2, 3, 4, 5, 10, 15]
+        # gap_counts = [1, 2, 3, 4, 5, 10, 15]
+        gap_counts = [10]
         run_sidegaps_batch(
-            "testcase_k_gaps_count_variation",
+            "testcase_k_gaps_count_variation4",
             graph_gen_count=cls.STANDARD_GRAPH_GEN_COUNT,
             real_node_counts=real_node_counts,
             virtual_node_ratios=virtual_node_ratios,
