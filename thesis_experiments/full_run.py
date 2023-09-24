@@ -2,6 +2,7 @@ import csv
 import logging
 import os
 import subprocess
+import sys
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
@@ -131,14 +132,14 @@ def run_regular_side_gaps(test_case_name: str):
 def run_regular_k_gaps(test_case_name: str):
     create_graphs(
         test_case_name,
-        graph_gen_count=20,
-        real_node_counts=[10, 20, 30, 40, 50],
-        virtual_node_ratios=[5, 10, 15, 20, 25],
-        average_node_degrees=[0.1],
+        graph_gen_count=5,
+        real_node_counts=[10],
+        virtual_node_ratios=[0.1],
+        average_node_degrees=[4],
     )
     out_csv_file = create_csv_out(test_case_name)
 
-    for k in (1, 2, 3, 100):
+    for k in (2, 3):
         # for k in (2, 3, 100):
         minimize_cmd_args = [
             "python",
@@ -176,10 +177,11 @@ def get_qsub_args(
     # determine memory limit
     filepath = os.path.realpath(os.path.join(in_dir_name(test_case_name), file_name))
     filesize = os.path.getsize(filepath)
-    if alg_name == "ilp":
-        mem_required = 0.5 + 0.0001 * filesize
-    else:
-        mem_required = 0.1 + 0.00003 * filesize
+    # if alg_name == "ilp":
+    #     mem_required = 0.5 + 0.0001 * filesize
+    # else:
+    #     mem_required = 0.1 + 0.00003 * filesize
+    mem_required = 2
     # print(f"{file_name=} {alg_name=} {mem_required=}")
 
     return [
@@ -205,6 +207,7 @@ def get_qsub_args(
         "--in_file",
         f"{filepath}",
         *gap_type_and_args,
+        alg_name,
         f"{out_csv_path(test_case_name)}",
     ]
 
@@ -234,7 +237,8 @@ def run_sidegaps_batch(
     create_log_file(test_case_name)
 
     files = os.listdir(in_dir_name(test_case_name))
-    for alg_name in ["median", "barycenter", "ilp"]:
+    # for alg_name in ["median", "barycenter", "ilp"]:
+    for alg_name in ["median"]:
         for file_name in files:
             for gap_count in gap_counts:
                 standard_run_cmds = get_qsub_args(
@@ -265,15 +269,15 @@ class ClusterExperiments:
     STANDARD_GRAPH_GEN_COUNT = 1
 
     @classmethod
-    def vary_gap_count(cls):
-        real_node_counts = [50]
+    def vary_gap_count(cls, test_case_suffix: str = ""):
+        real_node_counts = [5]
         virtual_node_ratios = [0.1]
-        average_node_degrees = [5.0]
+        average_node_degrees = [2.0]
         run_k_gaps = True
         # gap_counts = [1, 2, 3, 4, 5, 10, 15]
         gap_counts = [10]
         run_sidegaps_batch(
-            "testcase_k_gaps_count_variation4",
+            f"testcase_k_gaps_count_variation_{test_case_suffix}",
             graph_gen_count=cls.STANDARD_GRAPH_GEN_COUNT,
             real_node_counts=real_node_counts,
             virtual_node_ratios=virtual_node_ratios,
@@ -284,7 +288,12 @@ class ClusterExperiments:
 
 
 if __name__ == "__main__":
-    ClusterExperiments.vary_gap_count()
+    if len(sys.argv) > 1:
+        test_case_suffix = sys.argv[1]
+    else:
+        test_case_suffix = ""
+    ClusterExperiments.vary_gap_count(test_case_suffix)
+    # run_regular_k_gaps(f"regular_{test_case_suffix}")
     wait_for_processes_to_finish()
 
 
