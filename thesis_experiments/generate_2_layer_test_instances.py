@@ -79,24 +79,24 @@ if __name__ == "__main__":
         _py_file_name,
         graph_count,
         nodes_per_layer,
-        virtual_node_count,
+        virtual_node_percentage,
         regular_edge_density,
         out_dir,
     ) = sys.argv
 
     graph_count = int(graph_count)
     nodes_per_layer = int(nodes_per_layer)
-    virtual_node_count = int(virtual_node_count)
+    virtual_node_percentage = float(virtual_node_percentage)
     regular_edge_density = float(regular_edge_density)
 
     graph_count_str_len = len(str(graph_count))
     for i in range(graph_count):
         g = generate_oscm_graph(
-            nodes_per_layer, virtual_node_count, regular_edge_density
+            nodes_per_layer, virtual_node_percentage, regular_edge_density
         )
         file_name = (
             f"lg_r={nodes_per_layer}"
-            + f"_v={virtual_node_count}"
+            + f"_v={virtual_node_percentage}"
             + f"_p={regular_edge_density}"
             + f"_id={str(i).zfill(graph_count_str_len)}.json"
         )
