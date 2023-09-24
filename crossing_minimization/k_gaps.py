@@ -183,9 +183,13 @@ def _find_optimal_gaps(
 
         return crossing_res, distribution_res
 
+    if not ordered_virtual_nodes:
+        return 0, []
+
     if gaps > len(ordered_real_nodes):
         # no need to check gap count higher than possible gaps in layer
         gaps = len(ordered_real_nodes)
+
     return find_crossings(gaps, len(ordered_virtual_nodes) - 1, len(ordered_real_nodes))
 
 
