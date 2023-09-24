@@ -33,33 +33,10 @@ def log_path(test_case_name: str):
         f"{thesis_experiments_dirname}/local_tests/{test_case_name}/log.txt"
     )
 
-def get_qsub_args(alggap_type_as_flag: str, gap_count: int | None = None):
-    return standard_run_cmds = [
-                "qsub",
-                "-N",
-                "crossing_minimization_gaps",
-                # memory
-                "-l",
-                "s_vmem={}G",
-                "-l",
-                "h_vmem={}G",
-                "-l",
-                "mem_free={}G",
-                # restart on fail
-                "-r",
-                "y",
-                # output
-                "-e",
-                log_path(test_case_name),
-                "-o",
-                log_path(test_case_name),
-                minimize_crossings_wrapper_path,
-                **gap_type_and_args,
-                "--in_file",
-                f"{filepath}",
-                f"{alg_name}",
-                f"{out_csv_file}",
-            ]
+
+def create_log_file(test_case_name: str):
+    with open(log_path(test_case_name), "w"):
+        pass
 
 
 minimize_crossings_wrapper_path = os.path.realpath(
@@ -72,14 +49,14 @@ def create_graphs(
     *,
     graph_gen_count: int,
     real_node_counts: list[int],
-    virtual_node_counts: list[int],
-    real_edge_density: float,
+    virtual_node_ratios: list[float],
+    average_node_degrees: list[float],
 ):
     logger.info(
         f"about to generate {graph_gen_count * len(real_node_counts)} graph instances"
     )
-    for real_node_count, vnode_count in zip(
-        real_node_counts, virtual_node_counts, strict=True
+    for real_node_count, vnode_percent, average_node_degree in zip(
+        real_node_counts, virtual_node_ratios, average_node_degrees, strict=True
     ):
         generate_cmd_args = [
             "python",
@@ -87,12 +64,14 @@ def create_graphs(
             f"{thesis_experiments_dirname}.generate_2_layer_test_instances",
             f"{graph_gen_count}",
             f"{real_node_count}",
-            f"{vnode_count}",
-            f"{real_edge_density}",
+            f"{vnode_percent}",
+            f"{average_node_degree}",
             in_dir_name(test_case_name),
         ]
         logger.info(f"generating {graph_gen_count} graphs with {real_node_count=}")
-        subprocess.run(generate_cmd_args, cwd=cwd)
+        GL_OPEN_PROCESSES.append(
+            (generate_cmd_args, subprocess.Popen(generate_cmd_args, cwd=cwd))
+        )
 
 
 def create_csv_out(test_case_name: str) -> str:
@@ -122,8 +101,8 @@ def run_regular_side_gaps(test_case_name: str):
         test_case_name,
         graph_gen_count=20,
         real_node_counts=[10, 20, 30, 40, 50],
-        virtual_node_counts=[5, 10, 15, 20, 25],
-        real_edge_density=0.1,
+        virtual_node_ratios=[5, 10, 15, 20, 25],
+        average_node_degrees=[0.1],
     )
     out_csv_file = create_csv_out(test_case_name)
 
@@ -149,8 +128,8 @@ def run_regular_k_gaps(test_case_name: str):
         test_case_name,
         graph_gen_count=20,
         real_node_counts=[10, 20, 30, 40, 50],
-        virtual_node_counts=[5, 10, 15, 20, 25],
-        real_edge_density=0.1,
+        virtual_node_ratios=[5, 10, 15, 20, 25],
+        average_node_degrees=[0.1],
     )
     out_csv_file = create_csv_out(test_case_name)
 
@@ -174,69 +153,97 @@ def run_regular_k_gaps(test_case_name: str):
             )
 
 
+def get_qsub_args(
+    test_case_name: str,
+    file_name: str,
+    alg_name: str,
+    gap_type_as_flag: str,
+    gap_count: int | None = None,
+) -> list[str]:
+    # handle k- or side-gaps
+    if gap_type_as_flag == "--kgaps":
+        gap_type_and_args = ["--kgaps", f"{gap_count}"]
+    elif gap_type_as_flag == "--sidegaps":
+        gap_type_and_args = ["--sidegaps"]
+    else:
+        assert False, f"gap_type_as_flag must be --kgaps or --sidegaps"
+
+    # determine memory limit
+    filepath = os.path.realpath(os.path.join(in_dir_name(test_case_name), file_name))
+    filesize = os.path.getsize(filepath)
+    if alg_name == "ilp":
+        mem_required = 0.5 + 0.0001 * filesize
+    else:
+        mem_required = 0.1 + 0.00003 * filesize
+    # print(f"{file_name=} {alg_name=} {mem_required=}")
+
+    return [
+        "qsub",
+        "-N",
+        "crossing_minimization_gaps",
+        # memory
+        "-l",
+        f"s_vmem={(mem_required - 0.05):.3f}G",
+        "-l",
+        f"h_vmem={mem_required:.3f}G",
+        "-l",
+        f"mem_free={mem_required:.3f}G",
+        # restart on fail
+        "-r",
+        "y",
+        # output
+        "-e",
+        log_path(test_case_name),
+        "-o",
+        log_path(test_case_name),
+        minimize_crossings_wrapper_path,
+        *gap_type_and_args,
+        "--in_file",
+        f"{filepath}",
+        f"{gap_type_as_flag}",
+        f"{out_csv_path(test_case_name)}",
+    ]
+
+
 def run_sidegaps_batch(
     test_case_name: str,
     *,
     graph_gen_count: int,
     real_node_counts: list[int],
-    virtual_node_counts: list[int],
-    real_edge_density: float,
+    virtual_node_ratios: list[float],
+    average_node_degrees: list[float],
     run_k_gaps: bool,
-    gap_counts: list[int] = []
+    gap_counts: list[int] = [],
 ):
-    # create_graphs(
-    #     test_case_name,
-    #     graph_gen_count=graph_gen_count,
-    #     real_node_counts=real_node_counts,
-    #     virtual_node_counts=virtual_node_counts,
-    #     real_edge_density=real_edge_density,
-    # )
-    # out_csv_file = create_csv_out(test_case_name)
-    out_csv_file = out_csv_path(test_case_name)
-    files = os.listdir(in_dir_name(test_case_name))
+    create_graphs(
+        test_case_name,
+        graph_gen_count=graph_gen_count,
+        real_node_counts=real_node_counts,
+        virtual_node_ratios=virtual_node_ratios,
+        average_node_degrees=average_node_degrees,
+    )
+    create_csv_out(test_case_name)
 
-    with open(log_path(test_case_name), "w"):
-        pass
-
-
-    # for alg_name in ["median", "barycenter", "ilp"]:
-    # for alg_name in ["ilp"]:
     if not run_k_gaps:
-        gap_counts=[-1]
-    
-    for alg_name in ["median"]:
-        for filename in files:
-            filepath = os.path.realpath(
-                os.path.join(in_dir_name(test_case_name), filename)
-            )
-            filesize = os.path.getsize(filepath)
-            if alg_name == "ilp":
-                mem_required = 0.5 + 0.0001 * filesize
-            else:
-                mem_required = 0.1 + 0.00003 * filesize
-            print(f"{filename=} {alg_name=} {mem_required=}")
+        gap_counts = [-1]
 
-            get_standard_qsub_args()
+    create_log_file(test_case_name)
+
+    files = os.listdir(in_dir_name(test_case_name))
+    for alg_name in ["median", "barycenter", "ilp"]:
+        for file_name in files:
+            for gap_count in gap_counts:
+                get_qsub_args(test_case_name, file_name, alg_name, "--kgaps", gap_count)
 
             # GL_OPEN_PROCESSES.append(
             #     (standard_run_cmds, subprocess.Popen(standard_run_cmds))
             # )
 
 
-if __name__ == "__main__":
-    real_node_counts = list(range(10, 11, 10))
-    virtual_node_counts = [c // 2 for c in real_node_counts]
-    run_sidegaps_batch(
-        "testcase1",
-        graph_gen_count=5,
-        real_node_counts=real_node_counts,
-        virtual_node_counts=virtual_node_counts,
-        real_edge_density=0.01,
-    )
-
+def wait_for_processes_to_finish():
     timeout_s = 1
     while GL_OPEN_PROCESSES:
-        _path, process = GL_OPEN_PROCESSES[-1]
+        _args, process = GL_OPEN_PROCESSES[-1]
         try:
             exit_code = process.wait(timeout=timeout_s)
             logger.info(f"process finished with {exit_code=}")
@@ -245,6 +252,34 @@ if __name__ == "__main__":
             logger.warning(
                 f"Subprocess did not complete within the {timeout_s}s timeout."
             )
+
+
+class ClusterExperiments:
+    """Not a real class, just a container for all experiments that should be run for the thesis."""
+
+    STANDARD_GRAPH_GEN_COUNT = 30
+
+    @classmethod
+    def vary_gap_count(cls):
+        real_node_counts = [50]
+        virtual_node_ratios = [0.1]
+        average_node_degrees = [5.0]
+        run_k_gaps = True
+        gap_counts = [1, 2, 3, 4, 5, 10, 15]
+        run_sidegaps_batch(
+            "testcase_k_gaps_count_variation",
+            graph_gen_count=cls.STANDARD_GRAPH_GEN_COUNT,
+            real_node_counts=real_node_counts,
+            virtual_node_ratios=virtual_node_ratios,
+            average_node_degrees=average_node_degrees,
+            run_k_gaps=run_k_gaps,
+            gap_counts=gap_counts,
+        )
+
+
+if __name__ == "__main__":
+    # ClusterExperiments.vary_gap_count()
+    wait_for_processes_to_finish()
 
 
 # tests to do
