@@ -77,7 +77,9 @@ if not ((in_dir is None) ^ (in_file is None)):
 
 if len(normal_args) != 2:
     log_and_exit(
-        f"Expected 2 arguments, received {len(normal_args)}. Usage: python minimize_crossings_cli.py <flags> <algorithm_to_use> <out_dir>"
+        f"Expected 2 arguments, received {len(normal_args)} arguments:."
+        f"\n{normal_args}"
+        f"\nUsage: python minimize_crossings_cli.py <flags> <algorithm_to_use> <out_dir>"
     )
 
 alg_name, out_csv_file = normal_args
