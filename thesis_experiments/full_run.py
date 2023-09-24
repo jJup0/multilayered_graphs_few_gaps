@@ -238,11 +238,13 @@ def run_sidegaps_batch(
     for alg_name in ["median", "barycenter", "ilp"]:
         for file_name in files:
             for gap_count in gap_counts:
-                get_qsub_args(test_case_name, file_name, alg_name, "--kgaps", gap_count)
+                standard_run_cmds = get_qsub_args(
+                    test_case_name, file_name, alg_name, "--kgaps", gap_count
+                )
 
-            # GL_OPEN_PROCESSES.append(
-            #     (standard_run_cmds, subprocess.Popen(standard_run_cmds))
-            # )
+                GL_OPEN_PROCESSES.append(
+                    (standard_run_cmds, subprocess.Popen(standard_run_cmds))
+                )
 
 
 def wait_for_processes_to_finish():
@@ -283,7 +285,7 @@ class ClusterExperiments:
 
 
 if __name__ == "__main__":
-    # ClusterExperiments.vary_gap_count()
+    ClusterExperiments.vary_gap_count()
     wait_for_processes_to_finish()
 
 
