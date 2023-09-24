@@ -103,7 +103,9 @@ def _find_optimal_gaps(
         nonlocal virtual_node_to_crossings_in_gap, ordered_virtual_nodes
         # validation
         assert gap_idx >= 0
-        assert to_vnode_idx >= from_vnode_idx
+        assert (
+            from_vnode_idx <= to_vnode_idx
+        ), f"from_vnode_idx > to_vnode_idx: {from_vnode_idx} > {to_vnode_idx}"
 
         last_vnode = ordered_virtual_nodes[to_vnode_idx]
         res = virtual_node_to_crossings_in_gap[last_vnode][gap_idx]
