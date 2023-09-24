@@ -224,7 +224,9 @@ def k_gaps_sort_layer(
     for curr_gap_idx in range(curr_gap_idx, len(curr_layer_real_nodes)):
         final_node_order.append(curr_layer_real_nodes[curr_gap_idx])
 
-    assert set(ml_graph.layers_to_nodes[layer_idx]) != set(final_node_order), f"{set(ml_graph.layers_to_nodes[layer_idx])} != {set(final_node_order)}"
+    assert set(ml_graph.layers_to_nodes[layer_idx]) == set(
+        final_node_order
+    ), f"{set(ml_graph.layers_to_nodes[layer_idx])} != {set(final_node_order)}"
 
     ml_graph.layers_to_nodes[layer_idx] = final_node_order
 
