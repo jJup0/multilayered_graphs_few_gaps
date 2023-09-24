@@ -55,6 +55,9 @@ def create_graphs(
     logger.info(
         f"about to generate {graph_gen_count * len(real_node_counts)} graph instances"
     )
+
+    create_graph_proccesses: list[subprocess.Popen[bytes]] = []
+
     for real_node_count, vnode_percent, average_node_degree in zip(
         real_node_counts, virtual_node_ratios, average_node_degrees, strict=True
     ):
@@ -69,9 +72,11 @@ def create_graphs(
             in_dir_name(test_case_name),
         ]
         logger.info(f"generating {graph_gen_count} graphs with {real_node_count=}")
-        GL_OPEN_PROCESSES.append(
-            (generate_cmd_args, subprocess.Popen(generate_cmd_args, cwd=cwd))
-        )
+
+        create_graph_proccesses.append(subprocess.Popen(generate_cmd_args, cwd=cwd))
+
+    for process in create_graph_proccesses:
+        process.wait()
 
 
 def create_csv_out(test_case_name: str) -> str:
