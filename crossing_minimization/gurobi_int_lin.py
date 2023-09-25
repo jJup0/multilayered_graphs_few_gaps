@@ -190,7 +190,7 @@ def one_sided(
         m.setObjective(obj, GRB.MINIMIZE)
         m.update()
 
-        time_limit_seconds = 15
+        time_limit_seconds = 60 * 2
         m.setParam(GRB.Param.TimeLimit, time_limit_seconds)
         m.optimize()
 
