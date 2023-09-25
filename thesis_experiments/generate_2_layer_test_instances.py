@@ -4,11 +4,14 @@
 # example:
 # python -m thesis_experiments.generate_2_layer_test_instances 1 5 5 0.1 thesis_experiments/local_tests
 
+import logging
 import os
 import random
 import sys
 
 from multilayered_graph.multilayered_graph import MLGNode, MultiLayeredGraph
+
+logger = logging.getLogger(__name__)
 
 
 def generate_oscm_graph(
@@ -36,7 +39,14 @@ def generate_oscm_graph(
         for n2 in ml_graph.layers_to_nodes[1]
     ]
     random.shuffle(all_edges)
-    regular_edges_count = int(real_nodes_per_layer * average_node_degree)
+    regular_edges_count = (
+        int(real_nodes_per_layer * average_node_degree) - virtual_nodes_per_layer
+    )
+    if regular_edges_count >= len(all_edges):
+        logger.warning(
+            f"regular_edges_count >= len(all_edges): {regular_edges_count} > {len(all_edges)}"
+        )
+        regular_edges_count = len(all_edges)
     for i in range(regular_edges_count):
         n1, n2 = all_edges[i]
         ml_graph.add_edge(n1, n2)

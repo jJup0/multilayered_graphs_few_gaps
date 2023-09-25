@@ -186,6 +186,9 @@ def _find_optimal_gaps(
     if not ordered_virtual_nodes:
         return 0, []
 
+    if not ordered_real_nodes:
+        return 0, [0] * len(ordered_virtual_nodes)
+
     if gaps > len(ordered_real_nodes):
         # no need to check gap count higher than possible gaps in layer
         gaps = len(ordered_real_nodes)
