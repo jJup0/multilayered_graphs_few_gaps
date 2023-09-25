@@ -332,6 +332,8 @@ def _gen_k_gap_constraints(
     prefix: str = "Gap_",
 ) -> tuple[list[gp.Var], list[gp.Var]]:
     virtual_nodes = [n for n in nodes if n.is_virtual]
+    if not virtual_nodes:
+        return [], []
     real_nodes = [n for n in nodes if not n.is_virtual]
 
     vnodes_left_of_rnode_vars: dict[MLGNode, list[gp.Var]] = {
