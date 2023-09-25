@@ -226,12 +226,12 @@ def get_qsub_args(
 def create_testcase_info_json(
     test_case_name: str,
     *,
-    graph_title: str,
     nodes_per_layer: list[int],
     virtual_node_ratios: list[float],
     average_node_degrees: list[float],
     run_k_gaps: bool,
     gap_counts: list[int],
+    graph_title: str = "",
 ):
     data_constants: dict[str, Any] = {}
     graph_params_and_verbose_names_csv_titles = [
@@ -244,7 +244,7 @@ def create_testcase_info_json(
     variables = graph_params_and_verbose_names_csv_titles.copy()
     for iterable_verbose_tuple in graph_params_and_verbose_names_csv_titles:
         param_iterable, verbose_name = iterable_verbose_tuple
-        first_item = param_iterable[1]
+        first_item = param_iterable[0]
         if all(first_item == item for item in param_iterable):
             data_constants[verbose_name] = param_iterable[0]
             variables.remove(iterable_verbose_tuple)
@@ -254,9 +254,12 @@ def create_testcase_info_json(
     variable_iterable, variable_verbose_name = variables[0]
     data_variable = [variable_verbose_name, variable_iterable]
 
-    oscm_type = "OSCM-KG" if run_k_gaps else "OSCM-SG"
-    # TODO what else to include in title
-    data_graph_title = f"{oscm_type} ..."
+    if graph_title:
+        data_graph_title = graph_title
+    else:
+        oscm_type = "OSCM-KG" if run_k_gaps else "OSCM-SG"
+        # TODO what else to include in title
+        data_graph_title = f"{oscm_type} ..."
 
     graph_info: dict[str, Any] = {
         "constants": data_constants,
@@ -277,6 +280,7 @@ def run_batch(
     average_node_degrees: list[float],
     run_k_gaps: bool,
     gap_counts: list[int] = [],
+    graph_title: str = "",
 ):
     create_graphs(
         test_case_name,
@@ -287,25 +291,19 @@ def run_batch(
     )
     create_csv_out(test_case_name)
 
-    # TODO create a ml_graph-info JSON used for creating plots.
-    # e.g. constant parameters and their values
-    # - parameters that were varied, graph title e
-
     create_testcase_info_json(
-        test_case_name: str,
-graph_gen_count,
-nodes_per_layer,
-virtual_node_ratios,
-average_node_degrees,
-run_k_gaps,
-gap_counts,
+        test_case_name,
+        nodes_per_layer=nodes_per_layer,
+        virtual_node_ratios=virtual_node_ratios,
+        average_node_degrees=average_node_degrees,
+        run_k_gaps=run_k_gaps,
+        gap_counts=gap_counts,
     )
-
-    if not run_k_gaps:
-        gap_counts = [-1]
 
     create_log_file(test_case_name)
 
+    if not run_k_gaps:
+        gap_counts = [2]
     files = os.listdir(in_dir_name(test_case_name))
     for alg_name in ["median", "barycenter", "ilp"]:
         for file_name in files:
@@ -336,16 +334,20 @@ class ClusterExperiments:
     """Not a real class, just a container for all experiments that should be run for the thesis."""
 
     STANDARD_GRAPH_GEN_COUNT = 30
+    STANDARD_NODE_COUNT = 50
+    STANDARD_VIRTUAL_NODE_RATIO = 0.1
+    STANDARD_AVERAGE_NODE_DEGREE = 5.0
 
     @classmethod
     def vary_gap_count(cls, test_case_suffix: str = ""):
-        nodes_per_layer = [50]
-        virtual_node_ratios = [0.1]
-        average_node_degrees = [5.0]
+        test_case_name = f"testcase_k_gaps_count_variation{test_case_suffix}"
+        nodes_per_layer = [cls.STANDARD_NODE_COUNT]
+        virtual_node_ratios = [cls.STANDARD_VIRTUAL_NODE_RATIO]
+        average_node_degrees = [cls.STANDARD_AVERAGE_NODE_DEGREE]
         run_k_gaps = True
-        gap_counts = [1, 2, 3, 4, 5, 10, 15]
+        gap_counts = [1, 2, 3, 4, 5, 10, 15, nodes_per_layer[0]]
         run_batch(
-            f"testcase_k_gaps_count_variation{test_case_suffix}",
+            test_case_name,
             graph_gen_count=cls.STANDARD_GRAPH_GEN_COUNT,
             nodes_per_layer=nodes_per_layer,
             virtual_node_ratios=virtual_node_ratios,
@@ -356,9 +358,71 @@ class ClusterExperiments:
 
     @classmethod
     def side_gaps_vs_arbitrary_2_gaps(cls, test_case_suffix: str = ""):
-        ...
+        test_case_name = f"testcase_2_gaps_vs_side_gaps{test_case_suffix}"
+        nodes_per_layer = list(range(10, 71, 10))
+        virtual_node_ratios = [cls.STANDARD_VIRTUAL_NODE_RATIO] * len(nodes_per_layer)
+        average_node_degrees = [cls.STANDARD_AVERAGE_NODE_DEGREE] * len(nodes_per_layer)
+        run_k_gaps = True
+        gap_counts = [2]
+        # run k-gaps first
+        run_batch(
+            test_case_name,
+            graph_gen_count=cls.STANDARD_GRAPH_GEN_COUNT,
+            nodes_per_layer=nodes_per_layer,
+            virtual_node_ratios=virtual_node_ratios,
+            average_node_degrees=average_node_degrees,
+            run_k_gaps=run_k_gaps,
+            gap_counts=gap_counts,
+            graph_title="OSCM side-gaps vs. 2 arbitrary gaps",
+        )
 
-    # TODO add different experiments
+        # manually run side gaps
+        files = os.listdir(in_dir_name(test_case_name))
+        for alg_name in ["median", "barycenter", "ilp"]:
+            for file_name in files:
+                for gap_count in gap_counts:
+                    standard_run_cmds = get_qsub_args(
+                        test_case_name, file_name, alg_name, "--sidegaps", gap_count
+                    )
+                    GL_OPEN_PROCESSES.append(
+                        (standard_run_cmds, subprocess.Popen(standard_run_cmds))
+                    )
+
+    @classmethod
+    def vary_virtual_node_ratio(cls, test_case_suffix: str = ""):
+        test_case_name = f"testcase_virtual_node_variation{test_case_suffix}"
+        virtual_node_ratios = list(ratio / 10 for ratio in range(11))
+        nodes_per_layer = [cls.STANDARD_NODE_COUNT] * len(virtual_node_ratios)
+        average_node_degrees = [cls.STANDARD_AVERAGE_NODE_DEGREE] * len(
+            virtual_node_ratios
+        )
+        run_k_gaps = False
+        run_batch(
+            test_case_name,
+            graph_gen_count=cls.STANDARD_GRAPH_GEN_COUNT,
+            nodes_per_layer=nodes_per_layer,
+            virtual_node_ratios=virtual_node_ratios,
+            average_node_degrees=average_node_degrees,
+            run_k_gaps=run_k_gaps,
+        )
+
+    @classmethod
+    def vary_node_degree(cls, test_case_suffix: str = ""):
+        test_case_name = f"testcase_side_gaps_vary_node_degree{test_case_suffix}"
+        average_node_degrees = [2.0, 3.0, 4.0] + list(range(5, 41, 5))
+        nodes_per_layer = [cls.STANDARD_NODE_COUNT] * len(average_node_degrees)
+        virtual_node_ratios = [cls.STANDARD_VIRTUAL_NODE_RATIO] * len(
+            average_node_degrees
+        )
+        run_k_gaps = False
+        run_batch(
+            test_case_name,
+            graph_gen_count=cls.STANDARD_GRAPH_GEN_COUNT,
+            nodes_per_layer=nodes_per_layer,
+            virtual_node_ratios=virtual_node_ratios,
+            average_node_degrees=average_node_degrees,
+            run_k_gaps=run_k_gaps,
+        )
 
 
 if __name__ == "__main__":
@@ -366,10 +430,10 @@ if __name__ == "__main__":
         test_case_suffix = sys.argv[1]
     else:
         test_case_suffix = ""
+
     ClusterExperiments.vary_gap_count(test_case_suffix)
-    # run_regular_k_gaps(f"regular_{test_case_suffix}")
+    ClusterExperiments.vary_node_degree(test_case_suffix)
+    ClusterExperiments.vary_virtual_node_ratio(test_case_suffix)
+    ClusterExperiments.side_gaps_vs_arbitrary_2_gaps(test_case_suffix)
+
     wait_for_processes_to_finish()
-
-
-# tests to do
-# r = 50, v = 30, p=0.1, kgaps, k
