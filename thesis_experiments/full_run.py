@@ -189,10 +189,12 @@ def get_qsub_args(
     filesize = os.path.getsize(filepath)
 
     if alg_name == "ilp":
-        mem_required = 1 + 0.0001 * filesize
+        # mem_required = 1 + 0.0001 * filesize
+        mem_required = 10
     else:
-        mem_required = 1 + 0.00003 * filesize
-    print(f"{file_name=} {alg_name=} {mem_required=}")
+        # mem_required = 1 + 0.00003 * filesize
+        mem_required = 1
+    # print(f"{file_name=} {alg_name=} {mem_required=}")
 
     return [
         "qsub",
@@ -334,9 +336,11 @@ class ClusterExperiments:
 
     # STANDARD_GRAPH_GEN_COUNT = 30
     STANDARD_GRAPH_GEN_COUNT = 5
-    STANDARD_NODE_COUNT = 50
+    # STANDARD_NODE_COUNT = 50
+    STANDARD_NODE_COUNT = 20
     STANDARD_VIRTUAL_NODE_RATIO = 0.1
-    STANDARD_AVERAGE_NODE_DEGREE = 5.0
+    # STANDARD_AVERAGE_NODE_DEGREE = 5.0
+    STANDARD_AVERAGE_NODE_DEGREE = 2.0
 
     @classmethod
     def vary_gap_count(cls, test_case_suffix: str = ""):
@@ -391,7 +395,7 @@ class ClusterExperiments:
     @classmethod
     def vary_virtual_node_ratio(cls, test_case_suffix: str = ""):
         test_case_name = f"testcase_side_gaps_virtual_node_variation{test_case_suffix}"
-        virtual_node_ratios = list(ratio / 10 for ratio in range(11))
+        virtual_node_ratios = list(ratio / 10 for ratio in range(10))
         nodes_per_layer = [cls.STANDARD_NODE_COUNT] * len(virtual_node_ratios)
         average_node_degrees = [cls.STANDARD_AVERAGE_NODE_DEGREE] * len(
             virtual_node_ratios
@@ -431,9 +435,9 @@ if __name__ == "__main__":
     else:
         test_case_suffix = ""
 
-    # ClusterExperiments.vary_gap_count(test_case_suffix)
-    # ClusterExperiments.vary_node_degree(test_case_suffix)
+    ClusterExperiments.vary_gap_count(test_case_suffix)
+    ClusterExperiments.vary_node_degree(test_case_suffix)
     ClusterExperiments.vary_virtual_node_ratio(test_case_suffix)
-    # ClusterExperiments.side_gaps_vs_arbitrary_2_gaps(test_case_suffix)
+    ClusterExperiments.side_gaps_vs_arbitrary_2_gaps(test_case_suffix)
 
     wait_for_processes_to_finish()
