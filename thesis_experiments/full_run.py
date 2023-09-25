@@ -279,7 +279,7 @@ def run_batch(
     virtual_node_ratios: list[float],
     average_node_degrees: list[float],
     run_k_gaps: bool,
-    gap_counts: list[int] = [],
+    gap_counts: list[int] = [2],
     graph_title: str = "",
 ):
     create_graphs(
@@ -333,7 +333,8 @@ def wait_for_processes_to_finish():
 class ClusterExperiments:
     """Not a real class, just a container for all experiments that should be run for the thesis."""
 
-    STANDARD_GRAPH_GEN_COUNT = 30
+    # STANDARD_GRAPH_GEN_COUNT = 30
+    STANDARD_GRAPH_GEN_COUNT = 5
     STANDARD_NODE_COUNT = 50
     STANDARD_VIRTUAL_NODE_RATIO = 0.1
     STANDARD_AVERAGE_NODE_DEGREE = 5.0
@@ -390,7 +391,7 @@ class ClusterExperiments:
 
     @classmethod
     def vary_virtual_node_ratio(cls, test_case_suffix: str = ""):
-        test_case_name = f"testcase_virtual_node_variation{test_case_suffix}"
+        test_case_name = f"testcase_side_gaps_virtual_node_variation{test_case_suffix}"
         virtual_node_ratios = list(ratio / 10 for ratio in range(11))
         nodes_per_layer = [cls.STANDARD_NODE_COUNT] * len(virtual_node_ratios)
         average_node_degrees = [cls.STANDARD_AVERAGE_NODE_DEGREE] * len(
@@ -431,9 +432,9 @@ if __name__ == "__main__":
     else:
         test_case_suffix = ""
 
-    ClusterExperiments.vary_gap_count(test_case_suffix)
-    ClusterExperiments.vary_node_degree(test_case_suffix)
+    # ClusterExperiments.vary_gap_count(test_case_suffix)
+    # ClusterExperiments.vary_node_degree(test_case_suffix)
     ClusterExperiments.vary_virtual_node_ratio(test_case_suffix)
-    ClusterExperiments.side_gaps_vs_arbitrary_2_gaps(test_case_suffix)
+    # ClusterExperiments.side_gaps_vs_arbitrary_2_gaps(test_case_suffix)
 
     wait_for_processes_to_finish()
