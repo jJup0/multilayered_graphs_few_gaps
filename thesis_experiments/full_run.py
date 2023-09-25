@@ -1,8 +1,10 @@
 import csv
+import json
 import logging
 import os
 import subprocess
 import sys
+from typing import Any
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
@@ -14,24 +16,32 @@ thesis_experiments_dirname = "thesis_experiments"
 GL_OPEN_PROCESSES: list[tuple[list[str], subprocess.Popen[bytes]]] = []
 
 
-def in_dir_name(test_case_name: str):
+def test_case_base_dir(test_case_name: str):
     # return os.path.realpath(f"local_tests/{test_case_name}/in")
     return os.path.realpath(
-        f"{thesis_experiments_dirname}/local_tests/{test_case_name}/in"
+        f"{thesis_experiments_dirname}/local_tests/{test_case_name}"
     )
 
 
+def in_dir_name(test_case_name: str):
+    return os.path.realpath(os.path.join(test_case_base_dir(test_case_name), f"in"))
+
+
 def out_csv_path(test_case_name: str):
-    # return f"local_tests/{test_case_name}/out.csv"
     return os.path.realpath(
-        f"{thesis_experiments_dirname}/local_tests/{test_case_name}/out.csv"
+        os.path.join(test_case_base_dir(test_case_name), f"out.csv")
     )
 
 
 def log_path(test_case_name: str):
-    # return f"local_tests/{test_case_name}/out.csv"
     return os.path.realpath(
-        f"{thesis_experiments_dirname}/local_tests/{test_case_name}/log.txt"
+        os.path.join(test_case_base_dir(test_case_name), f"log.txt")
+    )
+
+
+def test_case_info_path(test_case_name: str):
+    return os.path.realpath(
+        os.path.join(test_case_base_dir(test_case_name), f"info.json")
     )
 
 
@@ -49,18 +59,18 @@ def create_graphs(
     test_case_name: str,
     *,
     graph_gen_count: int,
-    real_node_counts: list[int],
+    nodes_per_layer: list[int],
     virtual_node_ratios: list[float],
     average_node_degrees: list[float],
 ):
     logger.info(
-        f"about to generate {graph_gen_count * len(real_node_counts)} graph instances"
+        f"about to generate {graph_gen_count * len(nodes_per_layer)} graph instances"
     )
 
     create_graph_proccesses: list[subprocess.Popen[bytes]] = []
 
     for real_node_count, vnode_percent, average_node_degree in zip(
-        real_node_counts, virtual_node_ratios, average_node_degrees, strict=True
+        nodes_per_layer, virtual_node_ratios, average_node_degrees, strict=True
     ):
         generate_cmd_args = [
             "python",
@@ -91,9 +101,9 @@ def create_csv_out(test_case_name: str) -> str:
                 "alg_name",
                 "gap_type",
                 "gap_count",
-                "real_nodes_per_layer_count",
-                "virtual_nodes_per_layer_count",
-                "real_edge_density",
+                "nodes_per_layer",
+                "virtual_node_ratio",
+                "average_node_degree",
                 "instance_name",
                 "crossings",
                 "time_s",
@@ -106,7 +116,7 @@ def run_regular_side_gaps(test_case_name: str):
     create_graphs(
         test_case_name,
         graph_gen_count=20,
-        real_node_counts=[10, 20, 30, 40, 50],
+        nodes_per_layer=[10, 20, 30, 40, 50],
         virtual_node_ratios=[5, 10, 15, 20, 25],
         average_node_degrees=[0.1],
     )
@@ -133,7 +143,7 @@ def run_regular_k_gaps(test_case_name: str):
     create_graphs(
         test_case_name,
         graph_gen_count=5,
-        real_node_counts=[10],
+        nodes_per_layer=[10],
         virtual_node_ratios=[0.1],
         average_node_degrees=[4],
     )
@@ -179,12 +189,10 @@ def get_qsub_args(
     filesize = os.path.getsize(filepath)
 
     # TODO add this back
-
-    # if alg_name == "ilp":
-    #     mem_required = 0.5 + 0.0001 * filesize
-    # else:
-    #     mem_required = 0.1 + 0.00003 * filesize
-    mem_required = 2
+    if alg_name == "ilp":
+        mem_required = 1 + 0.0001 * filesize
+    else:
+        mem_required = 1 + 0.00003 * filesize
     # print(f"{file_name=} {alg_name=} {mem_required=}")
 
     return [
@@ -215,11 +223,56 @@ def get_qsub_args(
     ]
 
 
+def create_testcase_info_json(
+    test_case_name: str,
+    *,
+    graph_title: str,
+    nodes_per_layer: list[int],
+    virtual_node_ratios: list[float],
+    average_node_degrees: list[float],
+    run_k_gaps: bool,
+    gap_counts: list[int],
+):
+    data_constants: dict[str, Any] = {}
+    graph_params_and_verbose_names_csv_titles = [
+        (nodes_per_layer, "nodes per layer"),
+        (virtual_node_ratios, "virtual node ratio"),
+        (average_node_degrees, "average node degree"),
+        (gap_counts, "gap count"),
+    ]
+
+    variables = graph_params_and_verbose_names_csv_titles.copy()
+    for iterable_verbose_tuple in graph_params_and_verbose_names_csv_titles:
+        param_iterable, verbose_name = iterable_verbose_tuple
+        first_item = param_iterable[1]
+        if all(first_item == item for item in param_iterable):
+            data_constants[verbose_name] = param_iterable[0]
+            variables.remove(iterable_verbose_tuple)
+
+    assert len(variables) == 1, "Exactly one parameter should varied"
+
+    variable_iterable, variable_verbose_name = variables[0]
+    data_variable = [variable_verbose_name, variable_iterable]
+
+    oscm_type = "OSCM-KG" if run_k_gaps else "OSCM-SG"
+    # TODO what else to include in title
+    data_graph_title = f"{oscm_type} ..."
+
+    graph_info: dict[str, Any] = {
+        "constants": data_constants,
+        "variable": data_variable,  # variable will be on y axis
+        "graph_title": data_graph_title,
+    }
+
+    with open(test_case_info_path(test_case_name), "w") as f:
+        json.dump(graph_info, f)
+
+
 def run_batch(
     test_case_name: str,
     *,
     graph_gen_count: int,
-    real_node_counts: list[int],
+    nodes_per_layer: list[int],
     virtual_node_ratios: list[float],
     average_node_degrees: list[float],
     run_k_gaps: bool,
@@ -228,7 +281,7 @@ def run_batch(
     create_graphs(
         test_case_name,
         graph_gen_count=graph_gen_count,
-        real_node_counts=real_node_counts,
+        nodes_per_layer=nodes_per_layer,
         virtual_node_ratios=virtual_node_ratios,
         average_node_degrees=average_node_degrees,
     )
@@ -237,6 +290,16 @@ def run_batch(
     # TODO create a ml_graph-info JSON used for creating plots.
     # e.g. constant parameters and their values
     # - parameters that were varied, graph title e
+
+    create_testcase_info_json(
+        test_case_name: str,
+graph_gen_count,
+nodes_per_layer,
+virtual_node_ratios,
+average_node_degrees,
+run_k_gaps,
+gap_counts,
+    )
 
     if not run_k_gaps:
         gap_counts = [-1]
@@ -276,7 +339,7 @@ class ClusterExperiments:
 
     @classmethod
     def vary_gap_count(cls, test_case_suffix: str = ""):
-        real_node_counts = [50]
+        nodes_per_layer = [50]
         virtual_node_ratios = [0.1]
         average_node_degrees = [5.0]
         run_k_gaps = True
@@ -284,7 +347,7 @@ class ClusterExperiments:
         run_batch(
             f"testcase_k_gaps_count_variation{test_case_suffix}",
             graph_gen_count=cls.STANDARD_GRAPH_GEN_COUNT,
-            real_node_counts=real_node_counts,
+            nodes_per_layer=nodes_per_layer,
             virtual_node_ratios=virtual_node_ratios,
             average_node_degrees=average_node_degrees,
             run_k_gaps=run_k_gaps,
