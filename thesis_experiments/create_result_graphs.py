@@ -1,27 +1,41 @@
+import json
+import os
+import sys
+from typing import TypedDict
+
 import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sns
 
-# TODO maybe automatically store x_data in input
+
+class TestCaseInfo(TypedDict):
+    constants: dict[str, int | float]
+    variable: tuple[str, list[int | float]]
+    graph_title: str
+
+
+assert len(sys.argv) > 1
+test_case_directory = sys.argv[1]
+
+with open(os.path.join(test_case_directory, "info.json")) as f:
+    test_case_info: TestCaseInfo = json.load(f)
 
 y_data_str = "crossings"
 # y_data_str = "time_s"
-# x_data_str = "real_nodes_per_layer_count"
-x_data_str = "gaps"
+x_data_str = test_case_info["variable"][0].replace(" ", "_")
 
-df = pd.read_csv(r"thesis_experiments\local_tests\testcase_10-50_kgaps\out.csv")
+df = pd.read_csv(os.path.join(test_case_directory, "out.csv"))
 sns.lineplot(data=df, x=x_data_str, y=y_data_str, hue="alg_name")
-# sns.lineplot(data=df, x="real_nodes_per_layer_count ", y="time_s", hue="alg_name")
 
-# Optionally, you can customize the plot using Seaborn functions or Matplotlib settings
-# For example, setting labels and title:
 plt.xlabel(x_data_str)
 plt.ylabel(y_data_str)
-plt.title("OSCM")
+plt.title(test_case_info["graph_title"])
 
 plt.yscale("log")
 
 plt.legend(title="Algorithms", loc="best")
 
+
+_, test_case_name = os.path.split(test_case_directory)
 # Show the plot
-plt.show()
+plt.savefig(f"{test_case_name}.csv")
