@@ -237,8 +237,7 @@ def run_sidegaps_batch(
     create_log_file(test_case_name)
 
     files = os.listdir(in_dir_name(test_case_name))
-    # for alg_name in ["median", "barycenter", "ilp"]:
-    for alg_name in ["median"]:
+    for alg_name in ["median", "barycenter", "ilp"]:
         for file_name in files:
             for gap_count in gap_counts:
                 standard_run_cmds = get_qsub_args(
@@ -266,16 +265,15 @@ def wait_for_processes_to_finish():
 class ClusterExperiments:
     """Not a real class, just a container for all experiments that should be run for the thesis."""
 
-    STANDARD_GRAPH_GEN_COUNT = 1
+    STANDARD_GRAPH_GEN_COUNT = 30
 
     @classmethod
     def vary_gap_count(cls, test_case_suffix: str = ""):
-        real_node_counts = [5]
+        real_node_counts = [50]
         virtual_node_ratios = [0.1]
-        average_node_degrees = [2.0]
+        average_node_degrees = [5.0]
         run_k_gaps = True
-        # gap_counts = [1, 2, 3, 4, 5, 10, 15]
-        gap_counts = [10]
+        gap_counts = [1, 2, 3, 4, 5, 10, 15]
         run_sidegaps_batch(
             f"testcase_k_gaps_count_variation_{test_case_suffix}",
             graph_gen_count=cls.STANDARD_GRAPH_GEN_COUNT,
