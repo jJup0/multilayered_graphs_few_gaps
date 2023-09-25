@@ -188,12 +188,11 @@ def get_qsub_args(
     filepath = os.path.realpath(os.path.join(in_dir_name(test_case_name), file_name))
     filesize = os.path.getsize(filepath)
 
-    # TODO add this back
     if alg_name == "ilp":
         mem_required = 1 + 0.0001 * filesize
     else:
         mem_required = 1 + 0.00003 * filesize
-    # print(f"{file_name=} {alg_name=} {mem_required=}")
+    print(f"{file_name=} {alg_name=} {mem_required=}")
 
     return [
         "qsub",
@@ -279,7 +278,7 @@ def run_batch(
     virtual_node_ratios: list[float],
     average_node_degrees: list[float],
     run_k_gaps: bool,
-    gap_counts: list[int] = [],
+    gap_counts: list[int] = [2],
     graph_title: str = "",
 ):
     create_graphs(
