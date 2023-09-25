@@ -212,7 +212,7 @@ def get_qsub_args(
     ]
 
 
-def run_sidegaps_batch(
+def run_batch(
     test_case_name: str,
     *,
     graph_gen_count: int,
@@ -230,6 +230,10 @@ def run_sidegaps_batch(
         average_node_degrees=average_node_degrees,
     )
     create_csv_out(test_case_name)
+
+    # TODO create a ml_graph-info JSON used for creating plots.
+    # e.g. constant parameters and their values
+    # - parameters that were varied, graph title e
 
     if not run_k_gaps:
         gap_counts = [-1]
@@ -276,8 +280,8 @@ class ClusterExperiments:
         run_k_gaps = True
         # gap_counts = [1, 2, 3, 4, 5, 10, 15]
         gap_counts = [10]
-        run_sidegaps_batch(
-            f"testcase_k_gaps_count_variation_{test_case_suffix}",
+        run_batch(
+            f"testcase_k_gaps_count_variation{test_case_suffix}",
             graph_gen_count=cls.STANDARD_GRAPH_GEN_COUNT,
             real_node_counts=real_node_counts,
             virtual_node_ratios=virtual_node_ratios,
@@ -285,6 +289,12 @@ class ClusterExperiments:
             run_k_gaps=run_k_gaps,
             gap_counts=gap_counts,
         )
+
+    @classmethod
+    def side_gaps_vs_arbitrary_2_gaps(cls, test_case_suffix: str = ""):
+        ...
+
+    # TODO add different experiments
 
 
 if __name__ == "__main__":
