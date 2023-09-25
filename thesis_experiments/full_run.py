@@ -186,7 +186,7 @@ def get_qsub_args(
 
     # determine memory limit
     filepath = os.path.realpath(os.path.join(in_dir_name(test_case_name), file_name))
-    filesize = os.path.getsize(filepath)
+    # filesize = os.path.getsize(filepath)
 
     if alg_name == "ilp":
         # mem_required = 1 + 0.0001 * filesize
