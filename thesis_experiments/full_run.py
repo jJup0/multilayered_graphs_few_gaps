@@ -9,11 +9,15 @@ from typing import Any
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
-cwd = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
+STANDARD_CWD = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 
 thesis_experiments_dirname = "thesis_experiments"
 
-GL_OPEN_PROCESSES: list[tuple[list[str], subprocess.Popen[bytes]]] = []
+GL_OPEN_PROCESSES: list[tuple[list[str], subprocess.Popen[str]]] = []
+
+
+def popen_wrapper(arguments: list[str], **kwargs: Any):
+    GL_OPEN_PROCESSES.append((arguments, subprocess.Popen(arguments, **kwargs)))
 
 
 def test_case_base_dir(test_case_name: str):
@@ -84,7 +88,7 @@ def create_graphs(
         ]
         logger.info(f"generating {graph_gen_count} graphs with {real_node_count=}")
 
-        create_graph_proccesses.append(subprocess.Popen(generate_cmd_args, cwd=cwd))
+        popen_wrapper(generate_cmd_args, cwd=STANDARD_CWD)
 
     for process in create_graph_proccesses:
         process.wait()
@@ -134,9 +138,7 @@ def run_regular_side_gaps(test_case_name: str):
     ]
     for alg_name in ["median", "barycenter", "ilp"]:
         minimize_cmd_args[-2] = alg_name
-        GL_OPEN_PROCESSES.append(
-            (minimize_cmd_args, subprocess.Popen(minimize_cmd_args, cwd=cwd))
-        )
+        popen_wrapper(minimize_cmd_args, cwd=STANDARD_CWD)
 
 
 def run_regular_k_gaps(test_case_name: str):
@@ -164,9 +166,7 @@ def run_regular_k_gaps(test_case_name: str):
         ]
         for alg_name in ["median", "barycenter", "ilp"]:
             minimize_cmd_args[-2] = alg_name
-            GL_OPEN_PROCESSES.append(
-                (minimize_cmd_args, subprocess.Popen(minimize_cmd_args, cwd=cwd))
-            )
+            popen_wrapper(minimize_cmd_args, cwd=STANDARD_CWD)
 
 
 def get_qsub_args(
@@ -312,9 +312,7 @@ def run_batch(
                 standard_run_cmds = get_qsub_args(
                     test_case_name, file_name, alg_name, "--kgaps", gap_count
                 )
-                GL_OPEN_PROCESSES.append(
-                    (standard_run_cmds, subprocess.Popen(standard_run_cmds))
-                )
+                popen_wrapper(standard_run_cmds)
 
 
 def wait_for_processes_to_finish():
@@ -359,6 +357,8 @@ class ClusterExperiments:
             run_k_gaps=run_k_gaps,
             gap_counts=gap_counts,
         )
+        logger.info("finished %s", test_case_name)
+        return test_case_name
 
     @classmethod
     def side_gaps_vs_arbitrary_2_gaps(cls, test_case_suffix: str = ""):
@@ -388,9 +388,10 @@ class ClusterExperiments:
                     standard_run_cmds = get_qsub_args(
                         test_case_name, file_name, alg_name, "--sidegaps", gap_count
                     )
-                    GL_OPEN_PROCESSES.append(
-                        (standard_run_cmds, subprocess.Popen(standard_run_cmds))
-                    )
+                    popen_wrapper(standard_run_cmds)
+
+        logger.info("finished %s", test_case_name)
+        return test_case_name
 
     @classmethod
     def vary_virtual_node_ratio(cls, test_case_suffix: str = ""):
@@ -409,6 +410,8 @@ class ClusterExperiments:
             average_node_degrees=average_node_degrees,
             run_k_gaps=run_k_gaps,
         )
+        logger.info("finished %s", test_case_name)
+        return test_case_name
 
     @classmethod
     def vary_node_degree(cls, test_case_suffix: str = ""):
@@ -427,6 +430,29 @@ class ClusterExperiments:
             average_node_degrees=average_node_degrees,
             run_k_gaps=run_k_gaps,
         )
+        logger.info("finished %s", test_case_name)
+        return test_case_name
+
+
+def create_plots(test_case_name_match: str):
+    test_case_root_dir = os.path.dirname(test_case_base_dir("x"))
+    # matching_dir_paths: list[str] = []
+    for dirname in os.listdir(test_case_root_dir):
+        print(f"{dirname=}")
+        dir_path = os.path.realpath(os.path.join(test_case_root_dir, dirname))
+        if not os.path.isdir(dir_path):
+            continue
+        if test_case_name_match in dir_path:
+            # matching_dir_paths.append(dir_path)
+            popen_wrapper(
+                [
+                    "python",
+                    "-m",
+                    f"{thesis_experiments_dirname}.create_result_graphs",
+                    test_case_name_match,
+                ],
+                cwd=STANDARD_CWD,
+            )
 
 
 if __name__ == "__main__":
@@ -435,9 +461,10 @@ if __name__ == "__main__":
     else:
         test_case_suffix = ""
 
-    ClusterExperiments.vary_gap_count(test_case_suffix)
-    ClusterExperiments.vary_node_degree(test_case_suffix)
-    ClusterExperiments.vary_virtual_node_ratio(test_case_suffix)
-    ClusterExperiments.side_gaps_vs_arbitrary_2_gaps(test_case_suffix)
+    # ClusterExperiments.vary_gap_count(test_case_suffix)
+    # ClusterExperiments.vary_node_degree(test_case_suffix)
+    # ClusterExperiments.vary_virtual_node_ratio(test_case_suffix)
+    # ClusterExperiments.side_gaps_vs_arbitrary_2_gaps(test_case_suffix)
 
     wait_for_processes_to_finish()
+    create_plots("testcase_")
