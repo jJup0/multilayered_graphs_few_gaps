@@ -38,4 +38,4 @@ plt.legend(title="Algorithms", loc="best")
 
 _, test_case_name = os.path.split(os.path.realpath(test_case_directory))
 # Show the plot
-plt.savefig(f"{test_case_name}.csv")
+plt.savefig(os.path.join(f"{test_case_name}.csv"))
