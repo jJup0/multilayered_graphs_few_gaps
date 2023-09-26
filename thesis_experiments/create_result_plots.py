@@ -22,8 +22,8 @@ def create_graph(test_case_directory:str):
     with open(os.path.join(test_case_directory, "info.json")) as f:
         test_case_info: TestCaseInfo = json.load(f)
 
-    # y_data_str = "crossings"
-    y_data_str = "time_s"
+    y_data_str = "crossings"
+    # y_data_str = "time_s"
     x_data_str = test_case_info["variable"][0].replace(" ", "_")
 
     df = pd.read_csv(os.path.join(test_case_directory, "out.csv"))
