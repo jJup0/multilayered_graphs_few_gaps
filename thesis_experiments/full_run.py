@@ -312,7 +312,7 @@ def run_batch(
     if not run_k_gaps:
         gap_counts = [2]
     files = os.listdir(in_dir_name(test_case_name))
-    for alg_name in ["median", "barycenter", "ilp"]:
+    for alg_name in ["median", "barycenter", "ilp", "none"]:
         for file_name in files:
             for gap_count in gap_counts:
                 standard_run_cmds = get_qsub_args(
@@ -343,11 +343,9 @@ class ClusterExperiments:
     """Not a real class, just a container for all experiments that should be run for the thesis."""
 
     STANDARD_GRAPH_GEN_COUNT = 20
-    # STANDARD_NODE_COUNT = 50
-    STANDARD_NODE_COUNT = 30
-    STANDARD_VIRTUAL_NODE_RATIO = 0.1
-    STANDARD_AVERAGE_NODE_DEGREE = 5.0
-    # STANDARD_AVERAGE_NODE_DEGREE = 2.0
+    STANDARD_NODE_COUNT = 40
+    STANDARD_VIRTUAL_NODE_RATIO = 0.2
+    STANDARD_AVERAGE_NODE_DEGREE = 3.0
 
     @classmethod
     def vary_gap_count(cls, test_case_suffix: str = ""):
@@ -391,7 +389,7 @@ class ClusterExperiments:
 
         # manually run side gaps
         files = os.listdir(in_dir_name(test_case_name))
-        for alg_name in ["median", "barycenter", "ilp"]:
+        for alg_name in ["median", "barycenter", "ilp", "none"]:
             for file_name in files:
                 for gap_count in gap_counts:
                     standard_run_cmds = get_qsub_args(
@@ -441,31 +439,27 @@ class ClusterExperiments:
         )
         logger.info("finished %s", test_case_name)
         return test_case_name
+    
+    @classmethod
+    def side_gaps_vary_nodes(cls, test_case_suffix: str = ""):
+        test_case_name = f"testcase_side_gaps_vary_node_degree{test_case_suffix}"
+        nodes_per_layer = list(range(10, 71, 10))
+        average_node_degrees = [cls.STANDARD_AVERAGE_NODE_DEGREE] * len(nodes_per_layer)
+        virtual_node_ratios = [cls.STANDARD_VIRTUAL_NODE_RATIO] * len(
+            nodes_per_layer
+        )
+        run_k_gaps = False
+        run_batch(
+            test_case_name,
+            graph_gen_count=cls.STANDARD_GRAPH_GEN_COUNT,
+            nodes_per_layer=nodes_per_layer,
+            virtual_node_ratios=virtual_node_ratios,
+            average_node_degrees=average_node_degrees,
+            run_k_gaps=run_k_gaps,
+        )
+        logger.info("finished %s", test_case_name)
+        return test_case_name
 
-
-def create_plots(test_case_name_match: str):
-    logger.info("creating plots")
-    test_case_root_dir = os.path.dirname(test_case_base_dir("_"))
-    found_test_cases = 0
-    for dirname in os.listdir(test_case_root_dir):
-        test_case_dir_path = os.path.realpath(os.path.join(test_case_root_dir, dirname))
-        if not os.path.isdir(test_case_dir_path):
-            continue
-        if test_case_name_match in test_case_dir_path:
-            logger.info("found matching test case")
-            found_test_cases += 1
-            popen_wrapper(
-                [
-                    # "venv/Scripts/python",
-                    "python",
-                    "-m",
-                    f"{thesis_experiments_dirname}.create_result_plots",
-                    test_case_dir_path,
-                ],
-                cwd=STANDARD_CWD,
-            )
-    if found_test_cases == 0:
-        logger.warning("no testcases found matching %s in %s", test_case_name_match, os.listdir(test_case_root_dir))
 
 if __name__ == "__main__":
     if len(sys.argv) > 1:
@@ -473,11 +467,10 @@ if __name__ == "__main__":
     else:
         test_case_suffix = ""
 
-    # ClusterExperiments.vary_gap_count(test_case_suffix)
+    ClusterExperiments.vary_gap_count(test_case_suffix)
     # ClusterExperiments.vary_node_degree(test_case_suffix)
     # ClusterExperiments.vary_virtual_node_ratio(test_case_suffix)
     # ClusterExperiments.side_gaps_vs_arbitrary_2_gaps(test_case_suffix)
-
-    create_plots(test_case_suffix)
+    # ClusterExperiments.side_gaps_vary_nodes(test_case_suffix)
 
     wait_for_processes_to_finish()
