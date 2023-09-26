@@ -299,6 +299,7 @@ def run_batch(
         average_node_degrees=average_node_degrees,
         run_k_gaps=run_k_gaps,
         gap_counts=gap_counts,
+        graph_title=graph_title,
     )
 
     create_log_file(test_case_name)
@@ -436,20 +437,18 @@ class ClusterExperiments:
 
 def create_plots(test_case_name_match: str):
     test_case_root_dir = os.path.dirname(test_case_base_dir("x"))
-    # matching_dir_paths: list[str] = []
     for dirname in os.listdir(test_case_root_dir):
-        print(f"{dirname=}")
-        dir_path = os.path.realpath(os.path.join(test_case_root_dir, dirname))
-        if not os.path.isdir(dir_path):
+        test_case_dir_path = os.path.realpath(os.path.join(test_case_root_dir, dirname))
+        if not os.path.isdir(test_case_dir_path):
             continue
-        if test_case_name_match in dir_path:
-            # matching_dir_paths.append(dir_path)
+        if test_case_name_match in test_case_dir_path:
             popen_wrapper(
                 [
+                    # "venv/Scripts/python",
                     "python",
                     "-m",
-                    f"{thesis_experiments_dirname}.create_result_graphs",
-                    test_case_name_match,
+                    f"{thesis_experiments_dirname}.create_result_plots",
+                    test_case_dir_path,
                 ],
                 cwd=STANDARD_CWD,
             )
@@ -467,4 +466,4 @@ if __name__ == "__main__":
     # ClusterExperiments.side_gaps_vs_arbitrary_2_gaps(test_case_suffix)
 
     wait_for_processes_to_finish()
-    create_plots("testcase_")
+    create_plots("")
