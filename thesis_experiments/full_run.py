@@ -312,7 +312,7 @@ def run_batch(
     if not run_k_gaps:
         gap_counts = [2]
     files = os.listdir(in_dir_name(test_case_name))
-    for alg_name in ["median", "barycenter", "ilp", "none"]:
+    for alg_name in ["median", "barycenter", "ilp"]:
         for file_name in files:
             for gap_count in gap_counts:
                 standard_run_cmds = get_qsub_args(
@@ -389,7 +389,7 @@ class ClusterExperiments:
 
         # manually run side gaps
         files = os.listdir(in_dir_name(test_case_name))
-        for alg_name in ["median", "barycenter", "ilp", "none"]:
+        for alg_name in ["median", "barycenter", "ilp"]:
             for file_name in files:
                 for gap_count in gap_counts:
                     standard_run_cmds = get_qsub_args(
