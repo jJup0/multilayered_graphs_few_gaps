@@ -7,6 +7,7 @@ import sys
 from typing import Any
 
 logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.DEBUG)
 logger.setLevel(logging.DEBUG)
 
 STANDARD_CWD = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
@@ -16,8 +17,10 @@ thesis_experiments_dirname = "thesis_experiments"
 GL_OPEN_PROCESSES: list[tuple[list[str], subprocess.Popen[str]]] = []
 
 
-def popen_wrapper(arguments: list[str], **kwargs: Any):
-    GL_OPEN_PROCESSES.append((arguments, subprocess.Popen(arguments, **kwargs)))
+def popen_wrapper(arguments: list[str], **kwargs: Any) -> subprocess.Popen[Any]:
+    p = subprocess.Popen(arguments, **kwargs)
+    GL_OPEN_PROCESSES.append((arguments, p))
+    return p
 
 
 def test_case_base_dir(test_case_name: str):
@@ -88,10 +91,12 @@ def create_graphs(
         ]
         logger.info(f"generating {graph_gen_count} graphs with {real_node_count=}")
 
-        popen_wrapper(generate_cmd_args, cwd=STANDARD_CWD)
+        create_graph_proccesses.append(popen_wrapper(generate_cmd_args, cwd=STANDARD_CWD))
 
     for process in create_graph_proccesses:
+        logger.info("waiting on graph generation process")
         process.wait()
+    logger.info("graph generation done")
 
 
 def create_csv_out(test_case_name: str) -> str:
@@ -322,7 +327,11 @@ def wait_for_processes_to_finish():
         _args, process = GL_OPEN_PROCESSES[-1]
         try:
             exit_code = process.wait(timeout=timeout_s)
-            logger.info(f"process finished with {exit_code=}")
+            if exit_code == 0:
+                logger.debug(f"process finished with {exit_code=}")
+            else:
+                logger.warning(f"process finished with {exit_code=}")
+
             GL_OPEN_PROCESSES.pop()
         except subprocess.TimeoutExpired:
             logger.warning(
@@ -333,13 +342,12 @@ def wait_for_processes_to_finish():
 class ClusterExperiments:
     """Not a real class, just a container for all experiments that should be run for the thesis."""
 
-    # STANDARD_GRAPH_GEN_COUNT = 30
-    STANDARD_GRAPH_GEN_COUNT = 5
+    STANDARD_GRAPH_GEN_COUNT = 20
     # STANDARD_NODE_COUNT = 50
-    STANDARD_NODE_COUNT = 20
+    STANDARD_NODE_COUNT = 30
     STANDARD_VIRTUAL_NODE_RATIO = 0.1
-    # STANDARD_AVERAGE_NODE_DEGREE = 5.0
-    STANDARD_AVERAGE_NODE_DEGREE = 2.0
+    STANDARD_AVERAGE_NODE_DEGREE = 5.0
+    # STANDARD_AVERAGE_NODE_DEGREE = 2.0
 
     @classmethod
     def vary_gap_count(cls, test_case_suffix: str = ""):
@@ -417,7 +425,7 @@ class ClusterExperiments:
     @classmethod
     def vary_node_degree(cls, test_case_suffix: str = ""):
         test_case_name = f"testcase_side_gaps_vary_node_degree{test_case_suffix}"
-        average_node_degrees = [2.0, 3.0, 4.0] + list(range(5, 41, 5))
+        average_node_degrees = [2.0, 3.0, 4.0] + list(range(5, cls.STANDARD_NODE_COUNT - 1, 5))
         nodes_per_layer = [cls.STANDARD_NODE_COUNT] * len(average_node_degrees)
         virtual_node_ratios = [cls.STANDARD_VIRTUAL_NODE_RATIO] * len(
             average_node_degrees
@@ -436,12 +444,16 @@ class ClusterExperiments:
 
 
 def create_plots(test_case_name_match: str):
-    test_case_root_dir = os.path.dirname(test_case_base_dir("x"))
+    logger.info("creating plots")
+    test_case_root_dir = os.path.dirname(test_case_base_dir("_"))
+    found_test_cases = 0
     for dirname in os.listdir(test_case_root_dir):
         test_case_dir_path = os.path.realpath(os.path.join(test_case_root_dir, dirname))
         if not os.path.isdir(test_case_dir_path):
             continue
         if test_case_name_match in test_case_dir_path:
+            logger.info("found matching test case")
+            found_test_cases += 1
             popen_wrapper(
                 [
                     # "venv/Scripts/python",
@@ -452,7 +464,8 @@ def create_plots(test_case_name_match: str):
                 ],
                 cwd=STANDARD_CWD,
             )
-
+    if found_test_cases == 0:
+        logger.warning("no testcases found matching %s in %s", test_case_name_match, os.listdir(test_case_root_dir))
 
 if __name__ == "__main__":
     if len(sys.argv) > 1:
@@ -465,5 +478,6 @@ if __name__ == "__main__":
     # ClusterExperiments.vary_virtual_node_ratio(test_case_suffix)
     # ClusterExperiments.side_gaps_vs_arbitrary_2_gaps(test_case_suffix)
 
+    create_plots(test_case_suffix)
+
     wait_for_processes_to_finish()
-    create_plots("")
