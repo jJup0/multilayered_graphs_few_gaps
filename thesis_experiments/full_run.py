@@ -124,57 +124,57 @@ def create_csv_out(test_case_name: str) -> str:
     return out_csv_file
 
 
-def run_regular_side_gaps(test_case_name: str):
-    create_graphs(
-        test_case_name,
-        graph_gen_count=20,
-        nodes_per_layer=[10, 20, 30, 40, 50],
-        virtual_node_ratios=[5, 10, 15, 20, 25],
-        average_node_degrees=[0.1],
-    )
-    out_csv_file = create_csv_out(test_case_name)
+# def run_regular_side_gaps(test_case_name: str):
+#     create_graphs(
+#         test_case_name,
+#         graph_gen_count=20,
+#         nodes_per_layer=[10, 20, 30, 40, 50],
+#         virtual_node_ratios=[5, 10, 15, 20, 25],
+#         average_node_degrees=[0.1],
+#     )
+#     out_csv_file = create_csv_out(test_case_name)
 
-    minimize_cmd_args = [
-        "python",
-        "-m",
-        f"{thesis_experiments_dirname}.minimize_crossings",
-        "--sidegaps",
-        "--in_dir",
-        in_dir_name(test_case_name),
-        "<<alg_name>>",
-        out_csv_file,
-    ]
-    for alg_name in ["median", "barycenter", "ilp"]:
-        minimize_cmd_args[-2] = alg_name
-        popen_wrapper(minimize_cmd_args, cwd=STANDARD_CWD)
+#     minimize_cmd_args = [
+#         "python",
+#         "-m",
+#         f"{thesis_experiments_dirname}.minimize_crossings",
+#         "--sidegaps",
+#         "--in_dir",
+#         in_dir_name(test_case_name),
+#         "<<alg_name>>",
+#         out_csv_file,
+#     ]
+#     for alg_name in ["median", "barycenter", "ilp"]:
+#         minimize_cmd_args[-2] = alg_name
+#         popen_wrapper(minimize_cmd_args, cwd=STANDARD_CWD)
 
 
-def run_regular_k_gaps(test_case_name: str):
-    create_graphs(
-        test_case_name,
-        graph_gen_count=5,
-        nodes_per_layer=[10],
-        virtual_node_ratios=[0.1],
-        average_node_degrees=[4],
-    )
-    out_csv_file = create_csv_out(test_case_name)
+# def run_regular_k_gaps(test_case_name: str):
+#     create_graphs(
+#         test_case_name,
+#         graph_gen_count=5,
+#         nodes_per_layer=[10],
+#         virtual_node_ratios=[0.1],
+#         average_node_degrees=[4],
+#     )
+#     out_csv_file = create_csv_out(test_case_name)
 
-    for k in (2, 3):
-        # for k in (2, 3, 100):
-        minimize_cmd_args = [
-            "python",
-            "-m",
-            f"{thesis_experiments_dirname}.minimize_crossings",
-            "--kgaps",
-            f"{k}",
-            "--in_dir",
-            in_dir_name(test_case_name),
-            "<<alg_name>>",
-            out_csv_file,
-        ]
-        for alg_name in ["median", "barycenter", "ilp"]:
-            minimize_cmd_args[-2] = alg_name
-            popen_wrapper(minimize_cmd_args, cwd=STANDARD_CWD)
+#     for k in (2, 3):
+#         # for k in (2, 3, 100):
+#         minimize_cmd_args = [
+#             "python",
+#             "-m",
+#             f"{thesis_experiments_dirname}.minimize_crossings",
+#             "--kgaps",
+#             f"{k}",
+#             "--in_dir",
+#             in_dir_name(test_case_name),
+#             "<<alg_name>>",
+#             out_csv_file,
+#         ]
+#         for alg_name in ["median", "barycenter", "ilp"]:
+#             minimize_cmd_args[-2] = alg_name
+#             popen_wrapper(minimize_cmd_args, cwd=STANDARD_CWD)
 
 
 def get_qsub_args(
@@ -344,7 +344,7 @@ def wait_for_processes_to_finish():
 class ClusterExperiments:
     """Not a real class, just a container for all experiments that should be run for the thesis."""
 
-    STANDARD_GRAPH_GEN_COUNT = 20
+    STANDARD_GRAPH_GEN_COUNT = 5
     STANDARD_NODE_COUNT = 40
     STANDARD_VIRTUAL_NODE_RATIO = 0.2
     STANDARD_AVERAGE_NODE_DEGREE = 3.0
@@ -503,7 +503,7 @@ if __name__ == "__main__":
     # ClusterExperiments.vary_node_degree(test_case_suffix)
     # ClusterExperiments.vary_virtual_node_ratio(test_case_suffix)
     # ClusterExperiments.side_gaps_vs_arbitrary_2_gaps(test_case_suffix)
-    ClusterExperiments.side_gaps_vary_nodes(test_case_suffix)
+    # ClusterExperiments.side_gaps_vary_nodes(test_case_suffix)
     # ClusterExperiments.run_micro(test_case_suffix)
 
     wait_for_processes_to_finish()
