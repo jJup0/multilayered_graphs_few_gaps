@@ -92,7 +92,9 @@ def create_graphs(
         ]
         logger.info(f"generating {graph_gen_count} graphs with {real_node_count=}")
 
-        create_graph_proccesses.append(popen_wrapper(generate_cmd_args, cwd=STANDARD_CWD))
+        create_graph_proccesses.append(
+            popen_wrapper(generate_cmd_args, cwd=STANDARD_CWD)
+        )
 
     for process in create_graph_proccesses:
         logger.info("waiting on graph generation process")
@@ -265,7 +267,6 @@ def create_testcase_info_json(
         data_graph_title = graph_title
     else:
         oscm_type = "OSCM-KG" if run_k_gaps else "OSCM-SG"
-        # TODO what else to include in title
         data_graph_title = f"{oscm_type} ..."
 
     graph_info: dict[str, Any] = {
@@ -432,7 +433,9 @@ class ClusterExperiments:
     @classmethod
     def vary_node_degree(cls, test_case_suffix: str = ""):
         test_case_name = f"testcase_side_gaps_vary_node_degree{test_case_suffix}"
-        average_node_degrees = [2.0, 3.0, 4.0] + list(range(5, cls.STANDARD_NODE_COUNT - 1, 5))
+        average_node_degrees = [2.0, 3.0, 4.0] + list(
+            range(5, cls.STANDARD_NODE_COUNT - 1, 5)
+        )
         nodes_per_layer = [cls.STANDARD_NODE_COUNT] * len(average_node_degrees)
         virtual_node_ratios = [cls.STANDARD_VIRTUAL_NODE_RATIO] * len(
             average_node_degrees
@@ -448,15 +451,13 @@ class ClusterExperiments:
         )
         logger.info("finished %s", test_case_name)
         return test_case_name
-    
+
     @classmethod
     def side_gaps_vary_nodes(cls, test_case_suffix: str = ""):
         test_case_name = f"testcase_side_gaps_vary_node_degree{test_case_suffix}"
         nodes_per_layer = list(range(10, 71, 10))
         average_node_degrees = [cls.STANDARD_AVERAGE_NODE_DEGREE] * len(nodes_per_layer)
-        virtual_node_ratios = [cls.STANDARD_VIRTUAL_NODE_RATIO] * len(
-            nodes_per_layer
-        )
+        virtual_node_ratios = [cls.STANDARD_VIRTUAL_NODE_RATIO] * len(nodes_per_layer)
         run_k_gaps = False
         run_batch(
             test_case_name,

@@ -31,7 +31,6 @@ class NoNodeExistsError(ValueError):
 
 class MLGNode:
     def __init__(self, layer: int, name: str, is_virtual: bool = False):
-        # layer is permanent, TODO refactor: maybe only store layer in graph
         self.layer = layer
         self.name = name
         self.is_virtual = is_virtual

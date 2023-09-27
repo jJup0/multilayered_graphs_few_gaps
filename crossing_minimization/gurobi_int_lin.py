@@ -531,7 +531,6 @@ def _gen_fixed_constraints_for_virtual_order(
 #                     # # that model relative order between nodes, which is what the other
 #                     # # gurobi model is entirely based on
 
-#                     # TODO:
 #                     # get position of variable by summing up
 #                     # pos = gp.Var(GRB.INTEGER sum(i * var[i, node] for i in range(len(nodes))))
 #                     # crossings_n1_n2 = GRB.BOOLEAN()
