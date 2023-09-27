@@ -18,6 +18,7 @@ temp_idea
 
 # temp
 **/temp.py
+**/temp_local_run.py
 
 # graph instances
 thesis_experiments/local_tests/**/*.json
