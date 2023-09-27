@@ -1,5 +1,5 @@
-import random
 import logging
+import random
 
 logger = logging.getLogger(__name__)
 
@@ -164,6 +164,7 @@ def _generate_random_edges(
         for n2 in ml_graph.layers_to_nodes[lower_layer_idx + 1]
     ]
     random.shuffle(all_possible_short_edges)
+    all_possible_short_edges_set = set(all_possible_short_edges)
     if short_edges_to_generate > len(all_possible_short_edges):
         short_edges_to_generate = len(all_possible_short_edges)
         logger.warning(
@@ -173,12 +174,11 @@ def _generate_random_edges(
     for upper_layer_idx in range(1, layers_count):
         for n2 in ml_graph.layers_to_nodes[upper_layer_idx]:
             n1 = random.choice(ml_graph.layers_to_nodes[upper_layer_idx - 1])
-            # HERE_ID=min_one_edge
             ml_graph.add_edge(n1, n2)
+            all_possible_short_edges_set.remove((n1, n2))
 
-    # TODO bug check: adding a node at HERE_ID=min_one_edge, should be excluded from adding here?
     for i in range(short_edges_to_generate):
-        n1, n2 = all_possible_short_edges[i]
+        n1, n2 = all_possible_short_edges_set.pop()
         ml_graph.add_edge(n1, n2)
 
     # LONG EDGES
