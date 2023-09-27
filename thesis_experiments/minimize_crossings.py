@@ -151,6 +151,7 @@ for file_path in in_file_paths:
     ]
     with open(out_csv_file, "a", newline="") as f:
         fcntl.flock(f, fcntl.LOCK_EX)  # lock file with write access
+        f.seek(0, os.SEEK_END)
         csv_writer = csv.DictWriter(f, fieldnames=field_names)
         csv_writer.writerow(
             {
