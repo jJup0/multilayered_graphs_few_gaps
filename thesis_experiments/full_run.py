@@ -454,7 +454,7 @@ class ClusterExperiments:
 
     @classmethod
     def side_gaps_vary_nodes(cls, test_case_suffix: str = ""):
-        test_case_name = f"testcase_side_gaps_vary_node_degree{test_case_suffix}"
+        test_case_name = f"testcase_side_gaps_vary_node_count{test_case_suffix}"
         nodes_per_layer = list(range(10, 71, 10))
         average_node_degrees = [cls.STANDARD_AVERAGE_NODE_DEGREE] * len(nodes_per_layer)
         virtual_node_ratios = [cls.STANDARD_VIRTUAL_NODE_RATIO] * len(nodes_per_layer)
@@ -470,6 +470,28 @@ class ClusterExperiments:
         logger.info("finished %s", test_case_name)
         return test_case_name
 
+    @classmethod
+    def run_micro(cls, test_case_suffix: str = ""):
+        # SHOULD NOT BE INCLUDED IN RUN
+        test_case_name = f"testcase_run_micro{test_case_suffix}"
+        graph_gen_count = 3
+        nodes_per_layer = [10]
+        average_node_degrees = [2.0] * len(nodes_per_layer)
+        virtual_node_ratios = [0.2] * len(nodes_per_layer)
+        run_k_gaps = True
+        gap_counts = [1, 2]
+        run_batch(
+            test_case_name,
+            graph_gen_count=graph_gen_count,
+            nodes_per_layer=nodes_per_layer,
+            virtual_node_ratios=virtual_node_ratios,
+            average_node_degrees=average_node_degrees,
+            run_k_gaps=run_k_gaps,
+            gap_counts=gap_counts,
+        )
+        logger.info("finished %s", test_case_name)
+        return test_case_name
+
 
 if __name__ == "__main__":
     if len(sys.argv) > 1:
@@ -477,10 +499,11 @@ if __name__ == "__main__":
     else:
         test_case_suffix = ""
 
-    ClusterExperiments.vary_gap_count(test_case_suffix)
+    # ClusterExperiments.vary_gap_count(test_case_suffix)
     # ClusterExperiments.vary_node_degree(test_case_suffix)
     # ClusterExperiments.vary_virtual_node_ratio(test_case_suffix)
     # ClusterExperiments.side_gaps_vs_arbitrary_2_gaps(test_case_suffix)
-    # ClusterExperiments.side_gaps_vary_nodes(test_case_suffix)
+    ClusterExperiments.side_gaps_vary_nodes(test_case_suffix)
+    # ClusterExperiments.run_micro(test_case_suffix)
 
     wait_for_processes_to_finish()
