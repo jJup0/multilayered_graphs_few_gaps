@@ -1,6 +1,7 @@
 import csv
 import json
 import logging
+import math
 import os
 import subprocess
 import sys
@@ -354,7 +355,15 @@ class ClusterExperiments:
         virtual_node_ratios = [cls.STANDARD_VIRTUAL_NODE_RATIO]
         average_node_degrees = [cls.STANDARD_AVERAGE_NODE_DEGREE]
         run_k_gaps = True
-        gap_counts = [1, 2, 3, 4, 5, 10, 15, nodes_per_layer[0]]
+        gap_counts = [1, 2, 3, 4]
+        max_virtual_nodes = math.ceil(nodes_per_layer[0] * virtual_node_ratios[0])
+        # add gap counts in steps of 5
+        gap_count_steps = 3
+        next_gap_count = gap_counts[-1] - gap_count_steps + 1
+        while next_gap_count < max_virtual_nodes:
+            next_gap_count += gap_count_steps
+            gap_counts.append(next_gap_count)
+
         run_batch(
             test_case_name,
             graph_gen_count=cls.STANDARD_GRAPH_GEN_COUNT,
