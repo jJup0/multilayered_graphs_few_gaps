@@ -235,6 +235,7 @@ def get_qsub_args(
 def create_testcase_info_json(
     test_case_name: str,
     *,
+    graph_gen_count: int,
     nodes_per_layer: list[int],
     virtual_node_ratios: list[float],
     average_node_degrees: list[float],
@@ -269,10 +270,14 @@ def create_testcase_info_json(
         oscm_type = "OSCM-KG" if run_k_gaps else "OSCM-SG"
         data_graph_title = f"{oscm_type} ..."
 
+    # 3 algorithms, each solve `graph_gen_count` graphs with `len(data_variable[1])` different parameters
+    expected_results_count = 3 * graph_gen_count * len(data_variable[1])
+
     graph_info: dict[str, Any] = {
         "constants": data_constants,
         "variable": data_variable,  # variable will be on y axis
         "graph_title": data_graph_title,
+        "expected_results_count": expected_results_count,
     }
 
     with open(test_case_info_path(test_case_name), "w") as f:
@@ -301,6 +306,7 @@ def run_batch(
 
     create_testcase_info_json(
         test_case_name,
+        graph_gen_count=graph_gen_count,
         nodes_per_layer=nodes_per_layer,
         virtual_node_ratios=virtual_node_ratios,
         average_node_degrees=average_node_degrees,
@@ -499,7 +505,7 @@ if __name__ == "__main__":
     else:
         test_case_suffix = ""
 
-    # ClusterExperiments.vary_gap_count(test_case_suffix)
+    ClusterExperiments.vary_gap_count(test_case_suffix)
     # ClusterExperiments.vary_node_degree(test_case_suffix)
     # ClusterExperiments.vary_virtual_node_ratio(test_case_suffix)
     # ClusterExperiments.side_gaps_vs_arbitrary_2_gaps(test_case_suffix)
