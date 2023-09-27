@@ -95,6 +95,7 @@ def create_graph(test_case_name_match: str, test_case_directory: str):
         heuristic_df.at[index, "ratio-time_s"] = (
             row["time_s"] / ilp_rows.iloc[0]["time_s"]
         )
+        plt.clf()
 
     for y_data_str in ["crossings", "time_s"]:
         sns.lineplot(
