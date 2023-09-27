@@ -22,7 +22,7 @@ more developed sugiyama, straight edges ...
 
 https://pypi.org/project/ogdf-python/
 
-## TODOS
+## Todos
 
 - [x] implement existing algorithm with constrained nodes: split into two gaps first and apply heuristic (broken)
 - [x] check if constraints variation is still broken (it is)
@@ -59,7 +59,7 @@ https://pypi.org/project/ogdf-python/
 
 - [x] side gap heuristic: binary search for splitting point
 - [x] Proof gap nodes do not cross
-- [ ] ILP max size realistic computation time
+- [-] ILP max size realistic computation time
 
 k-gaps proof:
 
@@ -73,7 +73,7 @@ Approximation ratio/factor
 can define function in preliminaries e.g. get virtual nodes in order of neighbor
 one/two sentence summary oflonger proofs if simple explanation is possible
 
-- [ ] no need for explicitly explaining binary search and having it in the pseudo code, just state that partition index needs to be found and this can be done with binary search
+- [x] no need for explicitly explaining binary search and having it in the pseudo code, just state that partition index needs to be found and this can be done with binary search
       "our algorithm computes a 3-approximation to the problem <give probem a name like SG-OSCM (side gap one sided crossing minimization)>"
       not clear what c\_{opt} i referring to exactly (optimal crossings for real nodes) [on page 11]
       where to fit in two layer ILP formulations (does not fit into one sided thoery chapters)
