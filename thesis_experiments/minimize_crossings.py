@@ -18,6 +18,7 @@ import os
 import sys
 import time
 from typing import NoReturn
+import fcntl
 
 from crossing_minimization.barycenter_heuristic import BarycenterImprovedSorter
 from crossing_minimization.gurobi_int_lin import GurobiSorter
@@ -36,6 +37,7 @@ alg_names_to_algs = {
     "barycenter": BarycenterImprovedSorter,
     "median": ImprovedMedianSorter,
     "ilp": GurobiSorter,
+    "none": None
 }
 
 
@@ -119,13 +121,14 @@ for file_path in in_file_paths:
     )
 
     start_ns = time.perf_counter_ns()
-    alg().sort_graph(
-        ml_graph,
-        max_iterations=1,
-        only_one_up_iteration=True,
-        side_gaps_only=side_gaps,
-        max_gaps=gap_count,
-    )
+    if alg is not None:
+        alg().sort_graph(
+            ml_graph,
+            max_iterations=1,
+            only_one_up_iteration=True,
+            side_gaps_only=side_gaps,
+            max_gaps=gap_count,
+        )
     total_s = (time.perf_counter_ns() - start_ns) / 1_000_000_000
 
     all_nodes_as_list = ml_graph.all_nodes_as_list()
@@ -147,6 +150,7 @@ for file_path in in_file_paths:
         "time_s",
     ]
     with open(out_csv_file, "a", newline="") as f:
+        fcntl.flock(f, fcntl.LOCK_EX)  # lock file with write access
         csv_writer = csv.DictWriter(f, fieldnames=field_names)
         csv_writer.writerow(
             {
@@ -161,3 +165,4 @@ for file_path in in_file_paths:
                 "time_s": total_s,
             }
         )
+        fcntl.flock(f, fcntl.LOCK_UN)  # unlock the file
