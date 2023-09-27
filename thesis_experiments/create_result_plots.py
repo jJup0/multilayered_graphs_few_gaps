@@ -2,6 +2,7 @@ import json
 import logging
 import os
 import sys
+import warnings
 from typing import TypedDict
 
 import matplotlib.pyplot as plt
@@ -11,6 +12,14 @@ import seaborn as sns
 logging.basicConfig()
 logger = logging.getLogger(__name__)
 
+# filter out FutureWarning
+warnings.filterwarnings("ignore", category=FutureWarning)
+
+
+test_case_root_dir = os.path.join(
+    os.path.dirname(os.path.realpath(__file__)), "local_tests"
+)
+
 
 class TestCaseInfo(TypedDict):
     constants: dict[str, int | float]
@@ -18,7 +27,19 @@ class TestCaseInfo(TypedDict):
     graph_title: str
 
 
-def create_graph(test_case_directory: str):
+def out_dir(test_case_name_match: str, test_case_directory: str):
+    saved_plots_abs_dir = os.path.join(
+        os.path.dirname(test_case_root_dir), "saved_plots"
+    )
+    assert os.path.isdir(saved_plots_abs_dir)
+    return os.path.join(
+        saved_plots_abs_dir,
+        test_case_name_match,
+        test_case_directory,
+    )
+
+
+def create_graph(test_case_name_match: str, test_case_directory: str):
     with open(os.path.join(test_case_directory, "info.json")) as f:
         test_case_info: TestCaseInfo = json.load(f)
 
@@ -36,19 +57,37 @@ def create_graph(test_case_directory: str):
         plt.legend(title="Algorithms", loc="best")
 
         # save plot to disk
-        plt.savefig(os.path.join(f"{test_case_name}_{y_data_str}.png"))
+        plt.savefig(
+            os.path.join(
+                out_dir(test_case_name_match, test_case_directory),
+                f"{test_case_name}_{y_data_str}.png",
+            )
+        )
         plt.clf()
 
     # separate the data into optimal and heuristic datasets
-    optimal_data = df[df["alg_name"] == "ilp"]
-    heuristic_data = df[df["alg_name"] != "ilp"]
+    # optimal_data = df[df["alg_name"] == "ilp"]
+
+    # calculate ilp ratio
+    df["ratio"] = -1
+    heuristic_df = df[df["alg_name"] != "ilp"]
+    for index, row in heuristic_df.iterrows():
+        row["ratio"] = 1
+        ilp_rows = df[
+            (df["alg_name"] == "ilp")
+            & (df["instance_name"] == row["instance_name"])
+            & (df["gap_count"] == row["gap_count"])
+        ]
+        assert len(ilp_rows) == 1, (
+            f"NOT EXACTLY ONE RESULT FOR ILP: {ilp_rows.head()=}"
+            f'{row["instance_name"], }'
+        )
+        heuristic_df.at[index, "ratio"] = (
+            row["crossings"] / ilp_rows.iloc[0]["crossings"]
+        )
 
     for y_data_str in ["crossings"]:
-        # calculate the ratio of heuristic results to the optimum
-        heuristic_data["ratio"] = (
-            heuristic_data[y_data_str] / optimal_data[y_data_str].values[0]
-        )
-        sns.lineplot(data=heuristic_data, x=x_data_str, y="ratio", hue="alg_name")
+        sns.lineplot(data=heuristic_df, x=x_data_str, y="ratio", hue="alg_name")
 
         plt.xlabel(x_data_str)
         plt.ylabel(f"{y_data_str} ratio to ILP")
@@ -57,7 +96,12 @@ def create_graph(test_case_directory: str):
         plt.legend(title="Algorithms", loc="best")
 
         # save plot to disk
-        plt.savefig(os.path.join(f"{test_case_name}_ratio_{y_data_str}.png"))
+        plt.savefig(
+            os.path.join(
+                out_dir(test_case_name_match, test_case_directory),
+                f"{test_case_name}_ratio_{y_data_str}.png",
+            )
+        )
 
 
 def find_matching_test_case_dirs_and_plot_data(test_case_name_match: str):
@@ -67,9 +111,7 @@ def find_matching_test_case_dirs_and_plot_data(test_case_name_match: str):
     """
 
     logger.info("creating plots")
-    test_case_root_dir = os.path.join(
-        os.path.dirname(os.path.realpath(__file__)), "local_tests"
-    )
+
     found_test_cases = 0
     for dirname in os.listdir(test_case_root_dir):
         test_case_dir_path = os.path.realpath(os.path.join(test_case_root_dir, dirname))
@@ -78,7 +120,7 @@ def find_matching_test_case_dirs_and_plot_data(test_case_name_match: str):
         if test_case_name_match in test_case_dir_path:
             logger.info("found matching test case")
             found_test_cases += 1
-            create_graph(test_case_dir_path)
+            create_graph(test_case_name_match, test_case_dir_path)
     if found_test_cases == 0:
         logger.warning(
             "no testcases found matching %s in %s",
@@ -88,7 +130,8 @@ def find_matching_test_case_dirs_and_plot_data(test_case_name_match: str):
 
 
 if __name__ == "__main__":
-    assert len(sys.argv) > 1
-    test_case_name_match = sys.argv[1]
+    # assert len(sys.argv) > 1
+    # test_case_name_match = sys.argv[1]
+    test_case_name_match = "v7"
     # argv[1] should be a substring to search testcases for
     find_matching_test_case_dirs_and_plot_data(test_case_name_match)
