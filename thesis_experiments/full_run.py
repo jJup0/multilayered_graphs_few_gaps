@@ -209,9 +209,11 @@ def get_qsub_args(
     # print(f"{file_name=} {alg_name=} {mem_required=}")
 
     # out_csv_path = out_csv_path(test_case_name)
-    csv_out_dir = os.path.join(out_csv_dir(test_case_name), "out")
-    os.makedirs(csv_out_dir)
-    out_csv_path = os.path.join(csv_out_dir, f"{test_case_name}.out")
+    csv_out_dir = out_csv_dir(test_case_name)
+    os.makedirs(csv_out_dir, exist_ok=True)
+    out_csv_path = os.path.join(
+        csv_out_dir, f"{file_name}{alg_name}{gap_type_as_flag}{gap_count}.out"
+    )
 
     return [
         "qsub",
@@ -359,7 +361,7 @@ def wait_for_processes_to_finish():
 class ClusterExperiments:
     """Not a real class, just a container for all experiments that should be run for the thesis."""
 
-    STANDARD_GRAPH_GEN_COUNT = 5
+    STANDARD_GRAPH_GEN_COUNT = 20
     STANDARD_NODE_COUNT = 40
     STANDARD_VIRTUAL_NODE_RATIO = 0.2
     STANDARD_AVERAGE_NODE_DEGREE = 3.0
@@ -489,7 +491,7 @@ class ClusterExperiments:
     def run_micro(cls, test_case_suffix: str = ""):
         # SHOULD NOT BE INCLUDED IN RUN
         test_case_name = f"testcase_run_micro{test_case_suffix}"
-        graph_gen_count = 30
+        graph_gen_count = 3
         nodes_per_layer = [10]
         average_node_degrees = [2.0] * len(nodes_per_layer)
         virtual_node_ratios = [0.2] * len(nodes_per_layer)
@@ -515,10 +517,10 @@ if __name__ == "__main__":
         test_case_suffix = ""
 
     # ClusterExperiments.vary_gap_count(test_case_suffix)
-    # ClusterExperiments.vary_node_degree(test_case_suffix)
-    # ClusterExperiments.vary_virtual_node_ratio(test_case_suffix)
-    # ClusterExperiments.side_gaps_vs_arbitrary_2_gaps(test_case_suffix)
-    # ClusterExperiments.side_gaps_vary_nodes(test_case_suffix)
+    ClusterExperiments.vary_node_degree(test_case_suffix)
+    ClusterExperiments.vary_virtual_node_ratio(test_case_suffix)
+    ClusterExperiments.side_gaps_vs_arbitrary_2_gaps(test_case_suffix)
+    ClusterExperiments.side_gaps_vary_nodes(test_case_suffix)
     ##### ClusterExperiments.run_micro(test_case_suffix)
 
     wait_for_processes_to_finish()
