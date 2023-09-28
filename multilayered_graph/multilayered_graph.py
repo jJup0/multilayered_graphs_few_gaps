@@ -1,9 +1,10 @@
 import json
 from collections import defaultdict
 from copy import deepcopy
-from typing import Any, TypeAlias
+from typing import Any, TypeAlias, TYPE_CHECKING
 
-import networkx as nx
+if TYPE_CHECKING:
+    import networkx as nx
 
 # import pygraphviz as pgv  # type: ignore # stubfile not found
 
@@ -156,7 +157,9 @@ class MultiLayeredGraph:
         self.nodes_to_out_edges[lower_node].add(upper_node)
         self.nodes_to_in_edges[upper_node].add(lower_node)
 
-    def to_networkx_graph(self) -> nx.Graph:
+    def to_networkx_graph(self) -> "nx.Graph":
+        import networkx as nx
+
         nx_graph = nx.Graph()
 
         all_nodes_with_props = [
