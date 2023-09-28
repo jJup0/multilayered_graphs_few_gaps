@@ -28,6 +28,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+
 def log_and_exit(string: str, err_code: int = 1) -> NoReturn:
     logger.error(string)
     exit(err_code)
@@ -37,7 +38,7 @@ alg_names_to_algs = {
     "barycenter": BarycenterImprovedSorter,
     "median": ImprovedMedianSorter,
     "ilp": GurobiSorter,
-    "none": None
+    "none": None,
 }
 
 
@@ -135,7 +136,7 @@ for file_path in in_file_paths:
 
     real_nodes_count = file_path[file_path.find("_r=") + 3 : file_path.find("_v=")]
     virtual_nodes_count = file_path[file_path.find("_v=") + 3 : file_path.find("_p=")]
-    real_edge_density = file_path[file_path.find("_p=") + 3 : file_path.find("_id=")]
+    average_node_degree = file_path[file_path.find("_p=") + 3 : file_path.find("_id=")]
     instance = file_path.strip(".json")
     crossings = ml_graph.get_total_crossings()
     field_names = [
@@ -144,14 +145,14 @@ for file_path in in_file_paths:
         "gap_count",
         "real_nodes_per_layer_count",
         "virtual_nodes_per_layer_count",
-        "real_edge_density",
+        "average_node_degree",
         "instance_name",
         "crossings",
         "time_s",
     ]
     with open(out_csv_file, "a", newline="") as f:
         fcntl.flock(f, fcntl.LOCK_EX)  # lock file with write access
-        f.seek(0, os.SEEK_END)
+        f.seek(0, os.SEEK_END)  # seek to end, just in case
         csv_writer = csv.DictWriter(f, fieldnames=field_names)
         csv_writer.writerow(
             {
@@ -160,7 +161,7 @@ for file_path in in_file_paths:
                 "gap_count": gap_count,
                 "real_nodes_per_layer_count": real_nodes_count,
                 "virtual_nodes_per_layer_count": virtual_nodes_count,
-                "real_edge_density": real_edge_density,
+                "average_node_degree": average_node_degree,
                 "instance_name": instance,
                 "crossings": crossings,
                 "time_s": total_s,
