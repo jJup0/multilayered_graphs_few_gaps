@@ -1,3 +1,4 @@
+import json
 import logging
 import os
 import sys
@@ -29,6 +30,16 @@ def collect_csv(test_case_name: str):
                     "%s is most likely faulty. Line= %s", single_row_csv_filename, line
                 )
             all_lines.append(line)
+
+    with open(os.path.join(test_case_dir, "info.json")) as f:
+        info_json = json.load(f)
+
+    if info_json["expected_results_count"] != len(all_lines):
+        logger.warn(
+            "Expected %d results, found only %d",
+            len(all_lines),
+            info_json["expected_results_count"],
+        )
 
     with open(collected_csv_out_filename, "a") as f:
         f.writelines(all_lines)
