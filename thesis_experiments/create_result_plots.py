@@ -177,6 +177,7 @@ def create_graph(test_case_name_match: str, test_case_directory: str):
                 f"{test_case_name}_ratio_{y_data_str}.png",
             )
         )
+        plt.clf()
 
 
 def create_regular_plots(
