@@ -35,10 +35,14 @@ def in_dir_name(test_case_name: str):
     return os.path.realpath(os.path.join(test_case_base_dir(test_case_name), f"in"))
 
 
-def out_csv_path(test_case_name: str):
+def get_out_csv_path(test_case_name: str):
     return os.path.realpath(
         os.path.join(test_case_base_dir(test_case_name), f"out.csv")
     )
+
+
+def out_csv_dir(test_case_name: str):
+    return os.path.realpath(os.path.join(test_case_base_dir(test_case_name), "out"))
 
 
 def log_path(test_case_name: str):
@@ -103,7 +107,7 @@ def create_graphs(
 
 
 def create_csv_out(test_case_name: str) -> str:
-    out_csv_file = out_csv_path(test_case_name)
+    out_csv_file = get_out_csv_path(test_case_name)
     os.makedirs(os.path.dirname(out_csv_file), exist_ok=True)
 
     with open(out_csv_file, "w", newline="") as f:
@@ -198,11 +202,16 @@ def get_qsub_args(
 
     if alg_name == "ilp":
         # mem_required = 1 + 0.0001 * filesize
-        mem_required = 16
+        mem_required = 12
     else:
         # mem_required = 1 + 0.00003 * filesize
-        mem_required = 2
+        mem_required = 1
     # print(f"{file_name=} {alg_name=} {mem_required=}")
+
+    # out_csv_path = out_csv_path(test_case_name)
+    csv_out_dir = os.path.join(out_csv_dir(test_case_name), "out")
+    os.makedirs(csv_out_dir)
+    out_csv_path = os.path.join(csv_out_dir, f"{test_case_name}.out")
 
     return [
         "qsub",
@@ -228,7 +237,7 @@ def get_qsub_args(
         f"{filepath}",
         *gap_type_and_args,
         alg_name,
-        f"{out_csv_path(test_case_name)}",
+        out_csv_path,
     ]
 
 
