@@ -1,14 +1,14 @@
+import io
 import json
 import logging
 import os
 import sys
 import warnings
-from typing import TypedDict
+from typing import Any, TypedDict
 
 import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sns
-import io
 
 logging.basicConfig()
 logger = logging.getLogger(__name__)
@@ -42,42 +42,42 @@ def out_dir(test_case_name_match: str, test_case_directory: str):
     )
 
 
-def _read_csv(csv_real_file_path: str) -> pd.DataFrame:
-    filtered_lines: list[str] = []
+# def _read_csv(csv_real_file_path: str) -> pd.DataFrame:
+#     filtered_lines: list[str] = []
 
-    with open(csv_real_file_path, "r") as f:
-        header = f.readline()
-        filtered_lines.append(header)
-        comma_count = header.count(",")
-        for line in f:
-            if line.count(",") == comma_count:
-                filtered_lines.append(line)
+#     with open(csv_real_file_path, "r") as f:
+#         header = f.readline()
+#         filtered_lines.append(header)
+#         comma_count = header.count(",")
+#         for line in f:
+#             if line.count(",") == comma_count:
+#                 filtered_lines.append(line)
 
-            # try:
-            #     # Attempt to parse the line as CSV
-            #     row = pd.read_csv(io.StringIO(line))
-            #     data.append(row)
-            # except pd.errors.ParserError:
-            #     # Handle the parsing error (e.g., skip the line)
-            #     print(f"Skipped line due to parsing error: {line.strip()}")
-            # except pd.errors.EmptyDataError:
-            #     print(f"Skipped line due to parsing error: {line.strip()}")
-    # # Concatenate the valid rows into a DataFrame
-    # df = pd.concat(data, ignore_index=True)
+#             # try:
+#             #     # Attempt to parse the line as CSV
+#             #     row = pd.read_csv(io.StringIO(line))
+#             #     data.append(row)
+#             # except pd.errors.ParserError:
+#             #     # Handle the parsing error (e.g., skip the line)
+#             #     print(f"Skipped line due to parsing error: {line.strip()}")
+#             # except pd.errors.EmptyDataError:
+#             #     print(f"Skipped line due to parsing error: {line.strip()}")
+#     # # Concatenate the valid rows into a DataFrame
+#     # df = pd.concat(data, ignore_index=True)
 
-    filtered_out_path = os.path.join(
-        os.path.dirname(csv_real_file_path), "filtered_out.csv"
-    )
-    with open(filtered_out_path, "w") as f:
-        f.writelines(filtered_lines)
+#     filtered_out_path = os.path.join(
+#         os.path.dirname(csv_real_file_path), "filtered_out.csv"
+#     )
+#     with open(filtered_out_path, "w") as f:
+#         f.writelines(filtered_lines)
 
-    try:
-        df = pd.read_csv(filtered_out_path)
-    except pd.errors.ParserError as err:
-        logger.error("failed to read %s", filtered_out_path)
-        raise err
+#     try:
+#         df = pd.read_csv(filtered_out_path)
+#     except pd.errors.ParserError as err:
+#         logger.error("failed to read %s", filtered_out_path)
+#         raise err
 
-    return df
+#     return df
 
 
 def _read_csv_no_filter(csv_real_file_path: str) -> pd.DataFrame:
@@ -93,8 +93,22 @@ def _read_csv_no_filter(csv_real_file_path: str) -> pd.DataFrame:
     return df
 
 
-def remove_incomplete_data_sets(df: pd.DataFrame):
-    ...
+# def remove_incomplete_data_sets(df: pd.DataFrame):
+#     indices_to_remove: list[int] = []
+#     for _index, row in df.iterrows():
+#         matching_test_cases = df[
+#             df[row["gap_type"]] & df[row["gap_count"]] & df[row["instance_name"]]
+#         ]
+#         if len(matching_test_cases) < 3:
+#             for tc in matching_test_cases:
+#                 indices_to_remove.append(tc.index)
+
+#     # TODO filter df by indices to remove
+#     raise NotImplementedError()
+#     filtered_df = df
+
+#     logger.warning("Removing %d rows due to missing test cases", len(indices_to_remove))
+#     return filtered_df
 
 
 def create_graph(test_case_name_match: str, test_case_directory: str):
@@ -106,63 +120,22 @@ def create_graph(test_case_name_match: str, test_case_directory: str):
 
     # read csv
     csv_real_file_path = os.path.join(test_case_directory, "out.csv")
-    df = _read_csv(csv_real_file_path)
+    df = _read_csv_no_filter(csv_real_file_path)
 
     # filter invalid data
-    original_row_count = len(df)
-
-    # # filter faulty lines: faulty := empty or only an integer in one column
-    # conditions = (df.notnull().all(axis=1)) & (df.apply(lambda x: len(x.dropna())) > 1)
-
-    # # apply the conditions to filter the DataFrame
-    # df = df[conditions]
-
-    # # count the number of rows after filtering
-    # filtered_row_count = len(df)
-
-    # # Calculate the number of rows that were filtered out
-    # filtered_out_count = original_row_count - filtered_row_count
-
-    # # Display a warning message
-    # if filtered_out_count > 0:
-    #     logger.warning(
-    #         f"{filtered_out_count} rows were filtered out due to missing or single-column data."
-    #     )
-    if original_row_count != expected_row_count:
+    row_count = len(df)
+    if row_count != expected_row_count:
         _, test_case_name = os.path.split(test_case_directory)
         logger.warning(
-            f"Expected {expected_row_count} rows, received {original_row_count} for {test_case_name}"
+            f"Expected {expected_row_count} rows, received {row_count} for {test_case_name}"
         )
-        remove_incomplete_data_sets(df)
         return
 
-    # write filtered back to disk
-    # df.to_csv(
-    #     os.path.join(os.path.dirname(csv_real_file_path), "filtered_out.csv"),
-    #     index=False,
-    # )
+    create_regular_plots(
+        test_case_name_match, test_case_directory, test_case_info, x_data_str, df
+    )
 
     _, test_case_name = os.path.split(os.path.realpath(test_case_directory))
-    for y_data_str in ["crossings", "time_s"]:
-        sns.lineplot(data=df, x=x_data_str, y=y_data_str, hue="alg_name")
-
-        plt.xlabel(x_data_str)
-        plt.ylabel(y_data_str)
-        plt.title(test_case_info["graph_title"])
-        # plt.yscale("log")
-        plt.legend(title="Algorithms", loc="best")
-
-        # save plot to disk
-        plt.savefig(
-            os.path.join(
-                out_dir(test_case_name_match, test_case_directory),
-                f"{test_case_name}_{y_data_str}.png",
-            )
-        )
-        plt.clf()
-
-    # separate the data into optimal and heuristic datasets
-    # optimal_data = df[df["alg_name"] == "ilp"]
 
     # calculate ilp ratio
     df["ratio-crossings"] = -1
@@ -204,6 +177,33 @@ def create_graph(test_case_name_match: str, test_case_directory: str):
                 f"{test_case_name}_ratio_{y_data_str}.png",
             )
         )
+
+
+def create_regular_plots(
+    test_case_name_match: str,
+    test_case_directory: str,
+    test_case_info: TestCaseInfo,
+    x_data_str: str,
+    df: pd.DataFrame,
+):
+    _, test_case_name = os.path.split(os.path.realpath(test_case_directory))
+    for y_data_str in ["crossings", "time_s"]:
+        sns.lineplot(data=df, x=x_data_str, y=y_data_str, hue="alg_name")
+
+        plt.xlabel(x_data_str)
+        plt.ylabel(y_data_str)
+        plt.title(test_case_info["graph_title"])
+        # plt.yscale("log")
+        plt.legend(title="Algorithms", loc="best")
+
+        # save plot to disk
+        plt.savefig(
+            os.path.join(
+                out_dir(test_case_name_match, test_case_directory),
+                f"{test_case_name}_{y_data_str}.png",
+            )
+        )
+        plt.clf()
 
 
 def find_matching_test_case_dirs_and_plot_data(test_case_name_match: str):
