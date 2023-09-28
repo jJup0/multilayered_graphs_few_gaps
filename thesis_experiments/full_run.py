@@ -198,10 +198,10 @@ def get_qsub_args(
 
     if alg_name == "ilp":
         # mem_required = 1 + 0.0001 * filesize
-        mem_required = 10
+        mem_required = 16
     else:
         # mem_required = 1 + 0.00003 * filesize
-        mem_required = 1
+        mem_required = 2
     # print(f"{file_name=} {alg_name=} {mem_required=}")
 
     return [
@@ -210,7 +210,7 @@ def get_qsub_args(
         "crossing_minimization_gaps",
         # memory
         "-l",
-        f"s_vmem={(mem_required - 0.05):.3f}G",
+        f"s_vmem={(mem_required - 0.2):.3f}G",
         "-l",
         f"h_vmem={mem_required:.3f}G",
         "-l",
@@ -480,7 +480,7 @@ class ClusterExperiments:
     def run_micro(cls, test_case_suffix: str = ""):
         # SHOULD NOT BE INCLUDED IN RUN
         test_case_name = f"testcase_run_micro{test_case_suffix}"
-        graph_gen_count = 3
+        graph_gen_count = 30
         nodes_per_layer = [10]
         average_node_degrees = [2.0] * len(nodes_per_layer)
         virtual_node_ratios = [0.2] * len(nodes_per_layer)
@@ -505,11 +505,11 @@ if __name__ == "__main__":
     else:
         test_case_suffix = ""
 
-    ClusterExperiments.vary_gap_count(test_case_suffix)
+    # ClusterExperiments.vary_gap_count(test_case_suffix)
     # ClusterExperiments.vary_node_degree(test_case_suffix)
     # ClusterExperiments.vary_virtual_node_ratio(test_case_suffix)
     # ClusterExperiments.side_gaps_vs_arbitrary_2_gaps(test_case_suffix)
     # ClusterExperiments.side_gaps_vary_nodes(test_case_suffix)
-    # ClusterExperiments.run_micro(test_case_suffix)
+    ##### ClusterExperiments.run_micro(test_case_suffix)
 
     wait_for_processes_to_finish()
