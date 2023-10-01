@@ -118,7 +118,7 @@ def create_csv_out(test_case_name: str) -> str:
                 "gap_type",
                 "gap_count",
                 "nodes_per_layer",
-                "virtual_node_ratio",
+                "virtual_node_fraction",
                 "average_node_degree",
                 "instance_name",
                 "crossings",
@@ -257,7 +257,7 @@ def create_testcase_info_json(
     data_constants: dict[str, Any] = {}
     graph_params_and_verbose_names_csv_titles = [
         (nodes_per_layer, "nodes per layer"),
-        (virtual_node_ratios, "virtual node ratio"),
+        (virtual_node_ratios, "virtual node fraction"),
         (average_node_degrees, "average node degree"),
         (gap_counts, "gap count"),
     ]

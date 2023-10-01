@@ -51,7 +51,7 @@ def collect_csv(test_case_name: str):
                 "gap_type",
                 "gap_count",
                 "nodes_per_layer",
-                "virtual_node_ratio",
+                "virtual_node_fraction",
                 "average_node_degree",
                 "instance_name",
                 "crossings",
