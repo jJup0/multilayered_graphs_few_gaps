@@ -36,11 +36,14 @@ def out_dir(test_case_name_match: str, test_case_directory: str):
         os.path.dirname(test_case_root_dir), "saved_plots"
     )
     assert os.path.isdir(saved_plots_abs_dir)
-    return os.path.join(
+    res = os.path.join(
         saved_plots_abs_dir,
         test_case_name_match,
         test_case_directory,
     )
+    os.makedirs(res, exist_ok=True)
+    # print(f"{saved_plots_abs_dir=}\n{test_case_name_match=}\n{test_case_directory=}\n{res=}")
+    return res
 
 
 def _read_csv_no_filter(csv_real_file_path: str) -> pd.DataFrame:
@@ -55,10 +58,13 @@ def _read_csv_no_filter(csv_real_file_path: str) -> pd.DataFrame:
         raise err
     return df
 
+
 def sidegaps_vs_2_gaps_preprocessing(df: pd.DataFrame):
     # changes alg_name from something like "median" to "median sidegaps"
     # todo more optimal way to check if two different values
-    if df[df[""]]
+    if df["gap_type"].nunique() > 1:
+        df["alg_name"] = df["alg_name"] + " " + df["gap_type"]
+
 
 def create_graph(test_case_name_match: str, test_case_directory: str):
     # read info file
@@ -108,10 +114,15 @@ def create_ratio_plots(
     # calculate ilp ratio
     df["ratio-crossings"] = -1
     df["ratio-time_s"] = -1
-    heuristic_df = df[df["alg_name"] != "ilp"]
+    heuristic_df = df[~df["alg_name"].str.contains("ilp")]
     for index, row in heuristic_df.iterrows():
+        if "gaps" in row["alg_name"]:
+            ilp_df_filter = df["alg_name"] == f"ilp {row['gap_type']}"
+        else:
+            ilp_df_filter = df["alg_name"] == "ilp"
+
         ilp_rows = df[
-            (df["alg_name"] == "ilp")
+            ilp_df_filter
             & (df["instance_name"] == row["instance_name"])
             & (df["gap_type"] == row["gap_type"])
             & (df["gap_count"] == row["gap_count"])
@@ -125,23 +136,23 @@ def create_ratio_plots(
         heuristic_df.at[index, "ratio-time_s"] = (
             row["time_s"] / ilp_rows.iloc[0]["time_s"]
         )
-        plt.clf()
 
     for y_data_str in ["crossings", "time_s"]:
         sns.lineplot(
             data=heuristic_df, x=x_data_str, y=f"ratio-{y_data_str}", hue="alg_name"
         )
 
-        plt.xlabel(x_data_str)
-        plt.ylabel(f"{y_data_str} ratio to ILP")
-        plt.title(test_case_info["graph_title"] + "compared to ILP")
-        # plt.yscale("log")
+        plt.xlabel(x_data_str.replace("_", " "))
+        plt.ylabel(
+            f'{"time (s)" if y_data_str == "time_s" else y_data_str} ratio to ILP'
+        )
+        # plt.title(test_case_info["graph_title"] + "compared to ILP")
         plt.legend(title="Algorithms", loc="best")
 
         # save plot to disk
         plt.savefig(
             os.path.join(
-                out_dir(test_case_name_match, test_case_directory),
+                out_dir(test_case_name_match, test_case_name),
                 f"{test_case_name}_ratio_{y_data_str}.png",
             )
         )
@@ -159,16 +170,15 @@ def create_regular_plots(
     for y_data_str in ["crossings", "time_s"]:
         sns.lineplot(data=df, x=x_data_str, y=y_data_str, hue="alg_name")
 
-        plt.xlabel(x_data_str)
-        plt.ylabel(y_data_str)
-        plt.title(test_case_info["graph_title"])
-        # plt.yscale("log")
+        plt.xlabel(x_data_str.replace("_", " "))
+        plt.ylabel("time (s)" if y_data_str == "time_s" else y_data_str)
+        # plt.title(test_case_info["graph_title"])
         plt.legend(title="Algorithms", loc="best")
 
         # save plot to disk
         plt.savefig(
             os.path.join(
-                out_dir(test_case_name_match, test_case_directory),
+                out_dir(test_case_name_match, test_case_name),
                 f"{test_case_name}_{y_data_str}.png",
             )
         )
