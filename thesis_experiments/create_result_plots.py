@@ -4,7 +4,7 @@ import logging
 import os
 import sys
 import warnings
-from typing import Any, TypedDict
+from typing import TypedDict
 
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -43,44 +43,6 @@ def out_dir(test_case_name_match: str, test_case_directory: str):
     )
 
 
-# def _read_csv(csv_real_file_path: str) -> pd.DataFrame:
-#     filtered_lines: list[str] = []
-
-#     with open(csv_real_file_path, "r") as f:
-#         header = f.readline()
-#         filtered_lines.append(header)
-#         comma_count = header.count(",")
-#         for line in f:
-#             if line.count(",") == comma_count:
-#                 filtered_lines.append(line)
-
-#             # try:
-#             #     # Attempt to parse the line as CSV
-#             #     row = pd.read_csv(io.StringIO(line))
-#             #     data.append(row)
-#             # except pd.errors.ParserError:
-#             #     # Handle the parsing error (e.g., skip the line)
-#             #     print(f"Skipped line due to parsing error: {line.strip()}")
-#             # except pd.errors.EmptyDataError:
-#             #     print(f"Skipped line due to parsing error: {line.strip()}")
-#     # # Concatenate the valid rows into a DataFrame
-#     # df = pd.concat(data, ignore_index=True)
-
-#     filtered_out_path = os.path.join(
-#         os.path.dirname(csv_real_file_path), "filtered_out.csv"
-#     )
-#     with open(filtered_out_path, "w") as f:
-#         f.writelines(filtered_lines)
-
-#     try:
-#         df = pd.read_csv(filtered_out_path)
-#     except pd.errors.ParserError as err:
-#         logger.error("failed to read %s", filtered_out_path)
-#         raise err
-
-#     return df
-
-
 def _read_csv_no_filter(csv_real_file_path: str) -> pd.DataFrame:
     try:
         df = pd.read_csv(csv_real_file_path)
@@ -93,24 +55,10 @@ def _read_csv_no_filter(csv_real_file_path: str) -> pd.DataFrame:
         raise err
     return df
 
-
-# def remove_incomplete_data_sets(df: pd.DataFrame):
-#     indices_to_remove: list[int] = []
-#     for _index, row in df.iterrows():
-#         matching_test_cases = df[
-#             df[row["gap_type"]] & df[row["gap_count"]] & df[row["instance_name"]]
-#         ]
-#         if len(matching_test_cases) < 3:
-#             for tc in matching_test_cases:
-#                 indices_to_remove.append(tc.index)
-
-#     # TODO filter df by indices to remove
-#     raise NotImplementedError()
-#     filtered_df = df
-
-#     logger.warning("Removing %d rows due to missing test cases", len(indices_to_remove))
-#     return filtered_df
-
+def sidegaps_vs_2_gaps_preprocessing(df: pd.DataFrame):
+    # changes alg_name from something like "median" to "median sidegaps"
+    # todo more optimal way to check if two different values
+    if df[df[""]]
 
 def create_graph(test_case_name_match: str, test_case_directory: str):
     # read info file
@@ -131,10 +79,30 @@ def create_graph(test_case_name_match: str, test_case_directory: str):
             f"Expected {expected_row_count} rows, received {row_count} for {test_case_name}"
         )
 
+    sidegaps_vs_2_gaps_preprocessing(df)
+
     create_regular_plots(
         test_case_name_match, test_case_directory, test_case_info, x_data_str, df
     )
 
+    create_ratio_plots(
+        test_case_name_match,
+        test_case_directory,
+        test_case_info,
+        x_data_str,
+        csv_real_file_path,
+        df,
+    )
+
+
+def create_ratio_plots(
+    test_case_name_match: str,
+    test_case_directory: str,
+    test_case_info: TestCaseInfo,
+    x_data_str: str,
+    csv_real_file_path: str,
+    df: pd.DataFrame,
+):
     _, test_case_name = os.path.split(os.path.realpath(test_case_directory))
 
     # calculate ilp ratio
