@@ -1,3 +1,4 @@
+import csv
 import json
 import logging
 import os
@@ -36,9 +37,26 @@ def collect_csv(test_case_name: str):
 
     if info_json["expected_results_count"] != len(all_lines):
         logger.warn(
-            "Expected %d results, found only %d",
-            len(all_lines),
+            "Expected %d results for %s found %d",
             info_json["expected_results_count"],
+            test_case_name,
+            len(all_lines),
+        )
+
+    with open(collected_csv_out_filename, "w", newline="") as f:
+        csv_writer = csv.writer(f)
+        csv_writer.writerow(
+            (
+                "alg_name",
+                "gap_type",
+                "gap_count",
+                "nodes_per_layer",
+                "virtual_node_ratio",
+                "average_node_degree",
+                "instance_name",
+                "crossings",
+                "time_s",
+            )
         )
 
     with open(collected_csv_out_filename, "a") as f:
