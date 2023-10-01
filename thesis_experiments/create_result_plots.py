@@ -54,6 +54,10 @@ def _read_csv_no_filter(csv_real_file_path: str) -> pd.DataFrame:
         raise err
     return df
 
+def sidegaps_vs_2_gaps_preprocessing(df: pd.DataFrame):
+    # changes alg_name from something like "median" to "median sidegaps"
+    # todo more optimal way to check if two different values
+    if df[df[""]]
 
 def create_graph(test_case_name_match: str, test_case_directory: str):
     # read info file
@@ -74,6 +78,8 @@ def create_graph(test_case_name_match: str, test_case_directory: str):
             f"Expected {expected_row_count} rows, received {row_count} for {test_case_name}"
         )
         return
+
+    sidegaps_vs_2_gaps_preprocessing(df)
 
     create_regular_plots(
         test_case_name_match, test_case_directory, test_case_info, x_data_str, df
