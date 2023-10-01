@@ -12,6 +12,7 @@ import seaborn as sns
 
 logging.basicConfig()
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
 
 # filter out FutureWarning
 warnings.filterwarnings("ignore", category=FutureWarning)
@@ -129,7 +130,6 @@ def create_graph(test_case_name_match: str, test_case_directory: str):
         logger.warning(
             f"Expected {expected_row_count} rows, received {row_count} for {test_case_name}"
         )
-        return
 
     create_regular_plots(
         test_case_name_match, test_case_directory, test_case_info, x_data_str, df
@@ -224,6 +224,7 @@ def find_matching_test_case_dirs_and_plot_data(test_case_name_match: str):
             logger.info("found matching test case")
             found_test_cases += 1
             create_graph(test_case_name_match, test_case_dir_path)
+
     if found_test_cases == 0:
         logger.warning(
             "no testcases found matching %s in %s",
