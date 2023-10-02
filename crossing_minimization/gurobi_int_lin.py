@@ -203,7 +203,7 @@ def _optimize_model(m: gp.Model, objective: "gp.Objective"):
     m.setObjective(objective, GRB.MINIMIZE)
     m.update()
 
-    time_limit_seconds = 60 * 2
+    time_limit_seconds = 60 * 5
     m.setParam(GRB.Param.TimeLimit, time_limit_seconds)
     m.optimize()
 
