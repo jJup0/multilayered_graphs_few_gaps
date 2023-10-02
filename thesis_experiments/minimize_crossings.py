@@ -46,7 +46,7 @@ try:
     # Parsing argument
     argument_list = sys.argv[1:]
     options = ""
-    long_options = ["sidegaps", "kgaps=", "in_dir=", "in_file="]
+    long_options = ["sidegaps", "kgaps=", "in_dir=", "in_file=", "two_sided"]
     options_and_values, normal_args = getopt.getopt(
         argument_list, options, long_options
     )
@@ -54,6 +54,7 @@ except getopt.error as err:
     log_and_exit(str(err))
 
 side_gaps = k_gaps = in_dir = in_file = None
+two_sided = False
 
 
 # checking each argument
@@ -69,6 +70,9 @@ for current_argument, current_value in options_and_values:
 
     elif current_argument == "--in_file":
         in_file = current_value
+
+    elif current_argument == "--two_sided":
+        two_sided = True
 
 if not ((side_gaps is None) ^ (k_gaps is None)):
     log_and_exit(
@@ -123,10 +127,16 @@ for file_path in in_file_paths:
 
     start_ns = time.perf_counter_ns()
     if alg is not None:
+        if two_sided:
+            max_iterations = 3
+            only_one_up_iteration = False
+        else:
+            max_iterations = 1
+            only_one_up_iteration = True
         alg().sort_graph(
             ml_graph,
-            max_iterations=1,
-            only_one_up_iteration=True,
+            max_iterations=max_iterations,
+            only_one_up_iteration=only_one_up_iteration,
             side_gaps_only=side_gaps,
             max_gaps=gap_count,
         )
