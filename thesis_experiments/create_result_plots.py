@@ -168,7 +168,17 @@ def create_regular_plots(
 ):
     _, test_case_name = os.path.split(os.path.realpath(test_case_directory))
     for y_data_str in ["crossings", "time_s"]:
-        sns.lineplot(data=df, x=x_data_str, y=y_data_str, hue="alg_name")
+        # can probably remove try block
+        try:
+            sns.lineplot(data=df, x=x_data_str, y=y_data_str, hue="alg_name")
+        except Exception as err:
+            logger.error(
+                "test_case_name=%s, x_data_str=%s, y_data_str=%s",
+                test_case_name,
+                x_data_str,
+                y_data_str,
+            )
+            raise err
 
         plt.xlabel(x_data_str.replace("_", " "))
         plt.ylabel("time (s)" if y_data_str == "time_s" else y_data_str)
