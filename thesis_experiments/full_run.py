@@ -340,7 +340,7 @@ class ClusterExperiments:
     """Not a real class, just a container for all experiments that should be run for the thesis."""
 
     # STANDARD_GRAPH_GEN_COUNT = 20
-    STANDARD_GRAPH_GEN_COUNT = 3
+    STANDARD_GRAPH_GEN_COUNT = 1
     STANDARD_NODE_COUNT = 40
     STANDARD_VIRTUAL_NODE_RATIO = 0.2
     STANDARD_AVERAGE_NODE_DEGREE = 3.0
@@ -348,7 +348,7 @@ class ClusterExperiments:
     @classmethod
     def _test_case_name(cls, base_name: str, test_case_version: str):
         # return f"testcase_{test_case_version}_{base_name}"
-        return f"testcase_{base_name}{test_case_version}"
+        return f"testcase_{test_case_version}_{base_name}"
 
     @classmethod
     def vary_gap_count(cls, test_case_suffix: str = ""):
@@ -609,7 +609,7 @@ if __name__ == "__main__":
     if len(sys.argv) > 1:
         test_case_suffix = sys.argv[1]
     else:
-        test_case_suffix = ""
+        test_case_suffix = "temp"
 
     ClusterExperiments.vary_gap_count(test_case_suffix)
     ClusterExperiments.side_gaps_vary_node_degree(test_case_suffix)
