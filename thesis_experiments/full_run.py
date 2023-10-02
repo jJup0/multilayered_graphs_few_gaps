@@ -183,10 +183,12 @@ def create_csv_out(test_case_name: str) -> str:
 
 def get_qsub_args(
     test_case_name: str,
+    *,
     file_name: str,
     alg_name: str,
     gap_type_as_flag: str,
     gap_count: int | None = None,
+    two_sided: bool = False,
 ) -> list[str]:
     # handle k- or side-gaps
     if gap_type_as_flag == "--kgaps":
@@ -195,6 +197,12 @@ def get_qsub_args(
         gap_type_and_args = ["--sidegaps"]
     else:
         assert False, f"gap_type_as_flag must be --kgaps or --sidegaps"
+
+    # handle two_sided
+    if two_sided:
+        two_sided_args = ["--two_sided"]
+    else:
+        two_sided_args = []
 
     # determine memory limit
     filepath = os.path.realpath(os.path.join(in_dir_name(test_case_name), file_name))
@@ -238,6 +246,7 @@ def get_qsub_args(
         "--in_file",
         f"{filepath}",
         *gap_type_and_args,
+        *two_sided_args,
         alg_name,
         out_csv_path,
     ]
@@ -303,6 +312,7 @@ def run_batch(
     virtual_node_ratios: list[float],
     average_node_degrees: list[float],
     run_k_gaps: bool,
+    two_sided: bool = False,
     gap_counts: list[int] = [2],
     graph_title: str = "",
 ):
@@ -335,7 +345,12 @@ def run_batch(
         for file_name in files:
             for gap_count in gap_counts:
                 standard_run_cmds = get_qsub_args(
-                    test_case_name, file_name, alg_name, "--kgaps", gap_count
+                    test_case_name,
+                    file_name=file_name,
+                    alg_name=alg_name,
+                    gap_type_as_flag="--kgaps",
+                    gap_count=gap_count,
+                    two_sided=two_sided,
                 )
                 popen_wrapper(standard_run_cmds)
 
@@ -367,8 +382,13 @@ class ClusterExperiments:
     STANDARD_AVERAGE_NODE_DEGREE = 3.0
 
     @classmethod
+    def _test_case_name(cls, base_name: str, test_case_version: str):
+        # return f"testcase_{test_case_version}_{base_name}"
+        return f"testcase_{base_name}{test_case_version}"
+
+    @classmethod
     def vary_gap_count(cls, test_case_suffix: str = ""):
-        test_case_name = f"testcase_k_gaps_count_variation{test_case_suffix}"
+        test_case_name = cls._test_case_name("k_gaps_count_variation", test_case_suffix)
         nodes_per_layer = [cls.STANDARD_NODE_COUNT]
         virtual_node_ratios = [cls.STANDARD_VIRTUAL_NODE_RATIO]
         average_node_degrees = [cls.STANDARD_AVERAGE_NODE_DEGREE]
@@ -396,7 +416,7 @@ class ClusterExperiments:
 
     @classmethod
     def side_gaps_vs_arbitrary_2_gaps(cls, test_case_suffix: str = ""):
-        test_case_name = f"testcase_2_gaps_vs_side_gaps{test_case_suffix}"
+        test_case_name = cls._test_case_name("2_gaps_vs_side_gaps", test_case_suffix)
         nodes_per_layer = list(range(10, 71, 10))
         virtual_node_ratios = [cls.STANDARD_VIRTUAL_NODE_RATIO] * len(nodes_per_layer)
         average_node_degrees = [cls.STANDARD_AVERAGE_NODE_DEGREE] * len(nodes_per_layer)
@@ -420,7 +440,11 @@ class ClusterExperiments:
             for file_name in files:
                 for gap_count in gap_counts:
                     standard_run_cmds = get_qsub_args(
-                        test_case_name, file_name, alg_name, "--sidegaps", gap_count
+                        test_case_name,
+                        file_name=file_name,
+                        alg_name=alg_name,
+                        gap_type_as_flag="--sidegaps",
+                        gap_count=gap_count,
                     )
                     popen_wrapper(standard_run_cmds)
 
@@ -429,7 +453,9 @@ class ClusterExperiments:
 
     @classmethod
     def vary_virtual_node_ratio(cls, test_case_suffix: str = ""):
-        test_case_name = f"testcase_side_gaps_virtual_node_variation{test_case_suffix}"
+        test_case_name = cls._test_case_name(
+            "side_gaps_virtual_node_variation", test_case_suffix
+        )
         virtual_node_ratios = list(ratio / 10 for ratio in range(10))
         nodes_per_layer = [cls.STANDARD_NODE_COUNT] * len(virtual_node_ratios)
         average_node_degrees = [cls.STANDARD_AVERAGE_NODE_DEGREE] * len(
@@ -449,7 +475,9 @@ class ClusterExperiments:
 
     @classmethod
     def vary_node_degree(cls, test_case_suffix: str = ""):
-        test_case_name = f"testcase_side_gaps_vary_node_degree{test_case_suffix}"
+        test_case_name = cls._test_case_name(
+            "side_gaps_vary_node_degree", test_case_suffix
+        )
         average_node_degrees = [2.0, 3.0, 4.0] + list(
             range(5, cls.STANDARD_NODE_COUNT - 1, 5)
         )
@@ -471,8 +499,29 @@ class ClusterExperiments:
 
     @classmethod
     def side_gaps_vary_nodes(cls, test_case_suffix: str = ""):
-        test_case_name = f"testcase_side_gaps_vary_node_count{test_case_suffix}"
+        test_case_name = cls._test_case_name(
+            "side_gaps_vary_node_count", test_case_suffix
+        )
         nodes_per_layer = list(range(10, 71, 10))
+        average_node_degrees = [cls.STANDARD_AVERAGE_NODE_DEGREE] * len(nodes_per_layer)
+        virtual_node_ratios = [cls.STANDARD_VIRTUAL_NODE_RATIO] * len(nodes_per_layer)
+        run_k_gaps = False
+        run_batch(
+            test_case_name,
+            graph_gen_count=cls.STANDARD_GRAPH_GEN_COUNT,
+            nodes_per_layer=nodes_per_layer,
+            virtual_node_ratios=virtual_node_ratios,
+            average_node_degrees=average_node_degrees,
+            run_k_gaps=run_k_gaps,
+        )
+        logger.info("finished %s", test_case_name)
+        return test_case_name
+
+    @classmethod
+    def tscm_sg(cls, test_case_suffix: str = ""):
+        # SHOULD NOT BE INCLUDED IN RUN
+        test_case_name = cls._test_case_name("tscm_sg", test_case_suffix)
+        nodes_per_layer = list(range(5, 41, 5))
         average_node_degrees = [cls.STANDARD_AVERAGE_NODE_DEGREE] * len(nodes_per_layer)
         virtual_node_ratios = [cls.STANDARD_VIRTUAL_NODE_RATIO] * len(nodes_per_layer)
         run_k_gaps = False
@@ -490,7 +539,7 @@ class ClusterExperiments:
     @classmethod
     def run_micro(cls, test_case_suffix: str = ""):
         # SHOULD NOT BE INCLUDED IN RUN
-        test_case_name = f"testcase_run_micro{test_case_suffix}"
+        test_case_name = cls._test_case_name("run_micro", test_case_suffix)
         graph_gen_count = 3
         nodes_per_layer = [10]
         average_node_degrees = [2.0] * len(nodes_per_layer)
@@ -517,10 +566,11 @@ if __name__ == "__main__":
         test_case_suffix = ""
 
     # ClusterExperiments.vary_gap_count(test_case_suffix)
-    ClusterExperiments.vary_node_degree(test_case_suffix)
-    ClusterExperiments.vary_virtual_node_ratio(test_case_suffix)
-    ClusterExperiments.side_gaps_vs_arbitrary_2_gaps(test_case_suffix)
-    ClusterExperiments.side_gaps_vary_nodes(test_case_suffix)
+    # ClusterExperiments.vary_node_degree(test_case_suffix)
+    # ClusterExperiments.vary_virtual_node_ratio(test_case_suffix)
+    # ClusterExperiments.side_gaps_vs_arbitrary_2_gaps(test_case_suffix)
+    # ClusterExperiments.side_gaps_vary_nodes(test_case_suffix)
+    ClusterExperiments.tscm_sg(test_case_suffix)
     ##### ClusterExperiments.run_micro(test_case_suffix)
 
     wait_for_processes_to_finish()
