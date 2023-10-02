@@ -22,6 +22,7 @@ logger = logging.getLogger("Gurobi")
 logger.setLevel(logging.WARNING)
 
 gp.setParam("LogToConsole", 0)
+gp.setParam("Threads", 1)
 
 
 class GurobiSorter(GraphSorter):
