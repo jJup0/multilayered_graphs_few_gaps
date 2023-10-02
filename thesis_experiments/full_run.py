@@ -234,6 +234,8 @@ def get_qsub_args(
         f"h_vmem={mem_required:.3f}G",
         "-l",
         f"mem_free={mem_required:.3f}G",
+        "-l",
+        "bc4",
         # restart on fail
         "-r",
         "y",
@@ -364,7 +366,7 @@ def wait_for_processes_to_finish():
             if exit_code == 0:
                 logger.debug(f"process finished with {exit_code=}")
             else:
-                logger.warning(f"process finished with {exit_code=}")
+                logger.warning(f"process finished with {exit_code=}, {_args=}")
 
             GL_OPEN_PROCESSES.pop()
         except subprocess.TimeoutExpired:
@@ -569,8 +571,8 @@ if __name__ == "__main__":
     # ClusterExperiments.vary_node_degree(test_case_suffix)
     # ClusterExperiments.vary_virtual_node_ratio(test_case_suffix)
     # ClusterExperiments.side_gaps_vs_arbitrary_2_gaps(test_case_suffix)
-    # ClusterExperiments.side_gaps_vary_nodes(test_case_suffix)
-    ClusterExperiments.tscm_sg(test_case_suffix)
+    ClusterExperiments.side_gaps_vary_nodes(test_case_suffix)
+    # ClusterExperiments.tscm_sg(test_case_suffix)
     ##### ClusterExperiments.run_micro(test_case_suffix)
 
     wait_for_processes_to_finish()
