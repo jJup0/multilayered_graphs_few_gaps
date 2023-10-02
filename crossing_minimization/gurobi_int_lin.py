@@ -113,9 +113,7 @@ def side_gaps_gurobi_two_sided(
             obj += crossing_between_nodes
 
     # set objective, update and optimize
-    m.setObjective(obj, GRB.MINIMIZE)
-    m.update()
-    m.optimize()
+    _optimize_model(m, obj)
 
     # order graph using gurobi variables
     _gurobi_merge_sort(l1, l1_ordering_gb_vars)
@@ -187,19 +185,7 @@ def one_sided(
                 obj += n1__n2_crossings * n1__n2 + n2__n1_crossings * n2__n1
 
         # set objective, update and optimize
-        m.setObjective(obj, GRB.MINIMIZE)
-        m.update()
-
-        time_limit_seconds = 60 * 2
-        m.setParam(GRB.Param.TimeLimit, time_limit_seconds)
-        m.optimize()
-
-        if m.status == GRB.OPTIMAL:
-            pass
-        elif m.Status == GRB.TIME_LIMIT:
-            warnings.warn("Hit time limit while solving model")
-        else:
-            warnings.warn(f"ENCOUNTERED ISSUE WHILE SOLVING MODEL: {m.Status}")
+        _optimize_model(m, obj)
 
         _gurobi_log_result_info(
             ml_graph,
@@ -210,6 +196,23 @@ def one_sided(
 
         # order graph using gurobi variables
         _gurobi_merge_sort(nodes, ordering_gp_vars)
+
+
+def _optimize_model(m: gp.Model, objective: "gp.Objective"):
+    # set objective, update and optimize
+    m.setObjective(objective, GRB.MINIMIZE)
+    m.update()
+
+    time_limit_seconds = 60 * 2
+    m.setParam(GRB.Param.TimeLimit, time_limit_seconds)
+    m.optimize()
+
+    if m.status == GRB.OPTIMAL:
+        pass
+    elif m.Status == GRB.TIME_LIMIT:
+        warnings.warn("Hit time limit while solving model")
+    else:
+        warnings.warn(f"ENCOUNTERED ISSUE WHILE SOLVING MODEL: {m.Status}")
 
 
 def _gurobi_log_result_info(
