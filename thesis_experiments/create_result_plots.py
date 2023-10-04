@@ -1,4 +1,3 @@
-import io
 import json
 import logging
 import os
@@ -18,6 +17,7 @@ logger.setLevel(logging.DEBUG)
 warnings.filterwarnings("ignore", category=FutureWarning)
 warnings.filterwarnings("ignore", module="plt.legend")
 
+ILP_TIMEOUT_IN_SECONDS = 5 * 60
 
 test_case_root_dir = os.path.join(
     os.path.dirname(os.path.realpath(__file__)), "local_tests"
@@ -87,6 +87,7 @@ def create_graph(test_case_name_match: str, test_case_directory: str):
 
     sidegaps_vs_2_gaps_preprocessing(df)
 
+
     create_regular_plots(
         test_case_name_match, test_case_directory, test_case_info, x_data_str, df
     )
@@ -94,9 +95,7 @@ def create_graph(test_case_name_match: str, test_case_directory: str):
     create_ratio_plots(
         test_case_name_match,
         test_case_directory,
-        test_case_info,
         x_data_str,
-        csv_real_file_path,
         df,
     )
 
@@ -104,43 +103,19 @@ def create_graph(test_case_name_match: str, test_case_directory: str):
 def create_ratio_plots(
     test_case_name_match: str,
     test_case_directory: str,
-    test_case_info: TestCaseInfo,
     x_data_str: str,
-    csv_real_file_path: str,
     df: pd.DataFrame,
 ):
     _, test_case_name = os.path.split(os.path.realpath(test_case_directory))
 
-    # calculate ilp ratio
-    df["ratio-crossings"] = -1
-    df["ratio-time_s"] = -1
     heuristic_df = df[~df["alg_name"].str.contains("ilp")]
-    for index, row in heuristic_df.iterrows():
-        if "gaps" in row["alg_name"]:
-            ilp_df_filter = df["alg_name"] == f"ilp {row['gap_type']}"
-        else:
-            ilp_df_filter = df["alg_name"] == "ilp"
-
-        ilp_rows = df[
-            ilp_df_filter
-            & (df["instance_name"] == row["instance_name"])
-            & (df["gap_type"] == row["gap_type"])
-            & (df["gap_count"] == row["gap_count"])
-        ]
-        assert (
-            len(ilp_rows) == 1
-        ), f"NOT EXACTLY ONE RESULT FOR ILP: {len(ilp_rows)=}\n{row['instance_name']=}\n{csv_real_file_path}:{index}"
-        heuristic_df.at[index, "ratio-crossings"] = (
-            row["crossings"] / ilp_rows.iloc[0]["crossings"]
-        )
-        heuristic_df.at[index, "ratio-time_s"] = (
-            row["time_s"] / ilp_rows.iloc[0]["time_s"]
-        )
-
     for y_data_str in ["crossings", "time_s"]:
         sns.lineplot(
             data=heuristic_df, x=x_data_str, y=f"ratio-{y_data_str}", hue="alg_name"
         )
+        line_draw_point = find_first_ilp_timeout(df=df, y_data_str=y_data_str)
+        if line_draw_point is not None:
+            sns.___draw_vertical_line(line_draw_point)
 
         plt.xlabel(x_data_str.replace("_", " "))
         plt.ylabel(
@@ -159,6 +134,47 @@ def create_ratio_plots(
         plt.clf()
 
 
+def find_first_ilp_timeout(     df: pd.DataFrame, y_data_str: str) -> None | float:
+    # x-axis value at which to draw line
+    ilps_with_timeout = df[df["alg_name"].str.contains("ilp") df["time_s"] > ILP_TIMEOUT_IN_SECONDS]
+    if ilps_with_timeout:
+        return None
+    return min(df[y_data_str])
+
+
+def calculate_ilp_ratios(
+    *, df: pd.DataFrame, csv_real_file_path: str
+):
+    df["ratio-crossings"] = -1
+    df["ratio-time_s"] = -1
+
+
+    heuristic_df = df[~df["alg_name"].str.contains("ilp")]
+    for index, row in heuristic_df.iterrows():
+        if "gaps" in row["alg_name"]:
+            ilp_df_filter = df["alg_name"] == f"ilp {row['gap_type']}"
+        else:
+            ilp_df_filter = df["alg_name"] == "ilp"
+
+        ilp_rows = df[
+            ilp_df_filter
+            & (df["instance_name"] == row["instance_name"])
+            & (df["gap_type"] == row["gap_type"])
+            & (df["gap_count"] == row["gap_count"])
+        ]
+        assert (
+            len(ilp_rows) == 1
+        ), f"NOT EXACTLY ONE RESULT FOR ILP: {len(ilp_rows)=}\n{row['instance_name']=}\n{csv_real_file_path}:{index}"
+
+        ilp_row = ilp_rows.iloc[0]
+
+        crossings_ratio = row["crossings"] / ilp_row["crossings"]
+        heuristic_df.at[index, "ratio-crossings"] = crossings_ratio
+
+        time_ratio = row["time_s"] / ilp_row["time_s"]
+        heuristic_df.at[index, "ratio-time_s"] = time_ratio
+
+
 def create_regular_plots(
     test_case_name_match: str,
     test_case_directory: str,
@@ -169,6 +185,10 @@ def create_regular_plots(
     _, test_case_name = os.path.split(os.path.realpath(test_case_directory))
     for y_data_str in ["crossings", "time_s"]:
         sns.lineplot(data=df, x=x_data_str, y=y_data_str, hue="alg_name")
+        line_draw_point = find_first_ilp_timeout(df=df, y_data_str=y_data_str)
+        if line_draw_point is not None:
+            sns.___draw_vertical_line(line_draw_point)
+
 
         plt.xlabel(x_data_str.replace("_", " "))
         plt.ylabel("time (s)" if y_data_str == "time_s" else y_data_str)
