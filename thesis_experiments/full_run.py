@@ -106,81 +106,6 @@ def create_graphs(
     logger.info("graph generation done")
 
 
-def create_csv_out(test_case_name: str) -> str:
-    out_csv_file = get_out_csv_path(test_case_name)
-    os.makedirs(os.path.dirname(out_csv_file), exist_ok=True)
-
-    with open(out_csv_file, "w", newline="") as f:
-        csv_writer = csv.writer(f)
-        csv_writer.writerow(
-            (
-                "alg_name",
-                "gap_type",
-                "gap_count",
-                "nodes_per_layer",
-                "virtual_node_fraction",
-                "average_node_degree",
-                "instance_name",
-                "crossings",
-                "time_s",
-            )
-        )
-    return out_csv_file
-
-
-# def run_regular_side_gaps(test_case_name: str):
-#     create_graphs(
-#         test_case_name,
-#         graph_gen_count=20,
-#         nodes_per_layer=[10, 20, 30, 40, 50],
-#         virtual_node_ratios=[5, 10, 15, 20, 25],
-#         average_node_degrees=[0.1],
-#     )
-#     out_csv_file = create_csv_out(test_case_name)
-
-#     minimize_cmd_args = [
-#         "python",
-#         "-m",
-#         f"{thesis_experiments_dirname}.minimize_crossings",
-#         "--sidegaps",
-#         "--in_dir",
-#         in_dir_name(test_case_name),
-#         "<<alg_name>>",
-#         out_csv_file,
-#     ]
-#     for alg_name in ["median", "barycenter", "ilp"]:
-#         minimize_cmd_args[-2] = alg_name
-#         popen_wrapper(minimize_cmd_args, cwd=STANDARD_CWD)
-
-
-# def run_regular_k_gaps(test_case_name: str):
-#     create_graphs(
-#         test_case_name,
-#         graph_gen_count=5,
-#         nodes_per_layer=[10],
-#         virtual_node_ratios=[0.1],
-#         average_node_degrees=[4],
-#     )
-#     out_csv_file = create_csv_out(test_case_name)
-
-#     for k in (2, 3):
-#         # for k in (2, 3, 100):
-#         minimize_cmd_args = [
-#             "python",
-#             "-m",
-#             f"{thesis_experiments_dirname}.minimize_crossings",
-#             "--kgaps",
-#             f"{k}",
-#             "--in_dir",
-#             in_dir_name(test_case_name),
-#             "<<alg_name>>",
-#             out_csv_file,
-#         ]
-#         for alg_name in ["median", "barycenter", "ilp"]:
-#             minimize_cmd_args[-2] = alg_name
-#             popen_wrapper(minimize_cmd_args, cwd=STANDARD_CWD)
-
-
 def get_qsub_args(
     test_case_name: str,
     *,
@@ -189,6 +114,7 @@ def get_qsub_args(
     gap_type_as_flag: str,
     gap_count: int | None = None,
     two_sided: bool = False,
+    two_sided_iterations: int = 1,
 ) -> list[str]:
     # handle k- or side-gaps
     if gap_type_as_flag == "--kgaps":
@@ -200,7 +126,7 @@ def get_qsub_args(
 
     # handle two_sided
     if two_sided:
-        two_sided_args = ["--two_sided"]
+        two_sided_args = ["--two_sided", str(two_sided_iterations)]
     else:
         two_sided_args = []
 
@@ -234,6 +160,8 @@ def get_qsub_args(
         f"h_vmem={mem_required:.3f}G",
         "-l",
         f"mem_free={mem_required:.3f}G",
+        "-l",
+        "bc4",
         # restart on fail
         "-r",
         "y",
@@ -261,6 +189,7 @@ def create_testcase_info_json(
     average_node_degrees: list[float],
     run_k_gaps: bool,
     gap_counts: list[int],
+    two_sided_iterations: list[int],
     graph_title: str = "",
 ):
     data_constants: dict[str, Any] = {}
@@ -269,6 +198,7 @@ def create_testcase_info_json(
         (virtual_node_ratios, "virtual node fraction"),
         (average_node_degrees, "average node degree"),
         (gap_counts, "gap count"),
+        (two_sided_iterations, "up and down iterations"),
     ]
 
     variables = graph_params_and_verbose_names_csv_titles.copy()
@@ -312,8 +242,10 @@ def run_batch(
     virtual_node_ratios: list[float],
     average_node_degrees: list[float],
     run_k_gaps: bool,
-    two_sided: bool = False,
     gap_counts: list[int] = [2],
+    only_heuristic: bool = False,
+    two_sided: bool = False,
+    two_sided_iterations: list[int] = [1],
     graph_title: str = "",
 ):
     create_graphs(
@@ -323,7 +255,6 @@ def run_batch(
         virtual_node_ratios=virtual_node_ratios,
         average_node_degrees=average_node_degrees,
     )
-    create_csv_out(test_case_name)
 
     create_testcase_info_json(
         test_case_name,
@@ -334,25 +265,57 @@ def run_batch(
         run_k_gaps=run_k_gaps,
         gap_counts=gap_counts,
         graph_title=graph_title,
+        two_sided_iterations=two_sided_iterations,
     )
 
     create_log_file(test_case_name)
 
     if not run_k_gaps:
         gap_counts = [2]
+    dispatch_minimize(
+        test_case_name,
+        gap_counts=gap_counts,
+        only_heuristic=only_heuristic,
+        run_k_gaps=run_k_gaps,
+        two_sided=two_sided,
+        two_sided_iterations=two_sided_iterations,
+    )
+
+
+def dispatch_minimize(
+    test_case_name: str,
+    *,
+    gap_counts: list[int],
+    run_k_gaps: bool,
+    only_heuristic: bool = False,
+    two_sided: bool = False,
+    two_sided_iterations: list[int] = [1],
+):
+    alg_names = ["median", "barycenter"]
+    if not only_heuristic:
+        alg_names.append("ilp")
+
     files = os.listdir(in_dir_name(test_case_name))
-    for alg_name in ["median", "barycenter", "ilp"]:
+
+    if run_k_gaps:
+        gap_type_as_flag = "--kgaps"
+    else:
+        gap_type_as_flag = "--sidegaps"
+
+    for alg_name in alg_names:
         for file_name in files:
             for gap_count in gap_counts:
-                standard_run_cmds = get_qsub_args(
-                    test_case_name,
-                    file_name=file_name,
-                    alg_name=alg_name,
-                    gap_type_as_flag="--kgaps",
-                    gap_count=gap_count,
-                    two_sided=two_sided,
-                )
-                popen_wrapper(standard_run_cmds)
+                for _two_sided_iterations in two_sided_iterations:
+                    standard_run_cmds = get_qsub_args(
+                        test_case_name,
+                        file_name=file_name,
+                        alg_name=alg_name,
+                        gap_type_as_flag=gap_type_as_flag,
+                        gap_count=gap_count,
+                        two_sided=two_sided,
+                        two_sided_iterations=_two_sided_iterations,
+                    )
+                    popen_wrapper(standard_run_cmds)
 
 
 def wait_for_processes_to_finish():
@@ -364,7 +327,7 @@ def wait_for_processes_to_finish():
             if exit_code == 0:
                 logger.debug(f"process finished with {exit_code=}")
             else:
-                logger.warning(f"process finished with {exit_code=}")
+                logger.warning(f"process finished with {exit_code=}, {_args=}")
 
             GL_OPEN_PROCESSES.pop()
         except subprocess.TimeoutExpired:
@@ -376,7 +339,8 @@ def wait_for_processes_to_finish():
 class ClusterExperiments:
     """Not a real class, just a container for all experiments that should be run for the thesis."""
 
-    STANDARD_GRAPH_GEN_COUNT = 20
+    # STANDARD_GRAPH_GEN_COUNT = 20
+    STANDARD_GRAPH_GEN_COUNT = 1
     STANDARD_NODE_COUNT = 40
     STANDARD_VIRTUAL_NODE_RATIO = 0.2
     STANDARD_AVERAGE_NODE_DEGREE = 3.0
@@ -384,7 +348,7 @@ class ClusterExperiments:
     @classmethod
     def _test_case_name(cls, base_name: str, test_case_version: str):
         # return f"testcase_{test_case_version}_{base_name}"
-        return f"testcase_{base_name}{test_case_version}"
+        return f"testcase_{test_case_version}_{base_name}"
 
     @classmethod
     def vary_gap_count(cls, test_case_suffix: str = ""):
@@ -435,24 +399,15 @@ class ClusterExperiments:
         )
 
         # manually run side gaps
-        files = os.listdir(in_dir_name(test_case_name))
-        for alg_name in ["median", "barycenter", "ilp"]:
-            for file_name in files:
-                for gap_count in gap_counts:
-                    standard_run_cmds = get_qsub_args(
-                        test_case_name,
-                        file_name=file_name,
-                        alg_name=alg_name,
-                        gap_type_as_flag="--sidegaps",
-                        gap_count=gap_count,
-                    )
-                    popen_wrapper(standard_run_cmds)
+        dispatch_minimize(
+            test_case_name, run_k_gaps=False, gap_counts=[2], only_heuristic=False
+        )
 
         logger.info("finished %s", test_case_name)
         return test_case_name
 
     @classmethod
-    def vary_virtual_node_ratio(cls, test_case_suffix: str = ""):
+    def side_gaps_vary_virtual_node_ratio(cls, test_case_suffix: str = ""):
         test_case_name = cls._test_case_name(
             "side_gaps_virtual_node_variation", test_case_suffix
         )
@@ -474,7 +429,7 @@ class ClusterExperiments:
         return test_case_name
 
     @classmethod
-    def vary_node_degree(cls, test_case_suffix: str = ""):
+    def side_gaps_vary_node_degree(cls, test_case_suffix: str = ""):
         test_case_name = cls._test_case_name(
             "side_gaps_vary_node_degree", test_case_suffix
         )
@@ -498,7 +453,7 @@ class ClusterExperiments:
         return test_case_name
 
     @classmethod
-    def side_gaps_vary_nodes(cls, test_case_suffix: str = ""):
+    def side_gaps_vary_node_count(cls, test_case_suffix: str = ""):
         test_case_name = cls._test_case_name(
             "side_gaps_vary_node_count", test_case_suffix
         )
@@ -519,20 +474,111 @@ class ClusterExperiments:
 
     @classmethod
     def tscm_sg(cls, test_case_suffix: str = ""):
-        # SHOULD NOT BE INCLUDED IN RUN
         test_case_name = cls._test_case_name("tscm_sg", test_case_suffix)
         nodes_per_layer = list(range(5, 41, 5))
         average_node_degrees = [cls.STANDARD_AVERAGE_NODE_DEGREE] * len(nodes_per_layer)
         virtual_node_ratios = [cls.STANDARD_VIRTUAL_NODE_RATIO] * len(nodes_per_layer)
-        run_k_gaps = False
         run_batch(
             test_case_name,
             graph_gen_count=cls.STANDARD_GRAPH_GEN_COUNT,
             nodes_per_layer=nodes_per_layer,
             virtual_node_ratios=virtual_node_ratios,
             average_node_degrees=average_node_degrees,
-            run_k_gaps=run_k_gaps,
+            run_k_gaps=False,
+            two_sided=True,
         )
+        logger.info("finished %s", test_case_name)
+        return test_case_name
+
+    @classmethod
+    def tscm_sg_vary_up_and_down(cls, test_case_suffix: str = ""):
+        test_case_name = cls._test_case_name(
+            "tscm_sg_vary_up_and_down", test_case_suffix
+        )
+        # single up down is included in manual dispatch for only ilp
+        up_and_down_iterations = [2, 3, 4, 5]
+        nodes_per_layer = [cls.STANDARD_NODE_COUNT] * len(up_and_down_iterations)
+        average_node_degrees = [cls.STANDARD_AVERAGE_NODE_DEGREE] * len(
+            up_and_down_iterations
+        )
+        virtual_node_ratios = [cls.STANDARD_VIRTUAL_NODE_RATIO] * len(
+            up_and_down_iterations
+        )
+        run_batch(
+            test_case_name,
+            graph_gen_count=cls.STANDARD_GRAPH_GEN_COUNT,
+            nodes_per_layer=nodes_per_layer,
+            virtual_node_ratios=virtual_node_ratios,
+            average_node_degrees=average_node_degrees,
+            run_k_gaps=False,
+            two_sided=True,
+            two_sided_iterations=up_and_down_iterations,
+            only_heuristic=True,
+        )
+
+        # run ILP separately, as it does not matter how many iterations
+        dispatch_minimize(
+            test_case_name,
+            gap_counts=[2],
+            run_k_gaps=False,
+            only_heuristic=False,
+            two_sided=True,
+            two_sided_iterations=[1],
+        )
+
+        logger.info("finished %s", test_case_name)
+        return test_case_name
+
+    LARGER_INSTANCE_MAX_NODES = 1000
+    LARGER_INSTANCE_AVG_NODE_DEGREE = 5.0
+
+    @classmethod
+    def oscm_k_gaps_large_instances(cls, test_case_suffix: str = ""):
+        test_case_name = cls._test_case_name(
+            "tscm_sg_vary_up_and_down", test_case_suffix
+        )
+        # NOTE: HIGHER AVERAGE NODE DEGREE AND GAP COUNT
+        nodes_per_layer = list(range(100, cls.LARGER_INSTANCE_MAX_NODES + 1, 100))
+        average_node_degrees = [cls.LARGER_INSTANCE_AVG_NODE_DEGREE] * len(
+            nodes_per_layer
+        )
+        virtual_node_ratios = [cls.STANDARD_VIRTUAL_NODE_RATIO] * len(nodes_per_layer)
+        gap_counts = [5] * len(nodes_per_layer)
+        run_batch(
+            test_case_name,
+            graph_gen_count=cls.STANDARD_GRAPH_GEN_COUNT,
+            nodes_per_layer=nodes_per_layer,
+            virtual_node_ratios=virtual_node_ratios,
+            average_node_degrees=average_node_degrees,
+            run_k_gaps=True,
+            gap_counts=gap_counts,
+            only_heuristic=True,
+        )
+
+        logger.info("finished %s", test_case_name)
+        return test_case_name
+
+    @classmethod
+    def oscm_side_gaps_large_instances(cls, test_case_suffix: str = ""):
+        test_case_name = cls._test_case_name(
+            "tscm_sg_vary_up_and_down", test_case_suffix
+        )
+        # NOTE: HIGHER AVERAGE NODE DEGREE AND GAP COUNT
+        nodes_per_layer = list(range(100, cls.LARGER_INSTANCE_MAX_NODES + 1, 100))
+        average_node_degrees = [cls.LARGER_INSTANCE_AVG_NODE_DEGREE] * len(
+            nodes_per_layer
+        )
+        virtual_node_ratios = [cls.STANDARD_VIRTUAL_NODE_RATIO] * len(nodes_per_layer)
+        run_batch(
+            test_case_name,
+            graph_gen_count=cls.STANDARD_GRAPH_GEN_COUNT,
+            nodes_per_layer=nodes_per_layer,
+            virtual_node_ratios=virtual_node_ratios,
+            average_node_degrees=average_node_degrees,
+            run_k_gaps=False,
+            only_heuristic=True,
+        )
+
         logger.info("finished %s", test_case_name)
         return test_case_name
 
@@ -563,14 +609,18 @@ if __name__ == "__main__":
     if len(sys.argv) > 1:
         test_case_suffix = sys.argv[1]
     else:
-        test_case_suffix = ""
+        test_case_suffix = "temp"
 
-    # ClusterExperiments.vary_gap_count(test_case_suffix)
-    # ClusterExperiments.vary_node_degree(test_case_suffix)
-    # ClusterExperiments.vary_virtual_node_ratio(test_case_suffix)
-    # ClusterExperiments.side_gaps_vs_arbitrary_2_gaps(test_case_suffix)
-    # ClusterExperiments.side_gaps_vary_nodes(test_case_suffix)
+    ClusterExperiments.vary_gap_count(test_case_suffix)
+    ClusterExperiments.side_gaps_vary_node_degree(test_case_suffix)
+    ClusterExperiments.side_gaps_vary_virtual_node_ratio(test_case_suffix)
+    ClusterExperiments.side_gaps_vs_arbitrary_2_gaps(test_case_suffix)
+    ClusterExperiments.side_gaps_vary_node_count(test_case_suffix)
     ClusterExperiments.tscm_sg(test_case_suffix)
+    ClusterExperiments.tscm_sg_vary_up_and_down(test_case_suffix)
+    ClusterExperiments.oscm_side_gaps_large_instances(test_case_suffix)
+    ClusterExperiments.oscm_k_gaps_large_instances(test_case_suffix)
+
     ##### ClusterExperiments.run_micro(test_case_suffix)
 
     wait_for_processes_to_finish()

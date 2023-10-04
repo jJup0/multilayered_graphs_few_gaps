@@ -54,6 +54,7 @@ def collect_csv(test_case_name: str):
                 "virtual_node_fraction",
                 "average_node_degree",
                 "instance_name",
+                "up_and_down_iterations",
                 "crossings",
                 "time_s",
             )
