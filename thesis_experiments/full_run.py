@@ -160,6 +160,7 @@ def get_qsub_args(
         f"h_vmem={mem_required:.3f}G",
         "-l",
         f"mem_free={mem_required:.3f}G",
+        # only run on blade center 4
         "-l",
         "bc4",
         # restart on fail
@@ -318,6 +319,7 @@ def dispatch_minimize(
                         two_sided=two_sided,
                         two_sided_iterations=_two_sided_iterations,
                     )
+                    # logger.debug("submitting %s", standard_run_cmds)
                     popen_wrapper(standard_run_cmds)
 
 
@@ -553,7 +555,7 @@ class ClusterExperiments:
             nodes_per_layer
         )
         virtual_node_ratios = [cls.STANDARD_VIRTUAL_NODE_RATIO] * len(nodes_per_layer)
-        gap_counts = [5] * len(nodes_per_layer)
+        gap_counts = [5]
         run_batch(
             test_case_name,
             graph_gen_count=cls.STANDARD_GRAPH_GEN_COUNT,
@@ -628,8 +630,8 @@ if __name__ == "__main__":
     ClusterExperiments.side_gaps_vary_node_count(test_case_suffix)
     ClusterExperiments.tscm_sg(test_case_suffix)
     ClusterExperiments.tscm_sg_vary_up_and_down(test_case_suffix)
-    # ClusterExperiments.oscm_side_gaps_large_instances(test_case_suffix)
-    # ClusterExperiments.oscm_k_gaps_large_instances(test_case_suffix)
+    ClusterExperiments.oscm_side_gaps_large_instances(test_case_suffix)
+    ClusterExperiments.oscm_k_gaps_large_instances(test_case_suffix)
 
     ##### ClusterExperiments.run_micro(test_case_suffix)
 
