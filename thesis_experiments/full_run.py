@@ -1,4 +1,3 @@
-import csv
 import json
 import logging
 import math
@@ -146,7 +145,8 @@ def get_qsub_args(
     csv_out_dir = out_csv_dir(test_case_name)
     os.makedirs(csv_out_dir, exist_ok=True)
     out_csv_path = os.path.join(
-        csv_out_dir, f"{file_name}{alg_name}{gap_type_as_flag}{gap_count}.out"
+        csv_out_dir,
+        f"{file_name}{alg_name}{gap_type_as_flag}{gap_count}{two_sided_iterations}.out",
     )
 
     return [
@@ -191,6 +191,7 @@ def create_testcase_info_json(
     gap_counts: list[int],
     two_sided_iterations: list[int],
     graph_title: str = "",
+    only_heuristic: bool,
 ):
     data_constants: dict[str, Any] = {}
     graph_params_and_verbose_names_csv_titles = [
@@ -221,7 +222,8 @@ def create_testcase_info_json(
         data_graph_title = f"{oscm_type} ..."
 
     # 3 algorithms, each solve `graph_gen_count` graphs with `len(data_variable[1])` different parameters
-    expected_results_count = 3 * graph_gen_count * len(data_variable[1])
+    alg_count = 2 if only_heuristic else 3
+    expected_results_count = alg_count * graph_gen_count * len(data_variable[1])
 
     graph_info: dict[str, Any] = {
         "constants": data_constants,
@@ -266,6 +268,7 @@ def run_batch(
         gap_counts=gap_counts,
         graph_title=graph_title,
         two_sided_iterations=two_sided_iterations,
+        only_heuristic=only_heuristic,
     )
 
     create_log_file(test_case_name)
@@ -339,8 +342,8 @@ def wait_for_processes_to_finish():
 class ClusterExperiments:
     """Not a real class, just a container for all experiments that should be run for the thesis."""
 
-    # STANDARD_GRAPH_GEN_COUNT = 20
-    STANDARD_GRAPH_GEN_COUNT = 1
+    STANDARD_GRAPH_GEN_COUNT = 20
+    # STANDARD_GRAPH_GEN_COUNT = 1
     STANDARD_NODE_COUNT = 40
     STANDARD_VIRTUAL_NODE_RATIO = 0.2
     STANDARD_AVERAGE_NODE_DEGREE = 3.0
@@ -402,6 +405,13 @@ class ClusterExperiments:
         dispatch_minimize(
             test_case_name, run_k_gaps=False, gap_counts=[2], only_heuristic=False
         )
+
+        # overwrite info file
+        with open(test_case_info_path(test_case_name)) as f:
+            info_json = json.load(f)
+        info_json["expected_results_count"] *= 2
+        with open(test_case_info_path(test_case_name), "w") as f:
+            json.dump(info_json, f)
 
         logger.info("finished %s", test_case_name)
         return test_case_name
@@ -529,13 +539,13 @@ class ClusterExperiments:
         logger.info("finished %s", test_case_name)
         return test_case_name
 
-    LARGER_INSTANCE_MAX_NODES = 1000
-    LARGER_INSTANCE_AVG_NODE_DEGREE = 5.0
+    LARGER_INSTANCE_MAX_NODES = 1_000
+    LARGER_INSTANCE_AVG_NODE_DEGREE = 3.0
 
     @classmethod
     def oscm_k_gaps_large_instances(cls, test_case_suffix: str = ""):
         test_case_name = cls._test_case_name(
-            "tscm_sg_vary_up_and_down", test_case_suffix
+            "oscm_k_gaps_large_instances", test_case_suffix
         )
         # NOTE: HIGHER AVERAGE NODE DEGREE AND GAP COUNT
         nodes_per_layer = list(range(100, cls.LARGER_INSTANCE_MAX_NODES + 1, 100))
@@ -561,7 +571,7 @@ class ClusterExperiments:
     @classmethod
     def oscm_side_gaps_large_instances(cls, test_case_suffix: str = ""):
         test_case_name = cls._test_case_name(
-            "tscm_sg_vary_up_and_down", test_case_suffix
+            "oscm_side_gaps_large_instances", test_case_suffix
         )
         # NOTE: HIGHER AVERAGE NODE DEGREE AND GAP COUNT
         nodes_per_layer = list(range(100, cls.LARGER_INSTANCE_MAX_NODES + 1, 100))
@@ -618,8 +628,8 @@ if __name__ == "__main__":
     ClusterExperiments.side_gaps_vary_node_count(test_case_suffix)
     ClusterExperiments.tscm_sg(test_case_suffix)
     ClusterExperiments.tscm_sg_vary_up_and_down(test_case_suffix)
-    ClusterExperiments.oscm_side_gaps_large_instances(test_case_suffix)
-    ClusterExperiments.oscm_k_gaps_large_instances(test_case_suffix)
+    # ClusterExperiments.oscm_side_gaps_large_instances(test_case_suffix)
+    # ClusterExperiments.oscm_k_gaps_large_instances(test_case_suffix)
 
     ##### ClusterExperiments.run_micro(test_case_suffix)
 
