@@ -1,14 +1,10 @@
+import matplotlib.pyplot as plt
+import networkx as nx
+
+from crossing_minimization.gurobi_int_lin import GurobiSorter
 from multilayered_graph.multilayered_graph import MLGNode, MultiLayeredGraph
 
-g = MultiLayeredGraph(9)
-layers_and_number_to_node: dict[tuple[int, int], MLGNode] = {}
-
-
-def add_node_as_number(layer: int, number: int):
-    global g
-    node = g.add_real_node(layer, str(number))
-    layers_and_number_to_node[layer, number] = node
-
+# layers_and_number_to_node: dict[tuple[int, int], MLGNode] = {}
 
 nodes_as_numbers = [
     [8, 24, 1, 35, 30],
@@ -21,9 +17,7 @@ nodes_as_numbers = [
     [9, 25, 27, 2, 10, 31, 33],
     # [8, 24, 1, 35, 30],
 ]
-# for layer_idx, layer_nodes in enumerate(nodes_as_numbers):
-#     for num in layer_nodes:
-#         add_node_as_number(layer_idx, num)
+
 
 all_numbers = [num for layer in nodes_as_numbers for num in layer]
 all_numbers_set = set(all_numbers)
@@ -79,3 +73,40 @@ num_to_neighbors = {
     31: [],  # 30
     33: [],  # 30
 }
+
+
+def add_node_as_number(layer: int, number: int):
+    global mlgraph, node_number_to_node
+    node = mlgraph.add_real_node(layer, str(number))
+    # layers_and_number_to_node[layer, number] = node
+    assert number not in node_number_to_node, f"{number=} already in number_to_node"
+    node_number_to_node[number] = node
+
+
+node_number_to_node: dict[int, MLGNode] = {}
+mlgraph = MultiLayeredGraph(9)
+
+for layer_idx, layer_nodes in enumerate(nodes_as_numbers):
+    for num in layer_nodes:
+        add_node_as_number(layer_idx, num)
+
+for num, neighbor_nums in num_to_neighbors.items():
+    for neighbor_num in neighbor_nums:
+        mlgraph.add_edge(node_number_to_node[num], node_number_to_node[neighbor_num])
+
+GurobiSorter.sort_graph(
+    mlgraph,
+    max_iterations=10,
+    only_one_up_iteration=False,
+    side_gaps_only=False,
+    max_gaps=2,
+)
+
+nx_graph = mlgraph.to_networkx_graph()
+pos = mlgraph.nodes_to_integer_relative_coordinates()
+
+size_map = [0 if node.is_virtual else 300 for node in nx_graph.nodes]
+labels_map = {node: "" if node.is_virtual else node.name for node in nx_graph.nodes}
+
+nx.draw(nx_graph, pos, labels=labels_map, node_size=size_map)
+plt.show()
