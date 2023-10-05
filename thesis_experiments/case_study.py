@@ -1,7 +1,9 @@
+import copy
+from typing import Any
+
 import matplotlib.pyplot as plt
 import networkx as nx
 
-from crossing_minimization.gurobi_int_lin import GurobiSorter
 from multilayered_graph.multilayered_graph import MLGNode, MultiLayeredGraph
 
 # layers_and_number_to_node: dict[tuple[int, int], MLGNode] = {}
@@ -76,15 +78,15 @@ num_to_neighbors = {
 
 
 def add_node_as_number(layer: int, number: int):
-    global mlgraph, node_number_to_node
-    node = mlgraph.add_real_node(layer, str(number))
+    global ml_graph_k_gaps, node_number_to_node
+    node = ml_graph_k_gaps.add_real_node(layer, str(number))
     # layers_and_number_to_node[layer, number] = node
     assert number not in node_number_to_node, f"{number=} already in number_to_node"
     node_number_to_node[number] = node
 
 
 node_number_to_node: dict[int, MLGNode] = {}
-mlgraph = MultiLayeredGraph(9)
+ml_graph_k_gaps = MultiLayeredGraph(9)
 
 for layer_idx, layer_nodes in enumerate(nodes_as_numbers):
     for num in layer_nodes:
@@ -92,21 +94,64 @@ for layer_idx, layer_nodes in enumerate(nodes_as_numbers):
 
 for num, neighbor_nums in num_to_neighbors.items():
     for neighbor_num in neighbor_nums:
-        mlgraph.add_edge(node_number_to_node[num], node_number_to_node[neighbor_num])
+        ml_graph_k_gaps.add_edge(
+            node_number_to_node[num], node_number_to_node[neighbor_num]
+        )
 
-GurobiSorter.sort_graph(
-    mlgraph,
-    max_iterations=10,
-    only_one_up_iteration=False,
-    side_gaps_only=False,
-    max_gaps=2,
-)
+ml_graph_many_gaps = copy.deepcopy(ml_graph_k_gaps)
+ml_graph_side_gaps = copy.deepcopy(ml_graph_k_gaps)
 
-nx_graph = mlgraph.to_networkx_graph()
-pos = mlgraph.nodes_to_integer_relative_coordinates()
+use_ilp = False
+if use_ilp:
+    from crossing_minimization.gurobi_int_lin import GurobiSorter
 
-size_map = [0 if node.is_virtual else 300 for node in nx_graph.nodes]
-labels_map = {node: "" if node.is_virtual else node.name for node in nx_graph.nodes}
+    GurobiSorter.sort_graph(
+        ml_graph_k_gaps,
+        max_iterations=3,
+        only_one_up_iteration=False,
+        side_gaps_only=False,
+        max_gaps=2,
+    )
+else:
+    from crossing_minimization.barycenter_heuristic import BarycenterImprovedSorter
 
-nx.draw(nx_graph, pos, labels=labels_map, node_size=size_map)
+    iterations = 10
+    BarycenterImprovedSorter.sort_graph(
+        ml_graph_side_gaps,
+        max_iterations=iterations,
+        only_one_up_iteration=False,
+        side_gaps_only=True,
+        max_gaps=2,
+    )
+    BarycenterImprovedSorter.sort_graph(
+        ml_graph_k_gaps,
+        max_iterations=iterations,
+        only_one_up_iteration=False,
+        side_gaps_only=False,
+        max_gaps=2,
+    )
+    BarycenterImprovedSorter.sort_graph(
+        ml_graph_many_gaps,
+        max_iterations=iterations,
+        only_one_up_iteration=False,
+        side_gaps_only=False,
+        max_gaps=100,
+    )
+
+
+def draw_graph(_g: MultiLayeredGraph, ax: Any):
+    nx_graph = _g.to_networkx_graph()
+    pos = _g.nodes_to_integer_relative_coordinates()
+
+    size_map = [0 if node.is_virtual else 300 for node in nx_graph.nodes]
+    labels_map = {node: "" if node.is_virtual else node.name for node in nx_graph.nodes}
+
+    nx.draw(nx_graph, pos, labels=labels_map, node_size=size_map, ax=ax)
+
+
+fig, axs = plt.subplots(1, 3, figsize=(100, 50))
+
+draw_graph(ml_graph_side_gaps, axs[0])
+draw_graph(ml_graph_k_gaps, axs[1])
+draw_graph(ml_graph_many_gaps, axs[2])
 plt.show()
