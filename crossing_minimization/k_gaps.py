@@ -193,6 +193,11 @@ def _find_optimal_gaps(
         # no need to check gap count higher than possible gaps in layer
         gaps = len(ordered_real_nodes)
 
+    if gaps > 100:
+        # avoid recursion limit
+        for g in range(1, gaps, 100):
+            find_crossings(g, len(ordered_virtual_nodes) - 1, len(ordered_real_nodes))
+
     return find_crossings(gaps, len(ordered_virtual_nodes) - 1, len(ordered_real_nodes))
 
 

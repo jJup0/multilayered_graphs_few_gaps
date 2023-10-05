@@ -87,17 +87,18 @@ def create_graph(test_case_name_match: str, test_case_directory: str):
 
     sidegaps_vs_2_gaps_preprocessing(df)
 
-
     create_regular_plots(
         test_case_name_match, test_case_directory, test_case_info, x_data_str, df
     )
 
-    create_ratio_plots(
-        test_case_name_match,
-        test_case_directory,
-        x_data_str,
-        df,
-    )
+    if df["alg_name"].nunique() > 2:
+        heuristic_df = calculate_ilp_ratios(
+            df=df, csv_real_file_path=csv_real_file_path
+        )
+        # only create ratio plots if ilp is also given
+        create_ratio_plots(
+            test_case_name_match, test_case_directory, x_data_str, df, heuristic_df
+        )
 
 
 def create_ratio_plots(
@@ -105,10 +106,10 @@ def create_ratio_plots(
     test_case_directory: str,
     x_data_str: str,
     df: pd.DataFrame,
+    heuristic_df: pd.DataFrame,
 ):
     _, test_case_name = os.path.split(os.path.realpath(test_case_directory))
 
-    heuristic_df = df[~df["alg_name"].str.contains("ilp")]
     for y_data_str in ["crossings", "time_s"]:
         sns.lineplot(
             data=heuristic_df, x=x_data_str, y=f"ratio-{y_data_str}", hue="alg_name"
@@ -134,20 +135,19 @@ def create_ratio_plots(
         plt.clf()
 
 
-def find_first_ilp_timeout(     df: pd.DataFrame, y_data_str: str) -> None | float:
+def find_first_ilp_timeout(df: pd.DataFrame, y_data_str: str) -> None | float:
     # x-axis value at which to draw line
-    ilps_with_timeout = df[df["alg_name"].str.contains("ilp") df["time_s"] > ILP_TIMEOUT_IN_SECONDS]
-    if ilps_with_timeout:
+    ilps_with_timeout = df[
+        df["alg_name"].str.contains("ilp") & df["time_s"] > ILP_TIMEOUT_IN_SECONDS
+    ]
+    if ilps_with_timeout.empty:
         return None
     return min(df[y_data_str])
 
 
-def calculate_ilp_ratios(
-    *, df: pd.DataFrame, csv_real_file_path: str
-):
+def calculate_ilp_ratios(*, df: pd.DataFrame, csv_real_file_path: str):
     df["ratio-crossings"] = -1
     df["ratio-time_s"] = -1
-
 
     heuristic_df = df[~df["alg_name"].str.contains("ilp")]
     for index, row in heuristic_df.iterrows():
@@ -162,9 +162,11 @@ def calculate_ilp_ratios(
             & (df["gap_type"] == row["gap_type"])
             & (df["gap_count"] == row["gap_count"])
         ]
-        assert (
-            len(ilp_rows) == 1
-        ), f"NOT EXACTLY ONE RESULT FOR ILP: {len(ilp_rows)=}\n{row['instance_name']=}\n{csv_real_file_path}:{index}"
+        assert len(ilp_rows) == 1, (
+            f"NOT EXACTLY ONE RESULT FOR ILP: {len(ilp_rows)=}\n"
+            f"{row['instance_name']=}\n"
+            f"{csv_real_file_path}:{index}"
+        )
 
         ilp_row = ilp_rows.iloc[0]
 
@@ -173,6 +175,7 @@ def calculate_ilp_ratios(
 
         time_ratio = row["time_s"] / ilp_row["time_s"]
         heuristic_df.at[index, "ratio-time_s"] = time_ratio
+    return heuristic_df
 
 
 def create_regular_plots(
