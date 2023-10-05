@@ -189,6 +189,8 @@ def create_regular_plots(
         if line_draw_point is not None:
             sns.___draw_vertical_line(line_draw_point)
 
+        if y_data_str == "time_s":
+            plt.yscale("log")
 
         plt.xlabel(x_data_str.replace("_", " "))
         plt.ylabel("time (s)" if y_data_str == "time_s" else y_data_str)
