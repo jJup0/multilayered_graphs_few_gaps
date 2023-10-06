@@ -3,6 +3,7 @@ from typing import Literal
 
 from crossings.calculate_crossings import crossings_for_node_pair
 from multilayered_graph.multilayered_graph import MLGNode, MultiLayeredGraph
+import sys
 
 
 def _get_crossings_for_vnodes_in_gaps(
@@ -193,12 +194,20 @@ def _find_optimal_gaps(
         # no need to check gap count higher than possible gaps in layer
         gaps = len(ordered_real_nodes)
 
-    if gaps > 100:
-        # avoid recursion limit
-        for g in range(1, gaps, 100):
-            find_crossings(g, len(ordered_virtual_nodes) - 1, len(ordered_real_nodes))
+    recursion_limit = sys.getrecursionlimit()
+    sys.setrecursionlimit(2100)
 
-    return find_crossings(gaps, len(ordered_virtual_nodes) - 1, len(ordered_real_nodes))
+    # avoid recursion limit
+    for _gap_idx in range(0, len(ordered_real_nodes)):
+        for _upto_virtual_idx in range(1, len(ordered_virtual_nodes) - 1, 100):
+            find_crossings(1, _upto_virtual_idx, _gap_idx)
+
+    for g in range(1, gaps, 100):
+        find_crossings(g, len(ordered_virtual_nodes) - 1, len(ordered_real_nodes))
+
+    res = find_crossings(gaps, len(ordered_virtual_nodes) - 1, len(ordered_real_nodes))
+    sys.setrecursionlimit(recursion_limit)
+    return res
 
 
 def k_gaps_sort_layer(
