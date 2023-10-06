@@ -2,11 +2,13 @@ import json
 from collections import defaultdict
 from copy import deepcopy
 from typing import Any, TypeAlias, TYPE_CHECKING
+import logging
 
 if TYPE_CHECKING:
     import networkx as nx
 
 # import pygraphviz as pgv  # type: ignore # stubfile not found
+logger = logging.getLogger(__name__)
 
 
 class InvalidEdgeParamError(ValueError):
@@ -282,7 +284,11 @@ class MultiLayeredGraph:
     @classmethod
     def from_proprietary_serialized(cls, path: str):
         with open(path) as f:
-            graph_as_json = json.load(f)
+            try:
+                graph_as_json = json.load(f)
+            except Exception as err:
+                logger.error("failed to read json for %s", path)
+                raise err
 
         graph = cls(len(graph_as_json["nodes"]))
         node_id_to_virtual = graph_as_json["virtual"]
