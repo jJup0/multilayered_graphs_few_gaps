@@ -135,7 +135,7 @@ def get_qsub_args(
 
     if alg_name == "ilp":
         # mem_required = 1 + 0.0001 * filesize
-        mem_required = 12
+        mem_required = 8
     else:
         # mem_required = 1 + 0.00003 * filesize
         mem_required = 1
@@ -152,7 +152,7 @@ def get_qsub_args(
     return [
         "qsub",
         "-N",
-        "crossing_minimization_gaps",
+        f"cm_{test_case_name}",
         # memory
         "-l",
         f"s_vmem={(mem_required - 0.2):.3f}G",
@@ -623,15 +623,15 @@ if __name__ == "__main__":
     else:
         test_case_suffix = "temp"
 
-    ClusterExperiments.vary_gap_count(test_case_suffix)
-    ClusterExperiments.side_gaps_vary_node_degree(test_case_suffix)
-    ClusterExperiments.side_gaps_vary_virtual_node_ratio(test_case_suffix)
-    ClusterExperiments.side_gaps_vs_arbitrary_2_gaps(test_case_suffix)
-    ClusterExperiments.side_gaps_vary_node_count(test_case_suffix)
-    ClusterExperiments.tscm_sg(test_case_suffix)
+    # ClusterExperiments.vary_gap_count(test_case_suffix)
+    # ClusterExperiments.side_gaps_vary_node_degree(test_case_suffix)
+    # ClusterExperiments.side_gaps_vary_virtual_node_ratio(test_case_suffix)
+    # ClusterExperiments.side_gaps_vs_arbitrary_2_gaps(test_case_suffix)
+    # ClusterExperiments.side_gaps_vary_node_count(test_case_suffix)
+    # ClusterExperiments.tscm_sg(test_case_suffix)
     ClusterExperiments.tscm_sg_vary_up_and_down(test_case_suffix)
-    ClusterExperiments.oscm_side_gaps_large_instances(test_case_suffix)
-    ClusterExperiments.oscm_k_gaps_large_instances(test_case_suffix)
+    # ClusterExperiments.oscm_side_gaps_large_instances(test_case_suffix)
+    # ClusterExperiments.oscm_k_gaps_large_instances(test_case_suffix)
 
     ##### ClusterExperiments.run_micro(test_case_suffix)
 
