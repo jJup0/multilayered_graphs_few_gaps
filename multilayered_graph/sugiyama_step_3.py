@@ -31,17 +31,41 @@ def placement_procedure(
         # get neighbor
         if above_or_below == "below":
             neighbors = graph.nodes_to_in_edges[node]
+            neigbor_layer_idx = layer_idx - 1
         else:
             neighbors = graph.nodes_to_out_edges[node]
+            neigbor_layer_idx = layer_idx + 1
 
         # get target position
-        neighbors_positions = [positions[layer_idx][n] for n in neighbors]
-        target_position = round(sum(neighbors_positions) / len(neighbors_positions))
+        curr_position = positions[layer_idx][node]
+        _neighbors_positions = [positions[neigbor_layer_idx][n] for n in neighbors]
+        target_position = round(sum(_neighbors_positions) / len(_neighbors_positions))
+        # already set here?
+        positions[node] = target_position
+        curr_node_priority = priorities[node]
+        if target_position < curr_position:
+            other_node_idx = index_in_layer
+            squish_position = target_position
+            for other_node_idx in range(index_in_layer - 1, -1, -1):
+                other_node = nodes_in_layer[other_node_idx]
+                other_node_position = positions[layer_idx][other_node]
+                if other_node_position < target_position:
+                    nodes_in_layer[other_node_idx + 1]
+                if priorities[other_node] > curr_node_priority:
+                    break
 
         # TODO IMPLEMENT THIS
         # push other node if priority allows
         # priority = priorities[node]
         # positions[layer_idx][node] = target_position
+
+
+"""
+I have n objects with a predefined order: order = [obj1, obj2, ...]
+Each object has an ideal position: ipos[obj] = x
+Each object has a priority: prio[obj] = y
+The object with the highest priority is placed first and cannot be displaced anymore afterwards.
+"""
 
 
 # Assign priorities to nodes (in this example, using node degrees as priorities)
