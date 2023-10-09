@@ -199,7 +199,7 @@ def one_sided(
         _gurobi_merge_sort(nodes, ordering_gp_vars)
 
 
-def _optimize_model(m: gp.Model, objective: "gp.Objective"):
+def _optimize_model(m: gp.Model, objective: gp.LinExpr):
     # set objective, update and optimize
     m.setObjective(objective, GRB.MINIMIZE)
     m.update()
