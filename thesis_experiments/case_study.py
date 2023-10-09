@@ -147,7 +147,7 @@ def draw_graph(_g: MultiLayeredGraph, ax: Any):
     nx.draw(nx_graph, pos, labels=labels_map, node_size=size_map, ax=ax)
 
 
-fig, axs = plt.subplots(1, 3, figsize=(100, 50))
+fig, axs = plt.subplots(1, 3, figsize=(10, 5))
 
 draw_graph(ml_graph_side_gaps, axs[0])
 draw_graph(ml_graph_k_gaps, axs[1])
