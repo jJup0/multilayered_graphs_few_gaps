@@ -6,8 +6,6 @@ import networkx as nx
 
 from multilayered_graph.multilayered_graph import MLGNode, MultiLayeredGraph
 
-# layers_and_number_to_node: dict[tuple[int, int], MLGNode] = {}
-
 nodes_as_numbers = [
     [8, 24, 1, 35, 30],
     [7, 23],
