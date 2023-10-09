@@ -1,3 +1,4 @@
+# type: ignore
 """
 Implemented algorithm presented in the following paper:
 (WARNING: so far the implementation seems to be faulty, producing strange results)
