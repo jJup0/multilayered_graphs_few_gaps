@@ -1,3 +1,4 @@
+# type: ignore
 from multilayered_graph.multilayer_graph_generator import generate_multilayer_graph
 from multilayered_graph.multilayered_graph import MultiLayeredGraph
 
