@@ -87,6 +87,8 @@ def create_graph(test_case_name_match: str, test_case_directory: str):
 
     sidegaps_vs_2_gaps_preprocessing(df)
 
+    # TODO vary up and down preprocessing
+
     create_regular_plots(
         test_case_name_match, test_case_directory, test_case_info, x_data_str, df
     )
@@ -116,7 +118,9 @@ def create_ratio_plots(
         )
         line_draw_point = find_first_ilp_timeout(df=df, y_data_str=y_data_str)
         if line_draw_point is not None:
-            sns.___draw_vertical_line(line_draw_point)
+            # sns.___draw_vertical_line(line_draw_point)
+            # TODO
+            ...
 
         plt.xlabel(x_data_str.replace("_", " "))
         plt.ylabel(
