@@ -1,8 +1,8 @@
 import json
+import logging
 from collections import defaultdict
 from copy import deepcopy
-from typing import Any, TypeAlias, TYPE_CHECKING
-import logging
+from typing import TYPE_CHECKING, Any, TypeAlias
 
 if TYPE_CHECKING:
     import networkx as nx
@@ -221,10 +221,14 @@ class MultiLayeredGraph:
         return indices
 
     def nodes_to_integer_relative_coordinates(self) -> dict[MLGNode, tuple[int, int]]:
+        from multilayered_graph.sugiyama_step_3 import get_x_positions
+
+        layer_node_x_positions = get_x_positions(self)
+
         positions: dict[MLGNode, tuple[int, int]] = {}
-        for layer, nodes_at_layer in self.layers_to_nodes.items():
-            for i, node in enumerate(nodes_at_layer):
-                positions[node] = (i, layer)
+        for layer_idx, nodes_at_layer in self.layers_to_nodes.items():
+            for node in nodes_at_layer:
+                positions[node] = (layer_node_x_positions[layer_idx][node], layer_idx)
         return positions
 
     def get_crossings_per_layer(self) -> list[int]:
