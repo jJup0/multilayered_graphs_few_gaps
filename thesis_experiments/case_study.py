@@ -1,4 +1,5 @@
 import copy
+import logging
 from typing import Any
 
 import matplotlib.pyplot as plt
@@ -140,7 +141,8 @@ else:
 def draw_graph(_g: MultiLayeredGraph, ax: Any):
     nx_graph = _g.to_networkx_graph()
     pos = _g.nodes_to_integer_relative_coordinates()
-
+    coords = sorted(pos.values(), key=lambda x: x[1])
+    logging.debug("coords: %s", coords)
     size_map = [0 if node.is_virtual else 300 for node in nx_graph.nodes]
     labels_map = {node: "" if node.is_virtual else node.name for node in nx_graph.nodes}
 
