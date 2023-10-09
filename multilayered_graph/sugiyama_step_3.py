@@ -13,6 +13,8 @@ Positions_T = dict[LayerIdx, dict[MLGNode, int]]
 PRIORITY_VIRTUAL = 1_000_000_000
 PRIORITY_INF = 1_000_000_001
 
+# TODO still some overlap in nodes, debug and check for duplicate x coord and check for off by one errors
+
 
 def initialize_positions(graph: MultiLayeredGraph, x0: int = 0) -> Positions_T:
     positions: Positions_T = {}
@@ -61,7 +63,6 @@ def optimize_positions(
     for plnode in pl_nodes_by_priority:
         i = -1_000_000
         squish_pos = None
-        # TODO BUG SWITCH AROUND min() and max()!!!
         if plnode.x_position < plnode.target_position:
             # find first node with higher priority
             for i in range(plnode.order_index - 1, -1, -1):
@@ -74,11 +75,11 @@ def optimize_positions(
             if squish_pos is None:
                 plnode.x_position = plnode.target_position
             else:
-                plnode.x_position = min(
+                plnode.x_position = max(
                     plnode.target_position, squish_pos + (plnode.order_index - i)
                 )
             for j in range(plnode.order_index - 1, -1, -1):
-                ordered_nodes_for_placement_with_dummies[j].x_position = min(
+                ordered_nodes_for_placement_with_dummies[j].x_position = max(
                     ordered_nodes_for_placement_with_dummies[j].x_position,
                     plnode.x_position - (plnode.order_index - j),
                 )
@@ -96,13 +97,13 @@ def optimize_positions(
             if squish_pos is None:
                 plnode.x_position = plnode.target_position
             else:
-                plnode.x_position = max(
+                plnode.x_position = min(
                     plnode.target_position, squish_pos - (i - plnode.order_index)
                 )
             for j in range(
                 plnode.order_index + 1, len(ordered_nodes_for_placement_with_dummies)
             ):
-                ordered_nodes_for_placement_with_dummies[j].x_position = max(
+                ordered_nodes_for_placement_with_dummies[j].x_position = min(
                     ordered_nodes_for_placement_with_dummies[j].x_position,
                     plnode.x_position + (j - plnode.order_index),
                 )
