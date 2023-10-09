@@ -3,7 +3,7 @@ import logging
 import os
 import sys
 import warnings
-from typing import TypedDict
+from typing import Iterable, TypedDict
 
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -61,9 +61,26 @@ def _read_csv_no_filter(csv_real_file_path: str) -> pd.DataFrame:
 
 def sidegaps_vs_2_gaps_preprocessing(df: pd.DataFrame):
     # changes alg_name from something like "median" to "median sidegaps"
-    # todo more optimal way to check if two different values
     if df["gap_type"].nunique() > 1:
         df["alg_name"] = df["alg_name"] + " " + df["gap_type"]
+
+
+def varied_up_and_down_preprossessing(df: pd.DataFrame):
+    """Modifies df by added row for alg_name=="ilp" with different up_and_down_iterations."""
+    ilp_df = df[df["alg_name"] == "ilp"]
+    if ilp_df.nunique() == df[df["alg_name"] == "barycenter"].nunique():
+        return
+
+    iteration_counts = df["up_and_down_iterations"]
+
+    # make copies of all ilp rows and change s"up_and_down_iterations"
+    for index, row in tuple(ilp_df.iterrows()):
+        for iter_count in iteration_counts:
+            if row["up_and_down_iterations"] == iter_count:
+                continue
+            new_row = row.copy()
+            new_row["up_and_down_iterations"] = count
+            df.loc[len(df)] = new_row
 
 
 def create_graph(test_case_name_match: str, test_case_directory: str):
@@ -87,7 +104,7 @@ def create_graph(test_case_name_match: str, test_case_directory: str):
 
     sidegaps_vs_2_gaps_preprocessing(df)
 
-    # TODO vary up and down preprocessing
+    varied_up_and_down_preprossessing(df)
 
     create_regular_plots(
         test_case_name_match, test_case_directory, test_case_info, x_data_str, df
@@ -117,10 +134,7 @@ def create_ratio_plots(
             data=heuristic_df, x=x_data_str, y=f"ratio-{y_data_str}", hue="alg_name"
         )
         line_draw_point = find_first_ilp_timeout(df=df, y_data_str=y_data_str)
-        if line_draw_point is not None:
-            # sns.___draw_vertical_line(line_draw_point)
-            # TODO
-            ...
+        draw_vertical_lines(line_draw_points)
 
         plt.xlabel(x_data_str.replace("_", " "))
         plt.ylabel(
@@ -139,14 +153,16 @@ def create_ratio_plots(
         plt.clf()
 
 
-def find_first_ilp_timeout(df: pd.DataFrame, y_data_str: str) -> None | float:
+def find_first_and_last_ilp_timeout(
+    df: pd.DataFrame, y_data_str: str
+) -> tuple[float, ...]:
     # x-axis value at which to draw line
     ilps_with_timeout = df[
         df["alg_name"].str.contains("ilp") & df["time_s"] > ILP_TIMEOUT_IN_SECONDS
     ]
     if ilps_with_timeout.empty:
-        return None
-    return min(df[y_data_str])
+        return ()
+    return min(df[y_data_str]), max(df[y_data_str])
 
 
 def calculate_ilp_ratios(*, df: pd.DataFrame, csv_real_file_path: str):
@@ -182,6 +198,12 @@ def calculate_ilp_ratios(*, df: pd.DataFrame, csv_real_file_path: str):
     return heuristic_df
 
 
+def draw_vertical_lines(points: Iterable[int | float]):
+    # TODO check how to draw vertical line
+    for point in points:
+        sns.___draw_vertical_line(point)
+
+
 def create_regular_plots(
     test_case_name_match: str,
     test_case_directory: str,
@@ -192,9 +214,8 @@ def create_regular_plots(
     _, test_case_name = os.path.split(os.path.realpath(test_case_directory))
     for y_data_str in ["crossings", "time_s"]:
         sns.lineplot(data=df, x=x_data_str, y=y_data_str, hue="alg_name")
-        line_draw_point = find_first_ilp_timeout(df=df, y_data_str=y_data_str)
-        if line_draw_point is not None:
-            sns.___draw_vertical_line(line_draw_point)
+        line_draw_points = find_first_and_last_ilp_timeout(df=df, y_data_str=y_data_str)
+        draw_vertical_lines(line_draw_points)
 
         if y_data_str == "time_s":
             plt.yscale("log")
