@@ -206,5 +206,14 @@ else:
     for named_graph in named_graphs:
         draw_graph(named_graph.graph)
         print(f"{named_graph.name}: {named_graph.graph.get_total_crossings()}")
+
+        xmin, xmax = plt.xlim()
+        ymin, ymax = plt.ylim()
+
+        plt.annotate(
+            f"crossings: {named_graph.graph.get_total_crossings()}",
+            # ((xmin + xmax) // 2, (ymin + ymax) // 2),
+            (xmin + (xmax - xmin) * 0.8, ymin + (ymax - ymin) * 0.1),
+        )
         plt.savefig(os.path.join(save_dir, named_graph.name), dpi=300)
         plt.clf()
