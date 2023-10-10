@@ -1,14 +1,12 @@
 import logging
 import statistics
 from abc import abstractmethod
-from typing import Callable
 
 from crossing_minimization.k_gaps import k_gaps_sort_layer
 from crossing_minimization.utils import (
     DEFAULT_MAX_ITERATIONS_MULTILAYERED_CROSSING_MINIMIZATION,
     Above_or_below_T,
     GraphSorter,
-    deprecated_lgraph_sorting,
     generate_layers_to_above_or_below,
     get_graph_neighbors_from_above_or_below,
     get_layer_idx_above_or_below,
@@ -300,110 +298,3 @@ def _get_pseudo_barycenter_improved_placement(
 
     node.text_info = f"bary {barycenter:.5}"
     return barycenter
-
-
-@deprecated_lgraph_sorting
-def few_gaps_barycenter_split(_ml_graph: MultiLayeredGraph) -> None:
-    """Deprecated, produces the same result as few_gaps_barycenter_smart_sort()."""
-
-    def _sort_layer_barycenter_split(
-        ml_graph: MultiLayeredGraph,
-        layer_to_real_nodes: dict[int, list[MLGNode]],
-        layer_idx: int,
-        prev_layer_indices: dict[MLGNode, int],
-        node_to_neighbors: dict[MLGNode, set[MLGNode]],
-        above_or_below: Above_or_below_T,
-    ):
-        curr_layer_nodes: list[MLGNode] = ml_graph.layers_to_nodes[layer_idx]
-        barycenters = {
-            node: unweighted_barycenter(
-                ml_graph, node, node_to_neighbors[node], prev_layer_indices
-            )
-            for node in curr_layer_nodes
-        }
-        curr_layer_nodes.sort(key=lambda n: barycenters[n])
-        # virtual nodes in regular barycenter order
-        virtual_nodes = [n for n in curr_layer_nodes if n.is_virtual]
-        real_nodes = layer_to_real_nodes[layer_idx]
-
-        place_left = {n: 0 for n in virtual_nodes}
-        place_right = {n: 0 for n in virtual_nodes}
-        for v_node in virtual_nodes:
-            for r_node in real_nodes:
-                left_crossings, right_crossings = crossings_uv_vu(
-                    ml_graph, v_node, r_node, above_or_below
-                )
-                place_left[v_node] += left_crossings
-                place_right[v_node] += right_crossings
-
-        # start with all virtual nodes on right side. Shift over one by one to left and check min crossings.
-        min_idx = 0
-        min_crossings = crossings = sum(c for c in place_right.values())
-        for i, v_node in enumerate(virtual_nodes, start=1):
-            crossings += place_left[v_node] - place_right[v_node]
-            if crossings < min_crossings:
-                min_idx = i
-                min_crossings = crossings
-
-        for i in range(min_idx):
-            barycenters[virtual_nodes[i]] -= PSEUDO_SORT_DISPLACE_VALUE
-        for i in range(min_idx, len(virtual_nodes)):
-            barycenters[virtual_nodes[i]] += PSEUDO_SORT_DISPLACE_VALUE
-
-        # resort with virtual nodes in gaps
-        curr_layer_nodes.sort(key=lambda n: barycenters[n])
-
-    _few_gaps_barycenter_base(_ml_graph, _sort_layer_barycenter_split)
-
-
-@deprecated_lgraph_sorting
-def _few_gaps_barycenter_base(
-    ml_graph: MultiLayeredGraph,
-    sorting_alg: Callable[
-        [
-            MultiLayeredGraph,
-            dict[int, list[MLGNode]],
-            int,
-            dict[MLGNode, int],
-            dict[MLGNode, set[MLGNode]],
-            Above_or_below_T,
-        ],
-        None,
-    ],
-) -> None:
-    """Sorts nodes in multilayered graph according to barycenter heuristic.
-
-    Modified in place. Virtual nodes are place left or right depending on crossings with real nodes.
-    Args:
-        ml_graph: Graph on which to apply sorting.
-    """
-
-    layer_to_real_nodes = {}
-    for layer_idx, nodes in ml_graph.layers_to_nodes.items():
-        real_nodes = [n for n in nodes if not n.is_virtual]
-        layer_to_real_nodes[layer_idx] = real_nodes
-
-    node_to_in_neighbors = ml_graph.nodes_to_in_edges
-    node_to_out_neighbors = ml_graph.nodes_to_out_edges
-    # arbitrary loop count,TODO pass as parameter?
-    for _ in range(3):
-        for layer_idx in range(1, ml_graph.layer_count):
-            prev_layer_indices = ml_graph.nodes_to_indices_at_layer(layer_idx - 1)
-            sorting_alg(
-                ml_graph,
-                layer_to_real_nodes,
-                layer_idx,
-                prev_layer_indices,
-                node_to_in_neighbors,
-                "below",
-            )
-        for layer_idx in range(ml_graph.layer_count - 2, -1, -1):
-            prev_layer_indices = ml_graph.nodes_to_indices_at_layer(layer_idx + 1)
-            sorting_alg(
-                ml_graph,
-                layer_to_real_nodes,
-                layer_idx,
-                prev_layer_indices,
-                node_to_out_neighbors,
-                "above",
-            )
