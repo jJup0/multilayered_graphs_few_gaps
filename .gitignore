@@ -27,3 +27,6 @@ thesis_experiments/local_tests/**/log.txt
 
 # results
 **/out/*.out
+
+# plots 
+thesis_experiments/saved_plots
