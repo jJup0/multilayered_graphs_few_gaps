@@ -56,12 +56,14 @@ def generate_layers_to_above_or_below(
         (layer_idx, "below") for layer_idx in range(1, ml_graph.layer_count)
     ]
     if not only_one_up_iteration:
+        up_iter = layers_to_above_below.copy()
         layers_to_above_below.extend(
             (layer_idx, "above")
             for layer_idx in range(ml_graph.layer_count - 2, -1, -1)
         )
 
         layers_to_above_below *= max_iterations
+        layers_to_above_below.extend(up_iter)
 
     return layers_to_above_below
 
@@ -136,12 +138,12 @@ class GraphSorter(ABC):
             raise ValueError(
                 f'one_side must be true or false, received "{only_one_up_iteration}"'
             )
-        if only_one_up_iteration:
-            if ml_graph.layer_count != 2:
-                raise ValueError(
-                    f"One-sided crossing minimization can only be performed on graphs with exactly 2 layers."
-                    f"Input graph has {ml_graph.layer_count} layers."
-                )
+        # if only_one_up_iteration:
+        #     if ml_graph.layer_count != 2:
+        #         raise ValueError(
+        #             f"One-sided crossing minimization can only be performed on graphs with exactly 2 layers."
+        #             f"Input graph has {ml_graph.layer_count} layers."
+        #         )
         elif max_iterations <= 0:
             raise ValueError(f"iterations must be > 0, received {max_iterations}")
 
