@@ -91,6 +91,22 @@ def varied_up_and_down_preprossessing(df: pd.DataFrame):
     print(f"len after up down preprocess: {len(df)}")
 
 
+def create_timeout_info(
+    df: pd.DataFrame, test_case_name_match: str, test_case_name: str, x_data_str: str
+):
+    timeout_df = df[df["time_s"] > ILP_TIMEOUT_IN_SECONDS]
+    timeout_counts_str = timeout_df.groupby(x_data_str).size().to_dict()
+    timeout_counts = {int(k): v for k, v in timeout_counts_str.items()}
+    json_out_path = os.path.join(
+        out_dir(test_case_name_match, test_case_name), f"timeout_info.json"
+    )
+    with open(json_out_path, "w") as f:
+        json.dump(timeout_counts, f)
+
+    logger.debug("timeout_counts: %s", timeout_counts)
+    return timeout_counts
+
+
 def create_graph(test_case_name_match: str, test_case_directory: str):
     # read info file
     with open(os.path.join(test_case_directory, "info.json")) as f:
@@ -101,6 +117,8 @@ def create_graph(test_case_name_match: str, test_case_directory: str):
     # read csv
     csv_real_file_path = os.path.join(test_case_directory, "out.csv")
     df = _read_csv_no_filter(csv_real_file_path)
+
+    df["up_and_down_iterations"] = df["up_and_down_iterations"].astype(int)
 
     # filter invalid data
     row_count = len(df)
@@ -114,8 +132,19 @@ def create_graph(test_case_name_match: str, test_case_directory: str):
 
     varied_up_and_down_preprossessing(df)
 
+    _, test_case_name = os.path.split(os.path.realpath(test_case_directory))
+
+    timeout_counts = create_timeout_info(
+        df, test_case_name_match, test_case_name, x_data_str
+    )
+
     create_regular_plots(
-        test_case_name_match, test_case_directory, test_case_info, x_data_str, df
+        test_case_name_match,
+        test_case_directory,
+        test_case_info,
+        x_data_str,
+        df,
+        timeout_counts,
     )
 
     if df["alg_name"].nunique() > 2:
@@ -124,7 +153,12 @@ def create_graph(test_case_name_match: str, test_case_directory: str):
         )
         # only create ratio plots if ilp is also given
         create_ratio_plots(
-            test_case_name_match, test_case_directory, x_data_str, df, heuristic_df
+            test_case_name_match,
+            test_case_directory,
+            x_data_str,
+            df,
+            heuristic_df,
+            timeout_counts,
         )
 
 
@@ -134,6 +168,7 @@ def create_ratio_plots(
     x_data_str: str,
     df: pd.DataFrame,
     heuristic_df: pd.DataFrame,
+    timeout_counts: dict[int, int],
 ):
     _, test_case_name = os.path.split(os.path.realpath(test_case_directory))
 
@@ -141,8 +176,7 @@ def create_ratio_plots(
         sns.lineplot(
             data=heuristic_df, x=x_data_str, y=f"ratio-{y_data_str}", hue="alg_name"
         )
-        line_draw_points = find_first_and_last_ilp_timeout(df=df, y_data_str=y_data_str)
-        draw_vertical_lines(line_draw_points)
+        annotate_timeouts(df, timeout_counts, x_data_str, y_data_str)
 
         plt.xlabel(x_data_str.replace("_", " "))
         plt.ylabel(
@@ -159,18 +193,6 @@ def create_ratio_plots(
             )
         )
         plt.clf()
-
-
-def find_first_and_last_ilp_timeout(
-    df: pd.DataFrame, y_data_str: str
-) -> tuple[float, ...]:
-    # x-axis value at which to draw line
-    ilps_with_timeout = df[
-        df["alg_name"].str.contains("ilp") & df["time_s"] > ILP_TIMEOUT_IN_SECONDS
-    ]
-    if ilps_with_timeout.empty:
-        return ()
-    return min(df[y_data_str]), max(df[y_data_str])
 
 
 def calculate_ilp_ratios(*, df: pd.DataFrame, csv_real_file_path: str):
@@ -191,14 +213,6 @@ def calculate_ilp_ratios(*, df: pd.DataFrame, csv_real_file_path: str):
             & (df["gap_count"] == row["gap_count"])
             & (df["up_and_down_iterations"] == row["up_and_down_iterations"])
         ]
-        # temp write csv to file
-        with open(
-            os.path.join(
-                os.path.dirname(test_case_root_dir), "saved_plots", "temp.csv"
-            ),
-            "w",
-        ) as f:
-            df.to_csv(f, index=False)
         assert len(ilp_rows) == 1, (
             f"NOT EXACTLY ONE RESULT FOR ILP: {len(ilp_rows)=}\n"
             f"{row['instance_name']=}\n"
@@ -215,10 +229,42 @@ def calculate_ilp_ratios(*, df: pd.DataFrame, csv_real_file_path: str):
     return heuristic_df
 
 
-def draw_vertical_lines(points: Iterable[int | float]):
-    # TODO check how to draw vertical line
-    for point in points:
-        sns.___draw_vertical_line(point)
+def annotate_timeouts(
+    df: pd.DataFrame, timeout_counts: dict[int, int], x_data_str: str, y_data_str: str
+):
+    if not timeout_counts:
+        return
+
+    # draw vertical lines
+
+    # first timeout
+    plt.axvline(x=min(timeout_counts), color="red", linestyle="--")
+
+    # all ilp time out
+    ilp_df = df[df["alg_name"].str.contains("ilp")]
+    ilp_runs = len(ilp_df) // df[x_data_str].nunique()
+    if ilp_runs in timeout_counts.values():
+        first_full_timeout = -1
+        for node_count in sorted(timeout_counts.keys()):
+            if timeout_counts[node_count] == ilp_runs:
+                first_full_timeout = node_count
+                break
+
+        plt.axvline(x=first_full_timeout, color="red", linestyle="-")
+    # else:
+    #     logger.debug(f"{ilp_runs=} not in {timeout_counts=}")
+
+    # annotate timeouts
+    _, plot_y_lim = plt.ylim()
+    for xvalue, timeout_count in timeout_counts.items():
+        plt.annotate(
+            str(timeout_count),
+            (xvalue, plot_y_lim),
+            textcoords="offset points",
+            xytext=(0, 5),
+            ha="center",
+            color="grey",
+        )
 
 
 def create_regular_plots(
@@ -227,16 +273,18 @@ def create_regular_plots(
     test_case_info: TestCaseInfo,
     x_data_str: str,
     df: pd.DataFrame,
+    timeout_counts: dict[int, int],
 ):
     _, test_case_name = os.path.split(os.path.realpath(test_case_directory))
     for y_data_str in ["crossings", "time_s"]:
         sns.lineplot(data=df, x=x_data_str, y=y_data_str, hue="alg_name")
-        line_draw_points = find_first_and_last_ilp_timeout(df=df, y_data_str=y_data_str)
-        draw_vertical_lines(line_draw_points)
+        # line_draw_points = find_first_and_last_ilp_timeout(df=df, x_data_str=x_data_str)
 
         # only draw log scal if ilp is included
         if y_data_str == "time_s" and df["alg_name"].nunique() > 2:
             plt.yscale("log")
+
+        annotate_timeouts(df, timeout_counts, x_data_str, y_data_str)
 
         plt.xlabel(x_data_str.replace("_", " "))
         plt.ylabel("time (s)" if y_data_str == "time_s" else y_data_str)
