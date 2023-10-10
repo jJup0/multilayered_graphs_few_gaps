@@ -234,7 +234,8 @@ def create_regular_plots(
         line_draw_points = find_first_and_last_ilp_timeout(df=df, y_data_str=y_data_str)
         draw_vertical_lines(line_draw_points)
 
-        if y_data_str == "time_s":
+        # only draw log scal if ilp is included
+        if y_data_str == "time_s" and df["alg_name"].nunique() > 2:
             plt.yscale("log")
 
         plt.xlabel(x_data_str.replace("_", " "))
