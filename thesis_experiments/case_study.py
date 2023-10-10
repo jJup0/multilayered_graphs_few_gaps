@@ -1,10 +1,14 @@
 import copy
 import logging
+import os
+import random
+from dataclasses import dataclass
 from typing import Any
 
 import matplotlib.pyplot as plt
 import networkx as nx
 
+from crossing_minimization.utils import GraphSorter
 from multilayered_graph.multilayered_graph import MLGNode, MultiLayeredGraph
 
 nodes_as_numbers = [
@@ -77,15 +81,15 @@ num_to_neighbors = {
 
 
 def add_node_as_number(layer: int, number: int):
-    global ml_graph_k_gaps, node_number_to_node
-    node = ml_graph_k_gaps.add_real_node(layer, str(number))
+    global ml_graph, node_number_to_node
+    node = ml_graph.add_real_node(layer, str(number))
     # layers_and_number_to_node[layer, number] = node
     assert number not in node_number_to_node, f"{number=} already in number_to_node"
     node_number_to_node[number] = node
 
 
 node_number_to_node: dict[int, MLGNode] = {}
-ml_graph_k_gaps = MultiLayeredGraph(9)
+ml_graph = MultiLayeredGraph(9)
 
 for layer_idx, layer_nodes in enumerate(nodes_as_numbers):
     for num in layer_nodes:
@@ -93,52 +97,87 @@ for layer_idx, layer_nodes in enumerate(nodes_as_numbers):
 
 for num, neighbor_nums in num_to_neighbors.items():
     for neighbor_num in neighbor_nums:
-        ml_graph_k_gaps.add_edge(
-            node_number_to_node[num], node_number_to_node[neighbor_num]
-        )
+        ml_graph.add_edge(node_number_to_node[num], node_number_to_node[neighbor_num])
 
-ml_graph_many_gaps = copy.deepcopy(ml_graph_k_gaps)
-ml_graph_side_gaps = copy.deepcopy(ml_graph_k_gaps)
 
-use_ilp = False
-if use_ilp:
+@dataclass
+class NamedGraphAndParams:
+    name: str
+    graph: MultiLayeredGraph
+    Sorter: type[GraphSorter]
+    side_gaps: bool
+    max_gaps: int
+
+
+ml_graph_side_gaps = copy.deepcopy(ml_graph)
+ml_graph_2_gaps = copy.deepcopy(ml_graph)
+ml_graph_many_gaps = copy.deepcopy(ml_graph)
+ml_graph_side_gaps_gurobi = copy.deepcopy(ml_graph)
+ml_graph_k_gaps_gurobi = copy.deepcopy(ml_graph)
+
+
+if True:
+    from crossing_minimization.barycenter_heuristic import BarycenterImprovedSorter
     from crossing_minimization.gurobi_int_lin import GurobiSorter
 
-    GurobiSorter.sort_graph(
-        ml_graph_k_gaps,
-        max_iterations=3,
-        only_one_up_iteration=False,
-        side_gaps_only=False,
-        max_gaps=2,
-    )
-else:
-    from crossing_minimization.barycenter_heuristic import BarycenterImprovedSorter
+    named_graphs = [
+        NamedGraphAndParams(
+            name="Barycenter side gaps",
+            graph=copy.deepcopy(ml_graph),
+            Sorter=BarycenterImprovedSorter,
+            side_gaps=True,
+            max_gaps=2,
+        ),
+        NamedGraphAndParams(
+            name="Barycenter 2 gaps",
+            graph=copy.deepcopy(ml_graph),
+            Sorter=BarycenterImprovedSorter,
+            side_gaps=False,
+            max_gaps=2,
+        ),
+        NamedGraphAndParams(
+            name="Barycenter unlimited gaps",
+            graph=copy.deepcopy(ml_graph),
+            Sorter=BarycenterImprovedSorter,
+            side_gaps=False,
+            max_gaps=100,
+        ),
+        NamedGraphAndParams(
+            name="Gurobi side gaps",
+            graph=copy.deepcopy(ml_graph),
+            Sorter=GurobiSorter,
+            side_gaps=True,
+            max_gaps=2,
+        ),
+        NamedGraphAndParams(
+            name="Gurobi two gaps",
+            graph=copy.deepcopy(ml_graph),
+            Sorter=GurobiSorter,
+            side_gaps=False,
+            max_gaps=2,
+        ),
+        NamedGraphAndParams(
+            name="Gurobi unlimited gaps",
+            graph=copy.deepcopy(ml_graph),
+            Sorter=GurobiSorter,
+            side_gaps=False,
+            max_gaps=100,
+        ),
+    ]
+    max_iterations = 2
+    only_one_up_iteration = False
 
-    iterations = 10
-    BarycenterImprovedSorter.sort_graph(
-        ml_graph_side_gaps,
-        max_iterations=iterations,
-        only_one_up_iteration=False,
-        side_gaps_only=True,
-        max_gaps=2,
-    )
-    BarycenterImprovedSorter.sort_graph(
-        ml_graph_k_gaps,
-        max_iterations=iterations,
-        only_one_up_iteration=False,
-        side_gaps_only=False,
-        max_gaps=2,
-    )
-    BarycenterImprovedSorter.sort_graph(
-        ml_graph_many_gaps,
-        max_iterations=iterations,
-        only_one_up_iteration=False,
-        side_gaps_only=False,
-        max_gaps=100,
-    )
+    for named_graph in named_graphs:
+        named_graph.Sorter.sort_graph(
+            named_graph.graph,
+            max_iterations=max_iterations,
+            only_one_up_iteration=only_one_up_iteration,
+            side_gaps_only=named_graph.side_gaps,
+            max_gaps=named_graph.max_gaps,
+        )
 
 
-def draw_graph(_g: MultiLayeredGraph, ax: Any):
+def draw_graph(_g: MultiLayeredGraph, ax: Any | None = None):
     nx_graph = _g.to_networkx_graph()
     pos = _g.nodes_to_integer_relative_coordinates()
     coords = sorted(pos.values(), key=lambda x: x[1])
@@ -146,12 +185,26 @@ def draw_graph(_g: MultiLayeredGraph, ax: Any):
     size_map = [0 if node.is_virtual else 300 for node in nx_graph.nodes]
     labels_map = {node: "" if node.is_virtual else node.name for node in nx_graph.nodes}
 
-    nx.draw(nx_graph, pos, labels=labels_map, node_size=size_map, ax=ax)
+    if ax is not None:
+        nx.draw(nx_graph, pos, labels=labels_map, node_size=size_map, ax=ax)
+    else:
+        nx.draw(nx_graph, pos, labels=labels_map, node_size=size_map)
 
 
-fig, axs = plt.subplots(1, 3, figsize=(10, 5))
+if False:
+    fig, axs = plt.subplots(2, 3, figsize=(10, 5))
+    axs_flat = [ax for ax_row in axs for ax in ax_row]
+    for named_graph, ax in zip(named_graphs, axs_flat):
+        draw_graph(named_graph.graph, ax=ax)
+    plt.show()
+else:
+    save_dir = os.path.realpath(os.path.dirname(__file__))
+    while "saved_plots" not in os.listdir(save_dir) and save_dir != "/":
+        save_dir = os.path.dirname(save_dir)
+    save_dir = os.path.join(save_dir, "saved_plots", "case_study")
 
-draw_graph(ml_graph_side_gaps, axs[0])
-draw_graph(ml_graph_k_gaps, axs[1])
-draw_graph(ml_graph_many_gaps, axs[2])
-plt.show()
+    for named_graph in named_graphs:
+        draw_graph(named_graph.graph)
+        print(f"{named_graph.name}: {named_graph.graph.get_total_crossings()}")
+        plt.savefig(os.path.join(save_dir, named_graph.name), dpi=300)
+        plt.clf()
