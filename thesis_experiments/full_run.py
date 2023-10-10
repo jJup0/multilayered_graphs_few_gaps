@@ -508,8 +508,10 @@ class ClusterExperiments:
             "tscm_sg_vary_up_and_down", test_case_suffix
         )
         # single up down is included in manual dispatch for only ilp
-        up_and_down_iterations = [2, 3, 4, 5]
-        nodes_per_layer = [cls.STANDARD_NODE_COUNT] * len(up_and_down_iterations)
+        up_and_down_iterations = [2, 3, 4, 5, 10]
+        nodes_per_layer = [25] * len(
+            up_and_down_iterations
+        )  # ilp can not consistently handle more than 30
         average_node_degrees = [cls.STANDARD_AVERAGE_NODE_DEGREE] * len(
             up_and_down_iterations
         )
