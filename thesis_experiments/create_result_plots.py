@@ -68,10 +68,16 @@ def sidegaps_vs_2_gaps_preprocessing(df: pd.DataFrame):
 def varied_up_and_down_preprossessing(df: pd.DataFrame):
     """Modifies df by added row for alg_name=="ilp" with different up_and_down_iterations."""
     ilp_df = df[df["alg_name"] == "ilp"]
-    if ilp_df.nunique() == df[df["alg_name"] == "barycenter"].nunique():
+    barycenter_df = df[df["alg_name"] == "barycenter"]
+    if (
+        ilp_df["up_and_down_iterations"].nunique()
+        == barycenter_df["up_and_down_iterations"].nunique()
+    ):
         return
 
-    iteration_counts = df["up_and_down_iterations"]
+    iteration_counts = df["up_and_down_iterations"].unique()
+
+    print(f"len before up down preprocess: {len(df)}")
 
     # make copies of all ilp rows and change s"up_and_down_iterations"
     for index, row in tuple(ilp_df.iterrows()):
@@ -79,8 +85,10 @@ def varied_up_and_down_preprossessing(df: pd.DataFrame):
             if row["up_and_down_iterations"] == iter_count:
                 continue
             new_row = row.copy()
-            new_row["up_and_down_iterations"] = count
+            new_row["up_and_down_iterations"] = iter_count
             df.loc[len(df)] = new_row
+
+    print(f"len after up down preprocess: {len(df)}")
 
 
 def create_graph(test_case_name_match: str, test_case_directory: str):
@@ -133,7 +141,7 @@ def create_ratio_plots(
         sns.lineplot(
             data=heuristic_df, x=x_data_str, y=f"ratio-{y_data_str}", hue="alg_name"
         )
-        line_draw_point = find_first_ilp_timeout(df=df, y_data_str=y_data_str)
+        line_draw_points = find_first_and_last_ilp_timeout(df=df, y_data_str=y_data_str)
         draw_vertical_lines(line_draw_points)
 
         plt.xlabel(x_data_str.replace("_", " "))
@@ -181,7 +189,16 @@ def calculate_ilp_ratios(*, df: pd.DataFrame, csv_real_file_path: str):
             & (df["instance_name"] == row["instance_name"])
             & (df["gap_type"] == row["gap_type"])
             & (df["gap_count"] == row["gap_count"])
+            & (df["up_and_down_iterations"] == row["up_and_down_iterations"])
         ]
+        # temp write csv to file
+        with open(
+            os.path.join(
+                os.path.dirname(test_case_root_dir), "saved_plots", "temp.csv"
+            ),
+            "w",
+        ) as f:
+            df.to_csv(f, index=False)
         assert len(ilp_rows) == 1, (
             f"NOT EXACTLY ONE RESULT FOR ILP: {len(ilp_rows)=}\n"
             f"{row['instance_name']=}\n"
