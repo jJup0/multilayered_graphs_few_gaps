@@ -23,6 +23,8 @@ logger.setLevel(logging.WARNING)
 
 gp.setParam("LogToConsole", 0)
 gp.setParam("Threads", 1)
+GUROBI_TIME_OUT = 60 * 5
+# GUROBI_TIME_OUT = 60
 
 
 class GurobiSorter(GraphSorter):
@@ -204,8 +206,7 @@ def _optimize_model(m: gp.Model, objective: gp.LinExpr):
     m.setObjective(objective, GRB.MINIMIZE)
     m.update()
 
-    time_limit_seconds = 60 * 5
-    m.setParam(GRB.Param.TimeLimit, time_limit_seconds)
+    m.setParam(GRB.Param.TimeLimit, GUROBI_TIME_OUT)
     m.optimize()
 
     if m.status == GRB.OPTIMAL:
