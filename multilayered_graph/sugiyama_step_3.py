@@ -1,3 +1,5 @@
+import collections
+import logging
 from dataclasses import dataclass
 
 from crossing_minimization.utils import (
@@ -54,6 +56,11 @@ def optimize_positions(
 ) -> None:
     """Modifiys `positions[layer_idx]` in place."""
 
+    ordered_plnodes_as_dict = {
+        plnode.order_index: plnode
+        for plnode in ordered_nodes_for_placement_with_dummies
+    }
+
     # sort by priority, and remove dummy nodes
     pl_nodes_by_priority = sorted(
         ordered_nodes_for_placement_with_dummies, key=lambda n: n.priority, reverse=True
@@ -63,50 +70,50 @@ def optimize_positions(
     for plnode in pl_nodes_by_priority:
         i = -1_000_000
         squish_pos = None
-        if plnode.x_position < plnode.target_position:
+        if plnode.target_position < plnode.x_position:
             # find first node with higher priority
-            for i in range(plnode.order_index - 1, -1, -1):
-                other_pl_node = ordered_nodes_for_placement_with_dummies[i]
+            for i in range(plnode.order_index - 1, -2, -1):
+                other_pl_node = ordered_plnodes_as_dict[i]
                 if other_pl_node.priority > plnode.priority:
                     squish_pos = other_pl_node.x_position
                     break
 
             # squish positions to left
-            if squish_pos is None:
-                plnode.x_position = plnode.target_position
-            else:
-                plnode.x_position = max(
-                    plnode.target_position, squish_pos + (plnode.order_index - i)
-                )
-            for j in range(plnode.order_index - 1, -1, -1):
-                ordered_nodes_for_placement_with_dummies[j].x_position = max(
-                    ordered_nodes_for_placement_with_dummies[j].x_position,
+            assert squish_pos is not None, str(plnode)
+            plnode.x_position = max(
+                plnode.target_position, squish_pos + (plnode.order_index - i)
+            )
+            for j in range(plnode.order_index - 1, i, -1):
+                ordered_plnodes_as_dict[j].x_position = min(
+                    ordered_plnodes_as_dict[j].x_position,
                     plnode.x_position - (plnode.order_index - j),
                 )
 
-        elif plnode.x_position > plnode.target_position:
+        elif plnode.target_position > plnode.x_position:
             # analogous to above if-block
             for i in range(
-                plnode.order_index + 1, len(ordered_nodes_for_placement_with_dummies)
+                plnode.order_index + 1,
+                len(ordered_nodes_for_placement_with_dummies) - 1,
             ):
-                other_pl_node = ordered_nodes_for_placement_with_dummies[i]
+                other_pl_node = ordered_plnodes_as_dict[i]
                 if other_pl_node.priority > plnode.priority:
                     squish_pos = other_pl_node.x_position
                     break
 
-            if squish_pos is None:
-                plnode.x_position = plnode.target_position
-            else:
-                plnode.x_position = min(
-                    plnode.target_position, squish_pos - (i - plnode.order_index)
-                )
-            for j in range(
-                plnode.order_index + 1, len(ordered_nodes_for_placement_with_dummies)
-            ):
-                ordered_nodes_for_placement_with_dummies[j].x_position = min(
-                    ordered_nodes_for_placement_with_dummies[j].x_position,
+            assert squish_pos is not None
+            plnode.x_position = min(
+                plnode.target_position, squish_pos - (i - plnode.order_index)
+            )
+            for j in range(plnode.order_index + 1, i):
+                ordered_plnodes_as_dict[j].x_position = max(
+                    ordered_plnodes_as_dict[j].x_position,
                     plnode.x_position + (j - plnode.order_index),
                 )
+        _x_pos_counter = collections.Counter(
+            _plnode.x_position for _plnode in pl_nodes_by_priority
+        )
+        if len(_x_pos_counter) != len(pl_nodes_by_priority):
+            logging.warning("_x_pos_counter %s", _x_pos_counter)
 
     for plnode in pl_nodes_by_priority:
         positions[layer_idx][plnode.mlg_node] = plnode.x_position
