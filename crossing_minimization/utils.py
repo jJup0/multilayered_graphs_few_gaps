@@ -122,7 +122,6 @@ class GraphSorter(ABC):
         """Implementation detail of sort graph. Should be overriden"""
         raise NotImplementedError("not implemented")
 
-    # minor todo make into wrapper
     @classmethod
     def _sorting_parameter_check(
         cls,

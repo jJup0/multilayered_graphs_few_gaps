@@ -232,7 +232,6 @@ def unweighted_barycenter(
 ) -> float:
     neighbor_count = len(neighbors)
     if neighbor_count == 0:
-        # TODO check if this is a viable strategy
         return ml_graph.layers_to_nodes[node.layer].index(node)
     barycenter = sum(prev_layer_indices[node] for node in neighbors) / neighbor_count
     node.text_info = f"bary {barycenter:.5}"
@@ -246,12 +245,11 @@ def _get_pseudo_barycenter_naive_virtual_placement(
     prev_layer_indices: dict[MLGNode, int],
     real_node_bary_median: float,
 ) -> float:
-    # TODO get barycenter as accurate fraction to avoid
+    # todo get barycenter as accurate fraction to avoid
     #   floating point errors, and ensure stable sorting
 
     neighbor_count = len(neighbors)
     if neighbor_count == 0:
-        # TODO check if this is a viable strategy
         return layer_before_sorting.index(node)
     barycenter = sum(prev_layer_indices[node] for node in neighbors) / neighbor_count
 
@@ -272,12 +270,11 @@ def _get_pseudo_barycenter_improved_placement(
     real_nodes_at_layer: list[MLGNode],
     above_or_below: Above_or_below_T,
 ) -> float:
-    # TODO get barycenter as accurate fraction to avoid
+    # todo get barycenter as accurate fraction to avoid
     #   floating point errors, and ensure stable sorting
 
     neighbor_count = len(neighbors)
     if neighbor_count == 0:
-        # TODO check if this is a viable strategy
         return ml_graph.layers_to_nodes[node.layer].index(node)
     barycenter = sum(prev_layer_indices[node] for node in neighbors) / neighbor_count
 

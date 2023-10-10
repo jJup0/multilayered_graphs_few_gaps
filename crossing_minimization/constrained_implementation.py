@@ -86,7 +86,6 @@ def _generate_constraints(
 
     constraints: set[tuple[MLGNode, MLGNode]] = set()
     for v_node in virtual_nodes:
-        # todo make this decision a parameter passed to the function
         if barycenters[v_node] < median_real_bary:
             constraints.update((v_node, r_node) for r_node in real_nodes)
         else:

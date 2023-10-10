@@ -15,8 +15,6 @@ Positions_T = dict[LayerIdx, dict[MLGNode, int]]
 PRIORITY_VIRTUAL = 1_000_000_000
 PRIORITY_INF = 1_000_000_001
 
-# TODO still some overlap in nodes, debug and check for duplicate x coord and check for off by one errors
-
 
 def initialize_positions(graph: MultiLayeredGraph, x0: int = 0) -> Positions_T:
     positions: Positions_T = {}

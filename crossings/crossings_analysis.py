@@ -47,7 +47,6 @@ class GraphAndType:
 
 class CrossingsAnalyser:
     def __init__(self):
-        # todo test two layer cross minimization
         self.algorithms: list[type[GraphSorter]] = [
             GurobiSorter,
             BarycenterImprovedSorter,

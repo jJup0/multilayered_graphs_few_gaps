@@ -236,7 +236,6 @@ def unweighted_median(
     :return: Median value of the given node.
     """
     if len(neighbors) == 0:
-        # TODO check if this is a viable strategy
         return layer_before_sorting.index(node)
 
     median = statistics.median(prev_layer_indices[node] for node in neighbors)
