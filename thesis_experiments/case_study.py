@@ -11,7 +11,7 @@ import networkx as nx
 from crossing_minimization.utils import GraphSorter
 from multilayered_graph.multilayered_graph import MLGNode, MultiLayeredGraph
 
-RANDOMNESS_SEED = 2
+RANDOMNESS_SEED = None
 
 nodes_as_numbers = [
     [8, 24, 1, 35, 30],
@@ -102,9 +102,10 @@ for num, neighbor_nums in num_to_neighbors.items():
         ml_graph.add_edge(node_number_to_node[num], node_number_to_node[neighbor_num])
 
 # shuffle nodes
-random.seed(RANDOMNESS_SEED)
-random.shuffle(ml_graph.layers_to_nodes[0])
-random.shuffle(ml_graph.layers_to_nodes[1])
+if RANDOMNESS_SEED is not None:
+    random.seed(RANDOMNESS_SEED)
+    for layer_idx in range(ml_graph.layer_count):
+        random.shuffle(ml_graph.layers_to_nodes[layer_idx])
 
 
 @dataclass
@@ -201,7 +202,12 @@ else:
     save_dir = os.path.realpath(os.path.dirname(__file__))
     while "saved_plots" not in os.listdir(save_dir) and save_dir != "/":
         save_dir = os.path.dirname(save_dir)
-    save_dir = os.path.join(save_dir, f"saved_plots{RANDOMNESS_SEED}", "case_study")
+
+    save_dir = os.path.join(
+        save_dir,
+        "saved_plots",
+        f"case_study_{RANDOMNESS_SEED if RANDOMNESS_SEED is not None else 'unshuffled'}",
+    )
     graph_obj_dir = os.path.join(save_dir, "graph_objects")
     os.makedirs(graph_obj_dir, exist_ok=True)
 
