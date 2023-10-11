@@ -129,7 +129,7 @@ if True:
             max_gaps=2,
         ),
         NamedGraphAndParams(
-            name="Barycenter 2 gaps",
+            name="Barycenter two gaps",
             graph=copy.deepcopy(ml_graph),
             Sorter=BarycenterImprovedSorter,
             side_gaps=False,
@@ -204,16 +204,21 @@ else:
     save_dir = os.path.join(save_dir, "saved_plots", "case_study")
 
     for named_graph in named_graphs:
+        named_graph.graph.serialize_proprietary(
+            os.path.join(save_dir, "graph_objects", named_graph.name)
+        )
         draw_graph(named_graph.graph)
         print(f"{named_graph.name}: {named_graph.graph.get_total_crossings()}")
 
         xmin, xmax = plt.xlim()
         ymin, ymax = plt.ylim()
 
+        if "unlimited" in named_graph.name:
+            annotation_coords = (xmin + (xmax - xmin) * 0.6, ymin + (ymax - ymin) * 0.1)
+        else:
+            annotation_coords = (xmin + (xmax - xmin) * 0.8, ymin + (ymax - ymin) * 0.1)
         plt.annotate(
-            f"crossings: {named_graph.graph.get_total_crossings()}",
-            # ((xmin + xmax) // 2, (ymin + ymax) // 2),
-            (xmin + (xmax - xmin) * 0.8, ymin + (ymax - ymin) * 0.1),
+            f"crossings: {named_graph.graph.get_total_crossings()}", annotation_coords
         )
         plt.savefig(os.path.join(save_dir, named_graph.name), dpi=300)
         plt.clf()
