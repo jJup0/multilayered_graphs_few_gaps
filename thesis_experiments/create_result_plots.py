@@ -3,7 +3,7 @@ import logging
 import os
 import sys
 import warnings
-from typing import Iterable, TypedDict
+from typing import TypedDict
 
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -11,7 +11,7 @@ import seaborn as sns
 
 logging.basicConfig()
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
+logger.setLevel(logging.INFO)
 
 # filter out FutureWarning
 warnings.filterwarnings("ignore", category=FutureWarning)
@@ -77,7 +77,7 @@ def varied_up_and_down_preprossessing(df: pd.DataFrame):
 
     iteration_counts = df["up_and_down_iterations"].unique()
 
-    print(f"len before up down preprocess: {len(df)}")
+    logger.debug(f"len before up down preprocess: {len(df)}")
 
     # make copies of all ilp rows and change s"up_and_down_iterations"
     for index, row in tuple(ilp_df.iterrows()):
@@ -88,7 +88,7 @@ def varied_up_and_down_preprossessing(df: pd.DataFrame):
             new_row["up_and_down_iterations"] = iter_count
             df.loc[len(df)] = new_row
 
-    print(f"len after up down preprocess: {len(df)}")
+    logger.debug(f"len after up down preprocess: {len(df)}")
 
 
 def create_timeout_info(
