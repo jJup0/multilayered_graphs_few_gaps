@@ -3,7 +3,7 @@ import logging
 import os
 import sys
 import warnings
-from typing import Iterable, TypedDict
+from typing import TypedDict
 
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -11,7 +11,7 @@ import seaborn as sns
 
 logging.basicConfig()
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
+logger.setLevel(logging.INFO)
 
 # filter out FutureWarning
 warnings.filterwarnings("ignore", category=FutureWarning)
@@ -77,7 +77,7 @@ def varied_up_and_down_preprossessing(df: pd.DataFrame):
 
     iteration_counts = df["up_and_down_iterations"].unique()
 
-    print(f"len before up down preprocess: {len(df)}")
+    logger.debug(f"len before up down preprocess: {len(df)}")
 
     # make copies of all ilp rows and change s"up_and_down_iterations"
     for index, row in tuple(ilp_df.iterrows()):
@@ -88,7 +88,7 @@ def varied_up_and_down_preprossessing(df: pd.DataFrame):
             new_row["up_and_down_iterations"] = iter_count
             df.loc[len(df)] = new_row
 
-    print(f"len after up down preprocess: {len(df)}")
+    logger.debug(f"len after up down preprocess: {len(df)}")
 
 
 def create_timeout_info(
@@ -176,6 +176,7 @@ def create_ratio_plots(
         sns.lineplot(
             data=heuristic_df, x=x_data_str, y=f"ratio-{y_data_str}", hue="alg_name"
         )
+        plt.xticks(df[x_data_str].unique())
         annotate_timeouts(df, timeout_counts, x_data_str, y_data_str)
 
         plt.xlabel(x_data_str.replace("_", " "))
@@ -236,23 +237,23 @@ def annotate_timeouts(
         return
 
     # draw vertical lines
+    if False:
+        # first timeout
+        plt.axvline(x=min(timeout_counts), color="red", linestyle="--")
 
-    # first timeout
-    plt.axvline(x=min(timeout_counts), color="red", linestyle="--")
+        # all ilp time out
+        ilp_df = df[df["alg_name"].str.contains("ilp")]
+        ilp_runs = len(ilp_df) // df[x_data_str].nunique()
+        if ilp_runs in timeout_counts.values():
+            first_full_timeout = -1
+            for node_count in sorted(timeout_counts.keys()):
+                if timeout_counts[node_count] == ilp_runs:
+                    first_full_timeout = node_count
+                    break
 
-    # all ilp time out
-    ilp_df = df[df["alg_name"].str.contains("ilp")]
-    ilp_runs = len(ilp_df) // df[x_data_str].nunique()
-    if ilp_runs in timeout_counts.values():
-        first_full_timeout = -1
-        for node_count in sorted(timeout_counts.keys()):
-            if timeout_counts[node_count] == ilp_runs:
-                first_full_timeout = node_count
-                break
-
-        plt.axvline(x=first_full_timeout, color="red", linestyle="-")
-    # else:
-    #     logger.debug(f"{ilp_runs=} not in {timeout_counts=}")
+            plt.axvline(x=first_full_timeout, color="red", linestyle="-")
+        # else:
+        #     logger.debug(f"{ilp_runs=} not in {timeout_counts=}")
 
     # annotate timeouts
     _, plot_y_lim = plt.ylim()
@@ -278,7 +279,7 @@ def create_regular_plots(
     _, test_case_name = os.path.split(os.path.realpath(test_case_directory))
     for y_data_str in ["crossings", "time_s"]:
         sns.lineplot(data=df, x=x_data_str, y=y_data_str, hue="alg_name")
-        # line_draw_points = find_first_and_last_ilp_timeout(df=df, x_data_str=x_data_str)
+        plt.xticks(df[x_data_str].unique())
 
         # only draw log scal if ilp is included
         if y_data_str == "time_s" and df["alg_name"].nunique() > 2:

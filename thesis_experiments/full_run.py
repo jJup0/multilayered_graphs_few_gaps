@@ -490,6 +490,7 @@ class ClusterExperiments:
         nodes_per_layer = list(range(5, 41, 5))
         average_node_degrees = [cls.STANDARD_AVERAGE_NODE_DEGREE] * len(nodes_per_layer)
         virtual_node_ratios = [cls.STANDARD_VIRTUAL_NODE_RATIO] * len(nodes_per_layer)
+        up_and_down_iterations = [10]
         run_batch(
             test_case_name,
             graph_gen_count=cls.STANDARD_GRAPH_GEN_COUNT,
@@ -498,6 +499,7 @@ class ClusterExperiments:
             average_node_degrees=average_node_degrees,
             run_k_gaps=False,
             two_sided=True,
+            two_sided_iterations=up_and_down_iterations,
         )
         logger.info("finished %s", test_case_name)
         return test_case_name
@@ -630,8 +632,8 @@ if __name__ == "__main__":
     # ClusterExperiments.side_gaps_vary_virtual_node_ratio(test_case_suffix)
     # ClusterExperiments.side_gaps_vs_arbitrary_2_gaps(test_case_suffix)
     # ClusterExperiments.side_gaps_vary_node_count(test_case_suffix)
-    # ClusterExperiments.tscm_sg(test_case_suffix)
-    ClusterExperiments.tscm_sg_vary_up_and_down(test_case_suffix)
+    ClusterExperiments.tscm_sg(test_case_suffix)
+    # ClusterExperiments.tscm_sg_vary_up_and_down(test_case_suffix)
     # ClusterExperiments.oscm_side_gaps_large_instances(test_case_suffix)
     # ClusterExperiments.oscm_k_gaps_large_instances(test_case_suffix)
 
