@@ -29,4 +29,4 @@ thesis_experiments/local_tests/**/log.txt
 **/out/*.out
 
 # plots 
-thesis_experiments/saved_plots
+thesis_experiments/saved_plots*
