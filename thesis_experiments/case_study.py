@@ -11,6 +11,8 @@ import networkx as nx
 from crossing_minimization.utils import GraphSorter
 from multilayered_graph.multilayered_graph import MLGNode, MultiLayeredGraph
 
+RANDOMNESS_SEED = 2
+
 nodes_as_numbers = [
     [8, 24, 1, 35, 30],
     [7, 23],
@@ -99,6 +101,11 @@ for num, neighbor_nums in num_to_neighbors.items():
     for neighbor_num in neighbor_nums:
         ml_graph.add_edge(node_number_to_node[num], node_number_to_node[neighbor_num])
 
+# shuffle nodes
+random.seed(RANDOMNESS_SEED)
+random.shuffle(ml_graph.layers_to_nodes[0])
+random.shuffle(ml_graph.layers_to_nodes[1])
+
 
 @dataclass
 class NamedGraphAndParams:
@@ -107,13 +114,6 @@ class NamedGraphAndParams:
     Sorter: type[GraphSorter]
     side_gaps: bool
     max_gaps: int
-
-
-ml_graph_side_gaps = copy.deepcopy(ml_graph)
-ml_graph_2_gaps = copy.deepcopy(ml_graph)
-ml_graph_many_gaps = copy.deepcopy(ml_graph)
-ml_graph_side_gaps_gurobi = copy.deepcopy(ml_graph)
-ml_graph_k_gaps_gurobi = copy.deepcopy(ml_graph)
 
 
 if True:
@@ -201,11 +201,13 @@ else:
     save_dir = os.path.realpath(os.path.dirname(__file__))
     while "saved_plots" not in os.listdir(save_dir) and save_dir != "/":
         save_dir = os.path.dirname(save_dir)
-    save_dir = os.path.join(save_dir, "saved_plots", "case_study")
+    save_dir = os.path.join(save_dir, f"saved_plots{RANDOMNESS_SEED}", "case_study")
+    graph_obj_dir = os.path.join(save_dir, "graph_objects")
+    os.makedirs(graph_obj_dir, exist_ok=True)
 
     for named_graph in named_graphs:
         named_graph.graph.serialize_proprietary(
-            os.path.join(save_dir, "graph_objects", named_graph.name)
+            os.path.join(graph_obj_dir, f"{named_graph.name}.json")
         )
         draw_graph(named_graph.graph)
         print(f"{named_graph.name}: {named_graph.graph.get_total_crossings()}")
@@ -213,10 +215,16 @@ else:
         xmin, xmax = plt.xlim()
         ymin, ymax = plt.ylim()
 
-        if "unlimited" in named_graph.name:
-            annotation_coords = (xmin + (xmax - xmin) * 0.6, ymin + (ymax - ymin) * 0.1)
-        else:
-            annotation_coords = (xmin + (xmax - xmin) * 0.8, ymin + (ymax - ymin) * 0.1)
+        # if "unlimited" in named_graph.name:
+        #     annotation_coords = (
+        #         xmin + (xmax - xmin) * 0.6,
+        #         ymin + (ymax - ymin) * 0.05,
+        #     )
+        # else:
+        annotation_coords = (
+            xmin + (xmax - xmin) * 0.8,
+            ymin + (ymax - ymin) * 0.01,
+        )
         plt.annotate(
             f"crossings: {named_graph.graph.get_total_crossings()}", annotation_coords
         )
