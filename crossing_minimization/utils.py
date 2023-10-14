@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import Any, Callable, Literal, NoReturn, TypeAlias, TypeVar
 
-from multilayered_graph.multilayered_graph import MultiLayeredGraph
+from multilayered_graph.multilayered_graph import MLGNode, MultiLayeredGraph
 
 T = TypeVar("T")
 Above_or_below_T: TypeAlias = Literal["above"] | Literal["below"]
@@ -247,3 +247,43 @@ class GraphSorter(ABC):
             only_one_up_iteration=False,
             max_iterations=max_iterations,
         )
+
+    @classmethod
+    def rearrange_trivial_long_edges(cls, ml_graph: MultiLayeredGraph):
+        crossing_count_before = ml_graph.get_total_crossings()
+
+        # for layer_idx in range(ml_graph.layer_count - 1, -1, -1):
+
+        # very naive, can be improved
+        for layer_idx in range(ml_graph.layer_count):
+            real_nodes_in_layer = [
+                n for n in ml_graph.layers_to_nodes[layer_idx] if not n.is_virtual
+            ]
+            for real_node in real_nodes_in_layer:
+                adjacent_virtual_nodes = [
+                    n
+                    for n in ml_graph.nodes_to_out_edges[real_node]
+                    if n is n.is_virtual
+                ]
+                for i, vnode1 in enumerate(adjacent_virtual_nodes):
+                    for j in range(i):
+                        cls.untangle_long_edges(
+                            ml_graph, vnode1, adjacent_virtual_nodes[j]
+                        )
+                # ml_graph.layers_to_nodes[layer_idx]
+
+    @classmethod
+    def untangle_long_edges(
+        cls, ml_graph: MultiLayeredGraph, vnode1: MLGNode, vnode2: MLGNode
+    ):
+        # nodes must be virtual, and directly connected to real node
+        assert vnode1.is_virtual and vnode2.is_virtual
+        assert ml_graph.nodes_to_in_edges[vnode1] == ml_graph.nodes_to_in_edges[vnode2]
+        curr_layer = ml_graph.layers_to_nodes[vnode1.layer]
+        assert curr_layer.index(vnode1) < curr_layer.index(vnode2)
+
+        while vnode1.is_virtual and vnode2.is_virtual:
+            vnode1 = next(iter(ml_graph.nodes_to_out_edges[vnode1]))
+            vnode2 = next(iter(ml_graph.nodes_to_out_edges[vnode2]))
+            curr_layer = ml_graph.layers_to_nodes[vnode1.layer]
+            if curr_layer.index(vnode1) > curr_layer.index(vnode2):
