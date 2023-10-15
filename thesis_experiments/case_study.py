@@ -223,7 +223,7 @@ def perform_case_study():
     save_dir = os.path.join(
         save_dir,
         "saved_plots",
-        f"case_study_long_edge_switch{RANDOMNESS_SEED if RANDOMNESS_SEED is not None else 'unshuffled'}",
+        f"case_study_{RANDOMNESS_SEED if RANDOMNESS_SEED is not None else 'unshuffled'}",
     )
     graph_obj_dir = os.path.join(save_dir, "graph_objects")
     os.makedirs(graph_obj_dir, exist_ok=True)
