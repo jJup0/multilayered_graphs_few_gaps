@@ -1,7 +1,13 @@
+import logging
 from abc import ABC, abstractmethod
 from typing import Any, Callable, Literal, NoReturn, TypeAlias, TypeVar
 
 from multilayered_graph.multilayered_graph import MLGNode, MultiLayeredGraph
+
+logging.basicConfig()
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+
 
 T = TypeVar("T")
 Above_or_below_T: TypeAlias = Literal["above"] | Literal["below"]
@@ -250,40 +256,83 @@ class GraphSorter(ABC):
 
     @classmethod
     def rearrange_trivial_long_edges(cls, ml_graph: MultiLayeredGraph):
+        """Given a multi-layered graph, untangle long edges.
+
+        Very naive approach, can be improved.
+
+        Args:
+            ml_graph (MultiLayeredGraph): The multi-layered graph for which to untangle edges.
+        """
         crossing_count_before = ml_graph.get_total_crossings()
 
-        # for layer_idx in range(ml_graph.layer_count - 1, -1, -1):
-
-        # very naive, can be improved
-        for layer_idx in range(ml_graph.layer_count):
-            real_nodes_in_layer = [
-                n for n in ml_graph.layers_to_nodes[layer_idx] if not n.is_virtual
+        real_nodes = [n for n in ml_graph.all_nodes_as_list() if not n.is_virtual]
+        for real_node in real_nodes:
+            adjacent_virtual_nodes = [
+                n for n in ml_graph.nodes_to_out_edges[real_node] if n.is_virtual
             ]
-            for real_node in real_nodes_in_layer:
-                adjacent_virtual_nodes = [
-                    n
-                    for n in ml_graph.nodes_to_out_edges[real_node]
-                    if n is n.is_virtual
-                ]
+            made_switch = True
+            debug_ever_made_switch = False
+            # if two long edges are swapped, iterate again incase this causes crossings with other edges
+            while made_switch:
+                made_switch = False
+                # untangle each pair of long edges incident to the current node
                 for i, vnode1 in enumerate(adjacent_virtual_nodes):
                     for j in range(i):
-                        cls.untangle_long_edges(
+                        made_switch = made_switch or cls.untangle_long_edges(
                             ml_graph, vnode1, adjacent_virtual_nodes[j]
                         )
-                # ml_graph.layers_to_nodes[layer_idx]
+                        debug_ever_made_switch |= made_switch
+
+            if debug_ever_made_switch:
+                logger.info("Node %s has long edges switched", real_node)
+
+        assert ml_graph.get_total_crossings() <= crossing_count_before
 
     @classmethod
     def untangle_long_edges(
         cls, ml_graph: MultiLayeredGraph, vnode1: MLGNode, vnode2: MLGNode
-    ):
+    ) -> bool:
+        """Given two virtual nodes adjacent to the same real nodes, untangle the long edges that they are a part of.
+
+        Very naive and unoptimized implementation.
+
+        Args:
+            ml_graph (MultiLayeredGraph): The graph to which these nodes belong
+            vnode1 (MLGNode): A virtual node directly incident to a real node in the layer below.
+            vnode2 (MLGNode): A different virtual node directly incident to a real node in the layer below.
+        """
         # nodes must be virtual, and directly connected to real node
         assert vnode1.is_virtual and vnode2.is_virtual
         assert ml_graph.nodes_to_in_edges[vnode1] == ml_graph.nodes_to_in_edges[vnode2]
-        curr_layer = ml_graph.layers_to_nodes[vnode1.layer]
-        assert curr_layer.index(vnode1) < curr_layer.index(vnode2)
 
+        # traverse up the two long edges until a real node is reached
+        prev_vnode1, prev_vnode2 = vnode1, vnode2  # for type checker
         while vnode1.is_virtual and vnode2.is_virtual:
+            prev_vnode1, prev_vnode2 = vnode1, vnode2
             vnode1 = next(iter(ml_graph.nodes_to_out_edges[vnode1]))
             vnode2 = next(iter(ml_graph.nodes_to_out_edges[vnode2]))
-            curr_layer = ml_graph.layers_to_nodes[vnode1.layer]
-            if curr_layer.index(vnode1) > curr_layer.index(vnode2):
+
+        vnode1, vnode2 = prev_vnode1, prev_vnode2
+        last_virtual_layer = ml_graph.layers_to_nodes[vnode1.layer]
+        vnode1_left_of_vnode2 = last_virtual_layer.index(vnode1) < (
+            last_virtual_layer.index(vnode2)
+        )
+        made_switch = False
+        # traverse back down edges to untangle them
+        while vnode1.is_virtual:
+            assert vnode2.is_virtual
+            last_virtual_layer = ml_graph.layers_to_nodes[vnode1.layer]
+            vnode1_idx = last_virtual_layer.index(vnode1)
+            vnode2_idx = last_virtual_layer.index(vnode2)
+            if (vnode1_idx < vnode2_idx) != vnode1_left_of_vnode2:
+                # nodes are in order opposite to what they should be, switch them
+                last_virtual_layer[vnode1_idx] = vnode2
+                last_virtual_layer[vnode2_idx] = vnode1
+                made_switch = True
+
+            vnode1 = next(iter(ml_graph.nodes_to_in_edges[vnode1]))
+            vnode2 = next(iter(ml_graph.nodes_to_in_edges[vnode2]))
+
+        # both pointers should now point to real node to which the long edges are adjacent
+        assert vnode1 is vnode2
+        return made_switch
