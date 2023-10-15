@@ -312,11 +312,9 @@ class GraphSorter(ABC):
             vnode1 = next(iter(ml_graph.nodes_to_out_edges[vnode1]))
             vnode2 = next(iter(ml_graph.nodes_to_out_edges[vnode2]))
 
+        last_layer = ml_graph.layers_to_nodes[vnode1.layer]
+        vnode1_left_of_vnode2 = last_layer.index(vnode1) < (last_layer.index(vnode2))
         vnode1, vnode2 = prev_vnode1, prev_vnode2
-        last_virtual_layer = ml_graph.layers_to_nodes[vnode1.layer]
-        vnode1_left_of_vnode2 = last_virtual_layer.index(vnode1) < (
-            last_virtual_layer.index(vnode2)
-        )
         made_switch = False
         # traverse back down edges to untangle them
         while vnode1.is_virtual:
