@@ -355,7 +355,7 @@ def thesis_side_gaps(
     Sorts MultiLayeredGraph using barycenter heuristic, placing nodes
     depending on minimal crossings.
 
-    O(max_iterations * (O(|V_i^{vt}| * |E_i^r|))) time complexity
+    O(max_iterations * (|E_i| + |E_j| + |V_i| * log(V_i))) time complexity
     """
 
     for layer_idx, above_or_below in generate_layers_to_above_or_below(
@@ -367,12 +367,12 @@ def thesis_side_gaps(
             ml_graph, above_or_below
         )
 
-        # O(n)
+        # O(|V_i|)
         prev_layer_indices = ml_graph.nodes_to_indices_at_layer(neighbor_layer_idx)
 
         curr_layer = ml_graph.layers_to_nodes[layer_idx]
         # sort real and virtual nodes
-        # O(|E_i| + O(|V_i| * log(V_i)))
+        # O(|E_i|)
         # in our case either medians or barycenters
         medians_or_barycenters = {
             node: get_median_or_barycenter(
@@ -380,10 +380,12 @@ def thesis_side_gaps(
             )
             for node in curr_layer
         }
+        # O(|V_i^r| * log(V_i^r))
         real_nodes_sorted = sorted(
             (n for n in curr_layer if not n.is_virtual),
             key=lambda node: medians_or_barycenters[node],
         )
+        # O(|V_i^{vt}| * log(V_i^{vt}))
         virtual_nodes_sorted = sorted(
             (n for n in curr_layer if n.is_virtual),
             key=lambda node: medians_or_barycenters[node],
