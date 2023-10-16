@@ -15,6 +15,7 @@ from crossing_minimization.gurobi_int_lin import GurobiSorter
 from crossing_minimization.median_heuristic import (
     ImprovedMedianSorter,
     NaiveMedianSorter,
+    ThesisMedianSorter,
 )
 from crossing_minimization.utils import GraphSorter
 from crossings.crossing_analysis_visualization import (
@@ -96,44 +97,51 @@ class CrossingsAnalyser:
             reg_edges_count,
         ) in enumerate(two_layer_graph_parameters):
             for sort_kwargs in (one_sided_algorithm_kwargs, two_sided_algorithm_kwargs):
-                random_2_layer_graph = self._generate_random_two_layer_graph(
-                    layer1_count=l1_count,
-                    layer2_count=l2_count,
-                    virtual_nodes_count=vnode_count,
-                    regular_edges_count=reg_edges_count,
-                )
-
-                thesis_min_graph = random_2_layer_graph
-                og_min_graph = copy.deepcopy(random_2_layer_graph)
-                self._minimize_and_count_crossings(
-                    thesis_min_graph,
-                    BarycenterThesisSorter,
-                    sort_kwargs,
-                )
-                self._minimize_and_count_crossings(
-                    og_min_graph,
-                    BarycenterThesisSorter,
-                    sort_kwargs,
-                )
-
-                thesis_crossings = thesis_min_graph.graph.get_total_crossings()
-                og_crossings = og_min_graph.graph.get_total_crossings()
-                if thesis_crossings > og_crossings:
-                    logger.warning(
-                        "THESIS MINIMIZATION CAUSED MORE CROSSINGS: %s > %s",
-                        thesis_crossings,
-                        og_crossings,
+                for ThesisSorter, OGSorter in (
+                    (BarycenterThesisSorter, BarycenterImprovedSorter),
+                    (ThesisMedianSorter, ImprovedMedianSorter),
+                ):
+                    logger.info("%s vs %s", ThesisSorter.__name__, OGSorter.__name__)
+                    random_2_layer_graph = self._generate_random_two_layer_graph(
+                        layer1_count=l1_count,
+                        layer2_count=l2_count,
+                        virtual_nodes_count=vnode_count,
+                        regular_edges_count=reg_edges_count,
                     )
-                else:
-                    logger.info("Crossings: %s <= %s", thesis_crossings, og_crossings)
 
-                for layer_idx in range(thesis_min_graph.graph.layer_count):
-                    assert str(
-                        thesis_min_graph.graph.layers_to_nodes[layer_idx]
-                    ) == str(og_min_graph.graph.layers_to_nodes[layer_idx])
-                    logger.info(
-                        "Layer %d: both graphs have identical orders", layer_idx
+                    thesis_min_graph = random_2_layer_graph
+                    og_min_graph = copy.deepcopy(random_2_layer_graph)
+                    self._minimize_and_count_crossings(
+                        thesis_min_graph,
+                        ThesisSorter,
+                        sort_kwargs,
                     )
+                    self._minimize_and_count_crossings(
+                        og_min_graph,
+                        OGSorter,
+                        sort_kwargs,
+                    )
+
+                    thesis_crossings = thesis_min_graph.graph.get_total_crossings()
+                    og_crossings = og_min_graph.graph.get_total_crossings()
+                    if thesis_crossings > og_crossings:
+                        logger.warning(
+                            "THESIS MINIMIZATION CAUSED MORE CROSSINGS: %s > %s",
+                            thesis_crossings,
+                            og_crossings,
+                        )
+                    else:
+                        logger.info(
+                            "Crossings: %s <= %s", thesis_crossings, og_crossings
+                        )
+
+                    for layer_idx in range(thesis_min_graph.graph.layer_count):
+                        assert str(
+                            thesis_min_graph.graph.layers_to_nodes[layer_idx]
+                        ) == str(og_min_graph.graph.layers_to_nodes[layer_idx])
+                        logger.info(
+                            "Layer %d: both graphs have identical orders", layer_idx
+                        )
 
                 logger.info("Round %d", i)
 
