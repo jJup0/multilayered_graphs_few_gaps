@@ -68,7 +68,7 @@ class AbstractBarycenterSorter(GraphSorter):
                 get_layer_idx_above_or_below(layer_idx, above_or_below)
             )
             layer_to_unordered_real_nodes[layer_idx].sort(
-                key=lambda node: unweighted_barycenter(
+                key=lambda node: get_barycenter(
                     ml_graph,
                     node,
                     nodes_to_neighbors[node],
@@ -130,7 +130,7 @@ class BarycenterThesisSorter(AbstractBarycenterSorter):
             # O(|E_i| + O(|V_i| * log(V_i)))
             barycenters = {
                 node: get_barycenter(
-                    node, node_to_neighbors[node], ml_graph, prev_layer_indices
+                    ml_graph, node, node_to_neighbors[node], prev_layer_indices
                 )
                 for node in curr_layer
             }
@@ -154,8 +154,13 @@ class BarycenterThesisSorter(AbstractBarycenterSorter):
             # O(|V_i^{vt}|)
             vnode_i = 0
             for vnode_i, vnode in enumerate(virtual_nodes_sorted):
-                vnode_neighbor_pos = barycenters[vnode]
-                assert isinstance(vnode_neighbor_pos, int)
+                # virtual node only has one neighbor,
+                vnode_neighbor_pos = sum(
+                    prev_layer_indices[node] for node in node_to_neighbors[vnode]
+                )
+                # a virtual node has more crossings when placed on the left, if
+                # the accumulated edge count up until its neighbor is less than
+                # half of all outgoing edges of that layer
                 if (
                     neighbor_layer_degree_prefix_sum[vnode_neighbor_pos]
                     > neighbor_layer_total_out_edges // 2
@@ -282,7 +287,7 @@ class BarycenterNaiveSorter(AbstractBarycenterSorter):
         ):
             nonlocal ml_graph
             real_node_barycenters = (
-                unweighted_barycenter(
+                get_barycenter(
                     ml_graph, node, _node_to_neighbors[node], _prev_layer_indices
                 )
                 for node in nodes_at_layer
@@ -330,20 +335,6 @@ class BarycenterNaiveSorter(AbstractBarycenterSorter):
                 _sort_layer(ml_graph, layer, prev_layer_indices, nodes_to_out_neighbors)
 
 
-def unweighted_barycenter(
-    ml_graph: MultiLayeredGraph,
-    node: MLGNode,
-    neighbors: set[MLGNode],
-    prev_layer_indices: dict[MLGNode, int],
-) -> float:
-    neighbor_count = len(neighbors)
-    if neighbor_count == 0:
-        return ml_graph.layers_to_nodes[node.layer].index(node)
-    barycenter = sum(prev_layer_indices[node] for node in neighbors) / neighbor_count
-    node.text_info = f"bary {barycenter:.5}"
-    return barycenter
-
-
 def _get_pseudo_barycenter_naive_virtual_placement(
     layer_before_sorting: list[MLGNode],
     node: MLGNode,
@@ -376,7 +367,7 @@ def _get_pseudo_barycenter_improved_placement(
     real_nodes_at_layer: list[MLGNode],
     above_or_below: Above_or_below_T,
 ) -> float | int:
-    barycenter = get_barycenter(node, neighbors, ml_graph, prev_layer_indices)
+    barycenter = get_barycenter(ml_graph, node, neighbors, prev_layer_indices)
     if node.is_virtual:
         real_node_crossings_if_left = 0
         real_node_crossings_if_right = 0
@@ -398,14 +389,16 @@ def _get_pseudo_barycenter_improved_placement(
 
 
 def get_barycenter(
+    ml_graph: MultiLayeredGraph,
     node: MLGNode,
     neighbors: set[MLGNode],
-    ml_graph: MultiLayeredGraph,
     prev_layer_indices: dict[MLGNode, int],
-) -> float | int:
+) -> float:
     neighbor_count = len(neighbors)
     if neighbor_count == 0:
         return ml_graph.layers_to_nodes[node.layer].index(node)
     # O(neighbor_count)
     barycenter = sum(prev_layer_indices[node] for node in neighbors) / neighbor_count
+    node.text_info = f"bary {barycenter:.5}"
+
     return barycenter
