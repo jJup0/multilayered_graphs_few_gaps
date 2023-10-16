@@ -274,7 +274,6 @@ def _get_pseudo_barycenter_naive_virtual_placement(
             barycenter += PSEUDO_SORT_DISPLACE_VALUE
         else:
             barycenter -= PSEUDO_SORT_DISPLACE_VALUE
-    node.text_info = f"bary {barycenter:.5}"
     return barycenter
 
 
@@ -303,7 +302,6 @@ def _get_pseudo_barycenter_improved_placement(
         else:
             barycenter += PSEUDO_SORT_DISPLACE_VALUE
 
-    node.text_info = f"bary {barycenter:.5}"
     return barycenter
 
 
@@ -318,6 +316,4 @@ def get_barycenter(
         return ml_graph.layers_to_nodes[node.layer].index(node)
     # O(neighbor_count)
     barycenter = sum(prev_layer_indices[node] for node in neighbors) / neighbor_count
-    node.text_info = f"bary {barycenter:.5}"
-
     return barycenter
