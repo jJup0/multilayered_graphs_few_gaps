@@ -1,5 +1,6 @@
 # run using `python -m crossings.crossings_analysis`
 import copy
+import logging
 import time
 from collections import defaultdict
 from dataclasses import dataclass
@@ -8,6 +9,7 @@ from typing import Any, TypedDict
 from crossing_minimization.barycenter_heuristic import (
     BarycenterImprovedSorter,
     BarycenterNaiveSorter,
+    BarycenterThesisSorter,
 )
 from crossing_minimization.gurobi_int_lin import GurobiSorter
 from crossing_minimization.median_heuristic import (
@@ -23,6 +25,9 @@ from crossings.crossing_analysis_visualization import (
 from multilayered_graph import multilayer_graph_generator
 from multilayered_graph.multilayered_graph import MultiLayeredGraph
 
+logger = logging.getLogger(__name__)
+logging.basicConfig()
+logger.setLevel(logging.DEBUG)
 DRAW_GRAPH = False
 
 
@@ -66,6 +71,71 @@ class CrossingsAnalyser:
         self.timings: dict[str, list[float]] = {}
         # for algorithm in self.algorithms:
         #     self.timings[GraphSorter_type.algorithm_name] = []
+
+    def compare_improved_to_thesis_sorter(self) -> None:
+        two_layer_graph_parameters: list[tuple[int, int, int, int]] = [
+            (7, 7, 7, 15),
+            (70, 70, 70, 150),
+        ]
+        one_sided_algorithm_kwargs: SortGraphArgs = {
+            "only_one_up_iteration": True,
+            "side_gaps_only": True,
+            "max_iterations": 1,
+            "max_gaps": 2,
+        }
+        two_sided_algorithm_kwargs: SortGraphArgs = {
+            "only_one_up_iteration": False,
+            "side_gaps_only": True,
+            "max_iterations": 5,
+            "max_gaps": 2,
+        }
+        for i, (
+            l1_count,
+            l2_count,
+            vnode_count,
+            reg_edges_count,
+        ) in enumerate(two_layer_graph_parameters):
+            for sort_kwargs in (one_sided_algorithm_kwargs, two_sided_algorithm_kwargs):
+                random_2_layer_graph = self._generate_random_two_layer_graph(
+                    layer1_count=l1_count,
+                    layer2_count=l2_count,
+                    virtual_nodes_count=vnode_count,
+                    regular_edges_count=reg_edges_count,
+                )
+
+                thesis_min_graph = random_2_layer_graph
+                og_min_graph = copy.deepcopy(random_2_layer_graph)
+                self._minimize_and_count_crossings(
+                    thesis_min_graph,
+                    BarycenterThesisSorter,
+                    sort_kwargs,
+                )
+                self._minimize_and_count_crossings(
+                    og_min_graph,
+                    BarycenterThesisSorter,
+                    sort_kwargs,
+                )
+
+                thesis_crossings = thesis_min_graph.graph.get_total_crossings()
+                og_crossings = og_min_graph.graph.get_total_crossings()
+                if thesis_crossings > og_crossings:
+                    logger.warning(
+                        "THESIS MINIMIZATION CAUSED MORE CROSSINGS: %s > %s",
+                        thesis_crossings,
+                        og_crossings,
+                    )
+                else:
+                    logger.info("Crossings: %s <= %s", thesis_crossings, og_crossings)
+
+                for layer_idx in range(thesis_min_graph.graph.layer_count):
+                    assert str(
+                        thesis_min_graph.graph.layers_to_nodes[layer_idx]
+                    ) == str(og_min_graph.graph.layers_to_nodes[layer_idx])
+                    logger.info(
+                        "Layer %d: both graphs have identical orders", layer_idx
+                    )
+
+                logger.info("Round %d", i)
 
     def analyse_crossings_side_gaps(self):
         # clear previous data
@@ -467,5 +537,6 @@ class CrossingsAnalyser:
 if __name__ == "__main__":
     # CrossingsAnalyser().analyse_crossings_side_gaps()
     # CrossingsAnalyser().analyze_crossings_for_graph_two_layer()
-    CrossingsAnalyser().temp_test_gurobi_side_gaps()
+    # CrossingsAnalyser().temp_test_gurobi_side_gaps()
     # CrossingsAnalyser().temp_test_gurobi_k_gaps()
+    CrossingsAnalyser().compare_improved_to_thesis_sorter()
