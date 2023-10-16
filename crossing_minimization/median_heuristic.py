@@ -133,6 +133,11 @@ class ImprovedMedianSorter(AbstractMedianSorter):
             Defaults to False.
         """
 
+        layer_to_real_nodes: dict[int, list[MLGNode]] = {}
+        for layer_idx, nodes in ml_graph.layers_to_nodes.items():
+            real_nodes = [n for n in nodes if not n.is_virtual]
+            layer_to_real_nodes[layer_idx] = real_nodes
+
         for layer, above_or_below in generate_layers_to_above_or_below(
             ml_graph,
             max_iterations=max_iterations,
@@ -144,14 +149,16 @@ class ImprovedMedianSorter(AbstractMedianSorter):
             node_to_neighbors = get_graph_neighbors_from_above_or_below(
                 ml_graph, above_or_below
             )
-            ml_graph.layers_to_nodes[layer].sort(
+            ml_graph.layers_to_nodes[layer] = sorted(
+                ml_graph.layers_to_nodes[layer],
                 key=lambda node: cls._get_pseudo_median_sort_val_improved(
                     node=node,
                     neighbors=node_to_neighbors[node],
                     prev_layer_indices=prev_layer_indices,
                     ml_graph=ml_graph,
                     above_or_below=above_or_below,  # type: ignore # for some reason saying above_or_below is arbitrary string
-                )
+                    real_nodes_at_layer=layer_to_real_nodes[layer],
+                ),
             )
 
     @classmethod
@@ -181,7 +188,6 @@ class ImprovedMedianSorter(AbstractMedianSorter):
             else:
                 median += PSEUDO_SORT_DISPLACE_VALUE
 
-        node.text_info = f"median {median}"
         return median
 
 
@@ -302,7 +308,6 @@ class NaiveMedianSorter(AbstractMedianSorter):
                 median += PSEUDO_SORT_DISPLACE_VALUE
             else:
                 median -= PSEUDO_SORT_DISPLACE_VALUE
-        node.text_info = f"median {median}"
         return median
 
 
@@ -327,5 +332,4 @@ def get_median(
         return ml_graph.layers_to_nodes[node.layer].index(node)
 
     median = statistics.median(prev_layer_indices[node] for node in neighbors)
-    node.text_info = f"median {median}"
     return median
