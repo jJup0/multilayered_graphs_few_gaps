@@ -1,5 +1,6 @@
 from typing import Literal
 
+from crossing_minimization.utils import Above_or_below_T
 from multilayered_graph.multilayered_graph import MLGNode, MultiLayeredGraph
 
 
@@ -10,6 +11,8 @@ def edges_cross(
     edge2_destination_idx: int,
 ) -> bool:
     """Calculates whether edges cross or not.
+
+    O(1) / O(1)     time / space complexity
 
     Args:
         edge1_source_idx: Relative position of edge 1 source.
@@ -30,8 +33,25 @@ def crossings_for_node_pair(
     ml_graph: MultiLayeredGraph,
     u: MLGNode,
     v: MLGNode,
-    above_or_below: Literal["above"] | Literal["below"],
+    above_or_below: Above_or_below_T,
 ):
+    """Calculates crossings for edges of nodes u and v, given that u comes before v.
+
+    O(neighbors(u) * neighbors(v))
+
+    Args:
+        ml_graph (MultiLayeredGraph): The graph in which u and v are.
+        u (MLGNode): A node in the graph.
+        v (MLGNode): A nother node on the same layer as v in the graph.
+        above_or_below (Above_or_below_T): _description_
+
+    Raises:
+        ValueError: If above_or_below is not of type Above_or_below_T
+        ValueError: If the nodes are node on the same layer.
+
+    Returns:
+        _type_: _description_
+    """
     if not (above_or_below == "above" or above_or_below == "below"):
         raise ValueError(f'{above_or_below} must be "above" or "below"')
 
@@ -51,6 +71,7 @@ def crossings_for_node_pair(
         edges_to_use = ml_graph.nodes_to_in_edges
         nodes_to_index = ml_graph.nodes_to_indices_at_layer(u.layer - 1)
 
+    # TODO find complexity for this
     u_neighbor_idxs = [nodes_to_index[n] for n in edges_to_use[u]]
     v_neighbor_idxs = [nodes_to_index[n] for n in edges_to_use[v]]
     for u_neighbor_idx in u_neighbor_idxs:
