@@ -120,25 +120,32 @@ class BarycenterImprovedSorter(AbstractBarycenterSorter):
                 ml_graph, above_or_below
             )
             neighbor_layer_idx = get_layer_idx_above_or_below(layer_idx, above_or_below)
+            # O(n)
             prev_layer_indices = ml_graph.nodes_to_indices_at_layer(neighbor_layer_idx)
 
-            ml_graph.layers_to_nodes[layer_idx] = sorted(
-                ml_graph.layers_to_nodes[layer_idx],
-                key=lambda node: _get_pseudo_barycenter_improved_placement(
+            # O(n * ...)
+            barycenters = {
+                node: _get_pseudo_barycenter_improved_placement(
                     node,
                     node_to_neighbors[node],
                     prev_layer_indices,
                     ml_graph,
                     layer_to_real_nodes[layer_idx],
                     above_or_below,
-                ),
+                )
+                for node in ml_graph.layers_to_nodes[layer_idx]
+            }
+            ml_graph.layers_to_nodes[layer_idx] = sorted(
+                ml_graph.layers_to_nodes[layer_idx], key=lambda node: barycenters[node]
             )
 
+        # O(n)
         layer_to_real_nodes: dict[int, list[MLGNode]] = {}
         for layer_idx, nodes in ml_graph.layers_to_nodes.items():
             real_nodes = [n for n in nodes if not n.is_virtual]
             layer_to_real_nodes[layer_idx] = real_nodes
 
+        # O(runs * ) TODO
         for layer_idx, above_or_below in generate_layers_to_above_or_below(
             ml_graph, max_iterations, only_one_up_iteration
         ):
@@ -276,6 +283,7 @@ def _get_pseudo_barycenter_improved_placement(
     neighbor_count = len(neighbors)
     if neighbor_count == 0:
         return ml_graph.layers_to_nodes[node.layer].index(node)
+    # O(neighbor_count)
     barycenter = sum(prev_layer_indices[node] for node in neighbors) / neighbor_count
 
     if node.is_virtual:
