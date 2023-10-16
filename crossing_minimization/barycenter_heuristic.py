@@ -7,6 +7,7 @@ from crossing_minimization.utils import (
     DEFAULT_MAX_ITERATIONS_MULTILAYERED_CROSSING_MINIMIZATION,
     Above_or_below_T,
     GraphSorter,
+    above_below_opposite,
     generate_layers_to_above_or_below,
     get_graph_neighbors_from_above_or_below,
     get_layer_idx_above_or_below,
@@ -30,12 +31,12 @@ class AbstractBarycenterSorter(GraphSorter):
         max_gaps: int,
     ) -> None:
         if side_gaps_only:
-            return cls._side_gaps(
+            return cls._barycenter_side_gaps(
                 ml_graph,
                 max_iterations=max_iterations,
                 only_one_up_iteration=only_one_up_iteration,
             )
-        return cls.k_gaps(
+        return cls.barycenter_k_gaps(
             ml_graph,
             max_iterations=max_iterations,
             only_one_up_iteration=only_one_up_iteration,
@@ -43,7 +44,7 @@ class AbstractBarycenterSorter(GraphSorter):
         )
 
     @classmethod
-    def k_gaps(
+    def barycenter_k_gaps(
         cls,
         ml_graph: MultiLayeredGraph,
         *,
@@ -84,21 +85,21 @@ class AbstractBarycenterSorter(GraphSorter):
 
     @classmethod
     @abstractmethod
-    def _side_gaps(
+    def _barycenter_side_gaps(
         cls,
         ml_graph: MultiLayeredGraph,
         *,
         max_iterations: int,
         only_one_up_iteration: bool,
     ) -> None:
-        ...
+        raise NotImplementedError()
 
 
-class BarycenterImprovedSorter(AbstractBarycenterSorter):
-    algorithm_name = "Barycenter improved"
+class BarycenterThesisSorter(AbstractBarycenterSorter):
+    algorithm_name = "Barycenter Thesiss"
 
     @classmethod
-    def _side_gaps(
+    def _barycenter_side_gaps(
         cls,
         ml_graph: MultiLayeredGraph,
         *,
@@ -108,6 +109,103 @@ class BarycenterImprovedSorter(AbstractBarycenterSorter):
         """
         Sorts MultiLayeredGraph using barycenter heuristic, placing nodes
         depending on minimal crossings.
+
+        O(max_iterations * (O(|V_i^{vt}| * |E_i^r|))) time complexity
+        """
+
+        for layer_idx, above_or_below in generate_layers_to_above_or_below(
+            ml_graph, max_iterations, only_one_up_iteration
+        ):
+            neighbor_layer_idx = get_layer_idx_above_or_below(layer_idx, above_or_below)
+
+            node_to_neighbors = get_graph_neighbors_from_above_or_below(
+                ml_graph, above_or_below
+            )
+
+            # O(n)
+            prev_layer_indices = ml_graph.nodes_to_indices_at_layer(neighbor_layer_idx)
+
+            curr_layer = ml_graph.layers_to_nodes[layer_idx]
+            # sort real and virtual nodes
+            # O(|E_i| + O(|V_i| * log(V_i)))
+            barycenters = {
+                node: get_barycenter(
+                    node, node_to_neighbors[node], ml_graph, prev_layer_indices
+                )
+                for node in curr_layer
+            }
+            real_nodes_sorted = sorted(
+                (n for n in curr_layer if not n.is_virtual),
+                key=lambda node: barycenters[node],
+            )
+            virtual_nodes_sorted = sorted(
+                (n for n in curr_layer if n.is_virtual),
+                key=lambda node: barycenters[node],
+            )
+
+            # neighbor prefix
+            # O(|E_j|)
+            neighbor_layer_degree_prefix_sum = cls._get_prev_layer_edges_prefix_sum(
+                ml_graph, above_or_below, neighbor_layer_idx
+            )
+            neighbor_layer_total_out_edges = neighbor_layer_degree_prefix_sum[-1]
+
+            # find split index
+            # O(|V_i^{vt}|)
+            vnode_i = 0
+            for vnode_i, vnode in enumerate(virtual_nodes_sorted):
+                vnode_neighbor_pos = barycenters[vnode]
+                assert isinstance(vnode_neighbor_pos, int)
+                if (
+                    neighbor_layer_degree_prefix_sum[vnode_neighbor_pos]
+                    > neighbor_layer_total_out_edges // 2
+                ):
+                    break
+
+            # O(|V_i|)
+            ml_graph.layers_to_nodes[layer_idx] = (
+                virtual_nodes_sorted[:vnode_i]
+                + real_nodes_sorted
+                + virtual_nodes_sorted[vnode_i:]
+            )
+
+    @classmethod
+    def _get_prev_layer_edges_prefix_sum(
+        cls,
+        ml_graph: MultiLayeredGraph,
+        above_or_below: Above_or_below_T,
+        neighbor_layer_idx: int,
+    ):
+        neighbor_layer = ml_graph.layers_to_nodes[neighbor_layer_idx]
+        neighbor_layer_degree_prefix_sum = [0]
+        neighbor_to_neighbors = get_graph_neighbors_from_above_or_below(
+            ml_graph, above_below_opposite(above_or_below)
+        )
+        for neighbor_layer_node in neighbor_layer:
+            neighbor_layer_degree_prefix_sum.append(
+                neighbor_layer_degree_prefix_sum[-1]
+                + len(neighbor_to_neighbors[neighbor_layer_node])
+            )
+
+        return neighbor_layer_degree_prefix_sum
+
+
+class BarycenterImprovedSorter(AbstractBarycenterSorter):
+    algorithm_name = "Barycenter improved"
+
+    @classmethod
+    def _barycenter_side_gaps(
+        cls,
+        ml_graph: MultiLayeredGraph,
+        *,
+        max_iterations: int,
+        only_one_up_iteration: bool,
+    ) -> None:
+        """
+        Sorts MultiLayeredGraph using barycenter heuristic, placing nodes
+        depending on minimal crossings.
+
+        O(max_iterations * (O(|V_i^{vt}| * |E_i^r|))) time complexity
         """
 
         def _sort_layer_barycenter_improved(
@@ -123,7 +221,7 @@ class BarycenterImprovedSorter(AbstractBarycenterSorter):
             # O(n)
             prev_layer_indices = ml_graph.nodes_to_indices_at_layer(neighbor_layer_idx)
 
-            # O(n * ...)
+            # O(|E_i^r| + |V_i^{vt}| * |E_i^r|)
             barycenters = {
                 node: _get_pseudo_barycenter_improved_placement(
                     node,
@@ -135,6 +233,7 @@ class BarycenterImprovedSorter(AbstractBarycenterSorter):
                 )
                 for node in ml_graph.layers_to_nodes[layer_idx]
             }
+            # O(|V_i| * log(|V_i|))
             ml_graph.layers_to_nodes[layer_idx] = sorted(
                 ml_graph.layers_to_nodes[layer_idx], key=lambda node: barycenters[node]
             )
@@ -145,7 +244,7 @@ class BarycenterImprovedSorter(AbstractBarycenterSorter):
             real_nodes = [n for n in nodes if not n.is_virtual]
             layer_to_real_nodes[layer_idx] = real_nodes
 
-        # O(runs * ) TODO
+        # O(max_iterations * (O(|V_i^{vt}| * |E_i^r|)))
         for layer_idx, above_or_below in generate_layers_to_above_or_below(
             ml_graph, max_iterations, only_one_up_iteration
         ):
@@ -156,7 +255,7 @@ class BarycenterNaiveSorter(AbstractBarycenterSorter):
     algorithm_name = "Barycenter naive"
 
     @classmethod
-    def _side_gaps(
+    def _barycenter_side_gaps(
         cls,
         ml_graph: MultiLayeredGraph,
         *,
@@ -276,19 +375,12 @@ def _get_pseudo_barycenter_improved_placement(
     ml_graph: MultiLayeredGraph,
     real_nodes_at_layer: list[MLGNode],
     above_or_below: Above_or_below_T,
-) -> float:
-    # todo get barycenter as accurate fraction to avoid
-    #   floating point errors, and ensure stable sorting
-
-    neighbor_count = len(neighbors)
-    if neighbor_count == 0:
-        return ml_graph.layers_to_nodes[node.layer].index(node)
-    # O(neighbor_count)
-    barycenter = sum(prev_layer_indices[node] for node in neighbors) / neighbor_count
-
+) -> float | int:
+    barycenter = get_barycenter(node, neighbors, ml_graph, prev_layer_indices)
     if node.is_virtual:
         real_node_crossings_if_left = 0
         real_node_crossings_if_right = 0
+        # O(|E_i^r|)
         for real_node in real_nodes_at_layer:
             left_crossings, right_crossings = crossings_uv_vu(
                 ml_graph, node, real_node, above_or_below
@@ -302,4 +394,18 @@ def _get_pseudo_barycenter_improved_placement(
             barycenter += PSEUDO_SORT_DISPLACE_VALUE
 
     node.text_info = f"bary {barycenter:.5}"
+    return barycenter
+
+
+def get_barycenter(
+    node: MLGNode,
+    neighbors: set[MLGNode],
+    ml_graph: MultiLayeredGraph,
+    prev_layer_indices: dict[MLGNode, int],
+) -> float | int:
+    neighbor_count = len(neighbors)
+    if neighbor_count == 0:
+        return ml_graph.layers_to_nodes[node.layer].index(node)
+    # O(neighbor_count)
+    barycenter = sum(prev_layer_indices[node] for node in neighbors) / neighbor_count
     return barycenter
