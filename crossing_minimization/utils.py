@@ -74,6 +74,12 @@ def generate_layers_to_above_or_below(
     return layers_to_above_below
 
 
+def above_below_opposite(above_or_below: Above_or_below_T):
+    if above_or_below == "above":
+        return "below"
+    return "above"
+
+
 class GraphSorter(ABC):
     algorithm_name = "<set algorithm name>"
 
