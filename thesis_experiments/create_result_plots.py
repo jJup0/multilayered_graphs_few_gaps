@@ -3,7 +3,7 @@ import logging
 import os
 import sys
 import warnings
-from typing import TypedDict
+from typing import Any, TypedDict, cast
 
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -17,11 +17,33 @@ logger.setLevel(logging.INFO)
 warnings.filterwarnings("ignore", category=FutureWarning)
 warnings.filterwarnings("ignore", module="plt.legend")
 
+
 ILP_TIMEOUT_IN_SECONDS = 5 * 60
 
 test_case_root_dir = os.path.join(
     os.path.dirname(os.path.realpath(__file__)), "local_tests"
 )
+
+ALG_NAMES = ("median", "barycenter", "ilp")
+
+
+def get_color_mapping_for_algorithms() -> dict[str, Any]:
+    global ALG_NAMES
+    alg_name_color_mapping: dict[str, Any] = {
+        algname: color
+        for algname, color in zip(
+            [*ALG_NAMES, *[f"{a} kgaps" for a in ALG_NAMES]],
+            cast(list[tuple[float, ...]], sns.color_palette()),
+        )
+    }
+    for alg_name in ALG_NAMES:
+        alg_name_color_mapping[f"{alg_name} sidegaps"] = alg_name_color_mapping[
+            alg_name
+        ]
+    return alg_name_color_mapping
+
+
+ALG_NAME_COLOR_MAPPING = get_color_mapping_for_algorithms()
 
 
 class TestCaseInfo(TypedDict):
@@ -107,6 +129,28 @@ def create_timeout_info(
     return timeout_counts
 
 
+def sort_df_for_proper_legend_order(df: pd.DataFrame) -> pd.DataFrame:
+    def algname_sort(alg_name: str) -> int:
+        res = 0
+        if "sidegaps" in alg_name:
+            res += 10
+        if "kgaps" in alg_name:
+            res += 100
+
+        if "median" in alg_name:
+            res += 0
+        elif "barycenter" in alg_name:
+            res += 1
+        elif "ilp" in alg_name:
+            res += 2
+        else:
+            logger.warning("unknown alg_name: %s", alg_name)
+            res += 3
+        return res
+
+    return df.sort_values(by="alg_name", key=lambda x: x.apply(algname_sort))
+
+
 def create_graph(test_case_name_match: str, test_case_directory: str):
     # read info file
     with open(os.path.join(test_case_directory, "info.json")) as f:
@@ -131,6 +175,8 @@ def create_graph(test_case_name_match: str, test_case_directory: str):
     sidegaps_vs_2_gaps_preprocessing(df)
 
     varied_up_and_down_preprossessing(df)
+
+    df = sort_df_for_proper_legend_order(df)
 
     _, test_case_name = os.path.split(os.path.realpath(test_case_directory))
 
@@ -174,7 +220,11 @@ def create_ratio_plots(
 
     for y_data_str in ["crossings", "time_s"]:
         sns.lineplot(
-            data=heuristic_df, x=x_data_str, y=f"ratio-{y_data_str}", hue="alg_name"
+            data=heuristic_df,
+            x=x_data_str,
+            y=f"ratio-{y_data_str}",
+            hue="alg_name",
+            palette=ALG_NAME_COLOR_MAPPING,
         )
         plt.xticks(df[x_data_str].unique())
         annotate_timeouts(df, timeout_counts, x_data_str, y_data_str)
@@ -278,7 +328,13 @@ def create_regular_plots(
 ):
     _, test_case_name = os.path.split(os.path.realpath(test_case_directory))
     for y_data_str in ["crossings", "time_s"]:
-        sns.lineplot(data=df, x=x_data_str, y=y_data_str, hue="alg_name")
+        sns.lineplot(
+            data=df,
+            x=x_data_str,
+            y=y_data_str,
+            hue="alg_name",
+            palette=ALG_NAME_COLOR_MAPPING,
+        )
         plt.xticks(df[x_data_str].unique())
 
         # only draw log scal if ilp is included
