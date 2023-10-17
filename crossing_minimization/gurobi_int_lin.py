@@ -23,12 +23,14 @@ logger.setLevel(logging.WARNING)
 
 gp.setParam("LogToConsole", 0)
 # when running performance test set higher timeout and single thread
-production_env = True
-GUROBI_TIME_OUT = 60 * 5 if production_env else 60 * 2
+production_env = False
+GUROBI_TIME_OUT = 60 * 5 if production_env else 60 * 20
 if production_env:
     gp.setParam("Threads", 1)
-else:
-    gp.setParam("Threads", 8)
+
+print(
+    f"Running with timeout of {GUROBI_TIME_OUT}s, using {gp.getParamInfo('Threads')} threads"
+)
 
 
 class GurobiSorter(GraphSorter):
