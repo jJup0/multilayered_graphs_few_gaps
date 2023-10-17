@@ -20,9 +20,9 @@ import time
 from typing import NoReturn
 import fcntl
 
-from crossing_minimization.barycenter_heuristic import BarycenterImprovedSorter
+from crossing_minimization.barycenter_heuristic import BarycenterThesisSorter
 from crossing_minimization.gurobi_int_lin import GurobiSorter
-from crossing_minimization.median_heuristic import ImprovedMedianSorter
+from crossing_minimization.median_heuristic import ThesisMedianSorter
 from multilayered_graph.multilayered_graph import MultiLayeredGraph
 import logging
 
@@ -35,8 +35,8 @@ def log_and_exit(string: str, err_code: int = 1) -> NoReturn:
 
 
 alg_names_to_algs = {
-    "barycenter": BarycenterImprovedSorter,
-    "median": ImprovedMedianSorter,
+    "barycenter": BarycenterThesisSorter,
+    "median": ThesisMedianSorter,
     "ilp": GurobiSorter,
     "none": None,
 }
