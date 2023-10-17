@@ -3,6 +3,7 @@ import logging
 import os
 import random
 from dataclasses import dataclass
+import sys
 from typing import Any
 
 import matplotlib.pyplot as plt
@@ -153,7 +154,7 @@ def annotate_and_save_graph(named_graph: NamedGraphAndParams, save_dir: str):
     plt.clf()
 
 
-def perform_case_study():
+def perform_case_study(case_study_run_name: str):
     # import here to avoid import cycle
     from crossing_minimization.barycenter_heuristic import BarycenterImprovedSorter
     from crossing_minimization.gurobi_int_lin import GurobiSorter
@@ -223,7 +224,7 @@ def perform_case_study():
     save_dir = os.path.join(
         save_dir,
         "saved_plots",
-        f"case_study_{RANDOMNESS_SEED if RANDOMNESS_SEED is not None else 'unshuffled'}",
+        f"case_study_{RANDOMNESS_SEED if RANDOMNESS_SEED is not None else 'unshuffled'}_{case_study_run_name}",
     )
     graph_obj_dir = os.path.join(save_dir, "graph_objects")
     os.makedirs(graph_obj_dir, exist_ok=True)
@@ -238,4 +239,8 @@ def perform_case_study():
 
 
 if __name__ == "__main__":
-    perform_case_study()
+    print("RUNNING CASE STUDY")
+    case_study_run_name = ""
+    if len(sys.argv) > 1:
+        case_study_run_name = sys.argv[1]
+    perform_case_study(case_study_run_name)
