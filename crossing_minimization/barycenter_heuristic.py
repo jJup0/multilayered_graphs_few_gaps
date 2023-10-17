@@ -76,6 +76,8 @@ class BarycenterThesisSorter(AbstractBarycenterSorter):
 
 
 class BarycenterImprovedSorter(AbstractBarycenterSorter):
+    """Deprecated Sorter"""
+
     algorithm_name = "Barycenter improved"
 
     @classmethod
@@ -137,6 +139,8 @@ class BarycenterImprovedSorter(AbstractBarycenterSorter):
 
 
 class BarycenterNaiveSorter(AbstractBarycenterSorter):
+    """Deprecated Sorter"""
+
     algorithm_name = "Barycenter naive"
 
     @classmethod

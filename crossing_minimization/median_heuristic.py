@@ -72,6 +72,8 @@ class ThesisMedianSorter(AbstractMedianSorter):
 
 
 class ImprovedMedianSorter(AbstractMedianSorter):
+    """Deprecated Sorter"""
+
     algorithm_name = "Median improved"
 
     @classmethod
@@ -153,6 +155,8 @@ class ImprovedMedianSorter(AbstractMedianSorter):
 
 
 class NaiveMedianSorter(AbstractMedianSorter):
+    """Deprecated Sorter"""
+
     algorithm_name = "Median naive"
 
     @classmethod
