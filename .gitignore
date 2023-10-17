@@ -30,3 +30,6 @@ thesis_experiments/local_tests/**/log.txt
 
 # plots 
 thesis_experiments/saved_plots*
+
+# log
+*log.txt
