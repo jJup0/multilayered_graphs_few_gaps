@@ -276,5 +276,4 @@ def get_barycenter(
     if neighbor_count == 0:
         return ml_graph.layers_to_nodes[node.layer].index(node)
     # O(neighbor_count)
-    barycenter = sum(prev_layer_indices[node] for node in neighbors) / neighbor_count
-    return barycenter
+    return statistics.mean(prev_layer_indices[node] for node in neighbors)
