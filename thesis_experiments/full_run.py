@@ -651,16 +651,16 @@ if __name__ == "__main__":
     else:
         test_case_suffix = "temp"
 
-    # ClusterExperiments.vary_gap_count(test_case_suffix)
-    # ClusterExperiments.side_gaps_vary_node_degree(test_case_suffix)
-    # ClusterExperiments.side_gaps_vary_virtual_node_ratio(test_case_suffix)
-    # ClusterExperiments.side_gaps_vs_arbitrary_2_gaps(test_case_suffix)
-    # ClusterExperiments.side_gaps_vary_node_count(test_case_suffix)
-    # ClusterExperiments.tscm_sg(test_case_suffix)
-    # ClusterExperiments.tscm_sg_vary_up_and_down(test_case_suffix)
+    ClusterExperiments.vary_gap_count(test_case_suffix)
+    ClusterExperiments.side_gaps_vary_node_degree(test_case_suffix)
+    ClusterExperiments.side_gaps_vary_virtual_node_ratio(test_case_suffix)
+    ClusterExperiments.side_gaps_vs_arbitrary_2_gaps(test_case_suffix)
+    ClusterExperiments.side_gaps_vary_node_count(test_case_suffix)
+    ClusterExperiments.tscm_sg(test_case_suffix)
+    ClusterExperiments.tscm_sg_vary_up_and_down(test_case_suffix)
     ClusterExperiments.oscm_side_gaps_large_instances(test_case_suffix)
-    # ClusterExperiments.oscm_k_gaps_large_instances(test_case_suffix)
-    # ClusterExperiments.oscm_k_gaps_large_instances_vary_k(test_case_suffix)
+    ClusterExperiments.oscm_k_gaps_large_instances(test_case_suffix)
+    ClusterExperiments.oscm_k_gaps_large_instances_vary_k(test_case_suffix)
 
     ##### ClusterExperiments.run_micro(test_case_suffix)
 
