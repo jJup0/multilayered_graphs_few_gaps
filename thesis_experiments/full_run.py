@@ -575,6 +575,30 @@ class ClusterExperiments:
         return test_case_name
 
     @classmethod
+    def oscm_k_gaps_large_instances_vary_k(cls, test_case_suffix: str = ""):
+        test_case_name = cls._test_case_name(
+            "oscm_k_gaps_large_instances_vary_k", test_case_suffix
+        )
+        # NOTE: HIGHER AVERAGE NODE DEGREE AND GAP COUNT
+        nodes_per_layer = [cls.LARGER_INSTANCE_MAX_NODES // 2]
+        average_node_degrees = [cls.LARGER_INSTANCE_AVG_NODE_DEGREE]
+        virtual_node_ratios = [cls.STANDARD_VIRTUAL_NODE_RATIO]
+        gap_counts = [1, 2, 5, 10, 100]
+        run_batch(
+            test_case_name,
+            graph_gen_count=cls.STANDARD_GRAPH_GEN_COUNT,
+            nodes_per_layer=nodes_per_layer,
+            virtual_node_ratios=virtual_node_ratios,
+            average_node_degrees=average_node_degrees,
+            run_k_gaps=True,
+            gap_counts=gap_counts,
+            only_heuristic=True,
+        )
+
+        logger.info("finished %s", test_case_name)
+        return test_case_name
+
+    @classmethod
     def oscm_side_gaps_large_instances(cls, test_case_suffix: str = ""):
         test_case_name = cls._test_case_name(
             "oscm_side_gaps_large_instances", test_case_suffix
@@ -632,10 +656,11 @@ if __name__ == "__main__":
     # ClusterExperiments.side_gaps_vary_virtual_node_ratio(test_case_suffix)
     # ClusterExperiments.side_gaps_vs_arbitrary_2_gaps(test_case_suffix)
     # ClusterExperiments.side_gaps_vary_node_count(test_case_suffix)
-    ClusterExperiments.tscm_sg(test_case_suffix)
+    # ClusterExperiments.tscm_sg(test_case_suffix)
     # ClusterExperiments.tscm_sg_vary_up_and_down(test_case_suffix)
-    # ClusterExperiments.oscm_side_gaps_large_instances(test_case_suffix)
+    ClusterExperiments.oscm_side_gaps_large_instances(test_case_suffix)
     # ClusterExperiments.oscm_k_gaps_large_instances(test_case_suffix)
+    # ClusterExperiments.oscm_k_gaps_large_instances_vary_k(test_case_suffix)
 
     ##### ClusterExperiments.run_micro(test_case_suffix)
 
