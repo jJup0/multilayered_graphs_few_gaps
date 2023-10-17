@@ -71,7 +71,6 @@ def crossings_for_node_pair(
         edges_to_use = ml_graph.nodes_to_in_edges
         nodes_to_index = ml_graph.nodes_to_indices_at_layer(u.layer - 1)
 
-    # TODO find complexity for this
     u_neighbor_idxs = [nodes_to_index[n] for n in edges_to_use[u]]
     v_neighbor_idxs = [nodes_to_index[n] for n in edges_to_use[v]]
     for u_neighbor_idx in u_neighbor_idxs:
