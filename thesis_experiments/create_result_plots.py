@@ -272,7 +272,7 @@ def calculate_ilp_ratios(*, df: pd.DataFrame, csv_real_file_path: str):
 
         ilp_row = ilp_rows.iloc[0]
 
-        crossings_ratio = row["crossings"] / ilp_row["crossings"]
+        crossings_ratio = row["crossings"] / max(ilp_row["crossings"], 1)
         heuristic_df.at[index, "ratio-crossings"] = crossings_ratio
 
         time_ratio = row["time_s"] / ilp_row["time_s"]
@@ -372,7 +372,7 @@ def find_matching_test_case_dirs_and_plot_data(test_case_name_match: str):
         if not os.path.isdir(test_case_dir_path):
             continue
         if test_case_name_match in test_case_dir_path:
-            logger.info("found matching test case")
+            logger.info("found matching test case: %s", os.path.split(test_case_dir_path)[1])
             found_test_cases += 1
             create_graph(test_case_name_match, test_case_dir_path)
 
