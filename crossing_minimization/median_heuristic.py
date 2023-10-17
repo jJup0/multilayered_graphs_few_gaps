@@ -1,7 +1,7 @@
 import statistics
 from abc import abstractmethod
 
-from crossing_minimization.k_gaps import k_gaps_sort_layer
+from crossing_minimization.k_gaps import k_gaps_sort_whole_graph
 from crossing_minimization.utils import (
     DEFAULT_MAX_ITERATIONS_MULTILAYERED_CROSSING_MINIMIZATION,
     Above_or_below_T,
@@ -34,52 +34,13 @@ class AbstractMedianSorter(GraphSorter):
                 max_iterations=max_iterations,
                 only_one_up_iteration=only_one_up_iteration,
             )
-        return cls.k_gaps(
+        return k_gaps_sort_whole_graph(
             ml_graph,
             max_iterations=max_iterations,
             only_one_up_iteration=only_one_up_iteration,
             max_gaps=max_gaps,
+            get_median_or_barycenter=get_median,
         )
-
-    @classmethod
-    def k_gaps(
-        cls,
-        ml_graph: MultiLayeredGraph,
-        *,
-        max_iterations: int,
-        only_one_up_iteration: bool,
-        max_gaps: int,
-    ):
-        layer_to_unordered_real_nodes = [
-            [n for n in ml_graph.layers_to_nodes[layer_idx] if not n.is_virtual]
-            for layer_idx in range(ml_graph.layer_count)
-        ]
-        layers_to_above_below = generate_layers_to_above_or_below(
-            ml_graph, max_iterations, only_one_up_iteration
-        )
-
-        for layer_idx, above_or_below in layers_to_above_below:
-            nodes_to_neighbors = get_graph_neighbors_from_above_or_below(
-                ml_graph, above_or_below
-            )
-            prev_layer_indices = ml_graph.nodes_to_indices_at_layer(
-                get_layer_idx_above_or_below(layer_idx, above_or_below)
-            )
-            layer_to_unordered_real_nodes[layer_idx].sort(
-                key=lambda node: get_median(
-                    ml_graph,
-                    node,
-                    nodes_to_neighbors[node],
-                    prev_layer_indices,
-                )
-            )
-            k_gaps_sort_layer(
-                ml_graph,
-                layers_to_ordered_real_nodes=layer_to_unordered_real_nodes,
-                layer_idx=layer_idx,
-                above_or_below="below",
-                gaps=max_gaps,
-            )
 
     @classmethod
     @abstractmethod

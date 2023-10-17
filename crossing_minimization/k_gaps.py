@@ -1,9 +1,14 @@
+import sys
 from functools import cache
-from typing import Literal
+from typing import Callable, Literal
 
+from crossing_minimization.utils import (
+    generate_layers_to_above_or_below,
+    get_graph_neighbors_from_above_or_below,
+    get_layer_idx_above_or_below,
+)
 from crossings.calculate_crossings import crossings_for_node_pair
 from multilayered_graph.multilayered_graph import MLGNode, MultiLayeredGraph
-import sys
 
 
 def _get_crossings_for_vnodes_in_gaps(
@@ -270,3 +275,45 @@ def virtual_node_to_neighbor_position_sorting_func(
     neighbor = next(iter(neighbors))
     neighbor_layer_idx = vnode.layer - 1 if "below" else vnode.layer + 1
     return ml_graph.layers_to_nodes[neighbor_layer_idx].index(neighbor)
+
+
+def k_gaps_sort_whole_graph(
+    ml_graph: MultiLayeredGraph,
+    *,
+    max_iterations: int,
+    only_one_up_iteration: bool,
+    max_gaps: int,
+    get_median_or_barycenter: Callable[
+        [MultiLayeredGraph, MLGNode, set[MLGNode], dict[MLGNode, int]], float
+    ],
+):
+    layer_to_unordered_real_nodes = [
+        [n for n in ml_graph.layers_to_nodes[layer_idx] if not n.is_virtual]
+        for layer_idx in range(ml_graph.layer_count)
+    ]
+    layers_to_above_below = generate_layers_to_above_or_below(
+        ml_graph, max_iterations, only_one_up_iteration
+    )
+
+    for layer_idx, above_or_below in layers_to_above_below:
+        nodes_to_neighbors = get_graph_neighbors_from_above_or_below(
+            ml_graph, above_or_below
+        )
+        prev_layer_indices = ml_graph.nodes_to_indices_at_layer(
+            get_layer_idx_above_or_below(layer_idx, above_or_below)
+        )
+        layer_to_unordered_real_nodes[layer_idx].sort(
+            key=lambda node: get_median_or_barycenter(
+                ml_graph,
+                node,
+                nodes_to_neighbors[node],
+                prev_layer_indices,
+            )
+        )
+        k_gaps_sort_layer(
+            ml_graph,
+            layers_to_ordered_real_nodes=layer_to_unordered_real_nodes,
+            layer_idx=layer_idx,
+            above_or_below="below",
+            gaps=max_gaps,
+        )
