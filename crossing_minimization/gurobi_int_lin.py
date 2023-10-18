@@ -1,3 +1,4 @@
+# todo refactor function to be methods of GurobiSorter
 import collections
 import logging
 import warnings
@@ -46,7 +47,7 @@ class GurobiSorter(GraphSorter):
         side_gaps_only: bool,
         max_gaps: int,
     ) -> None:
-        # two sided only implemented for side gaps
+        # two sided only implemented for side gaps, should be easily adjustable for k-gaps
         if (
             side_gaps_only is True
             and only_one_up_iteration is False
@@ -84,6 +85,8 @@ def side_gaps_gurobi_two_sided(
     ):
         real_nodes_layer = [n for n in nodes_in_layer if not n.is_virtual]
         virtual_nodes_layer = [n for n in nodes_in_layer if n.is_virtual]
+        # todo, can easily do if check here for k-gaps and use
+        # _gen_k_gap_constraints() instead, just like in one_sided()
         _gen_virtual_node_sidegap_vars_and_constraints(
             m,
             virtual_nodes=virtual_nodes_layer,
