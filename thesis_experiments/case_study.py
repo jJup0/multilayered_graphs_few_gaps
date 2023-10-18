@@ -163,7 +163,7 @@ def perform_case_study(case_study_run_name: str):
 
     named_graphs = [
         NamedGraphAndParams(
-            name="Barycenter side gaps",
+            name="Barycenter side-gaps",
             graph=copy.deepcopy(ml_graph),
             Sorter=BarycenterImprovedSorter,
             side_gaps=True,
@@ -184,7 +184,7 @@ def perform_case_study(case_study_run_name: str):
             max_gaps=100,
         ),
         NamedGraphAndParams(
-            name="ILP side gaps",
+            name="ILP side-gaps",
             graph=copy.deepcopy(ml_graph),
             Sorter=GurobiSorter,
             side_gaps=True,
