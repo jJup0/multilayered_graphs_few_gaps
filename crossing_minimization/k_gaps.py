@@ -2,12 +2,12 @@ import sys
 from functools import cache
 from typing import Callable, Literal
 
+from crossing_minimization.calculate_crossings import crossings_for_node_pair
 from crossing_minimization.utils import (
     generate_layers_to_above_or_below,
     get_graph_neighbors_from_above_or_below,
     get_layer_idx_above_or_below,
 )
-from crossings.calculate_crossings import crossings_for_node_pair
 from multilayered_graph.multilayered_graph import MLGNode, MultiLayeredGraph
 
 

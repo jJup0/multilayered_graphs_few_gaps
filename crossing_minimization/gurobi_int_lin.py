@@ -5,13 +5,13 @@ import warnings
 import gurobipy as gp
 from gurobipy import GRB
 
+from crossing_minimization.calculate_crossings import crossings_uv_vu
 from crossing_minimization.k_gaps import virtual_node_to_neighbor_position_sorting_func
 from crossing_minimization.utils import (
     Above_or_below_T,
     GraphSorter,
     generate_layers_to_above_or_below,
 )
-from crossings.calculate_crossings import crossings_uv_vu
 from multilayered_graph.multilayered_graph import (
     MLGNode,
     MLGNodeEdge_T,
