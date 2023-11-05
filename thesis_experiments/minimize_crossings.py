@@ -37,7 +37,7 @@ alg_names_to_algs = {
     "barycenter": BarycenterThesisSorter,
     "median": ThesisMedianSorter,
     "ilp": GurobiSorter,
-    "ilp_reduced": GurobiThesisSorter,
+    "gurobi_simplified": GurobiThesisSorter,
     "none": None,
 }
 
