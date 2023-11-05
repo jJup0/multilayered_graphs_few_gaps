@@ -2,6 +2,7 @@
 import collections
 import logging
 import warnings
+from typing import cast
 
 import gurobipy as gp
 from gurobipy import GRB
@@ -28,7 +29,7 @@ logger.setLevel(logging.WARNING)
 
 gp.setParam("LogToConsole", 0)
 # when running performance test set higher timeout and single thread
-production_env = True
+production_env = False
 GUROBI_TIME_OUT = 60 * 5 if production_env else 60 * 2
 if production_env:
     gp.setParam("Threads", 1)
@@ -138,6 +139,16 @@ class GurobiThesisSorter(GraphSorter):
             _gurobi_merge_sort(real_nodes, ordering_gp_vars)
 
             node_to_pos = {n: i for i, n in enumerate(real_nodes)}
+
+            sorted_virtual_nodes = sorted(
+                (n for n in ml_graph.layers_to_nodes[layer_idx] if n.is_virtual),
+                key=lambda node: virtual_node_to_neighbor_position_sorting_func(
+                    ml_graph, node, cast(Above_or_below_T, above_below)
+                ),
+            )
+
+            for i, n in enumerate(sorted_virtual_nodes):
+                node_to_pos[n] = i
 
             def get_gurobi_pos(
                 ml_graph: MultiLayeredGraph,
