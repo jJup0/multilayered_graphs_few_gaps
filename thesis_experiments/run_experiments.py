@@ -351,8 +351,8 @@ def wait_for_processes_to_finish():
 class ClusterExperiments:
     """Not a real class, just a container for all experiments that should be run for the thesis."""
 
-    # STANDARD_GRAPH_GEN_COUNT = 20
-    STANDARD_GRAPH_GEN_COUNT = 5
+    STANDARD_GRAPH_GEN_COUNT = 20
+    # STANDARD_GRAPH_GEN_COUNT = 5
     STANDARD_NODE_COUNT = 40
     STANDARD_VIRTUAL_NODE_RATIO = 0.2
     STANDARD_AVERAGE_NODE_DEGREE = 3.0
