@@ -1,18 +1,22 @@
 # run using `python -m crossings.crossings_analysis`
 import copy
 import logging
-import os
 import time
 from collections import defaultdict
 from dataclasses import dataclass
 from typing import Any, TypedDict
 
+from crossing_analysis_old.crossing_analysis_visualization import (
+    DataSet,
+    GraphLabels,
+    draw_crossing_analysis_graph,
+)
 from crossing_minimization.barycenter_heuristic import (
     BarycenterImprovedSorter,
     BarycenterNaiveSorter,
     BarycenterThesisSorter,
 )
-from crossing_minimization.gurobi_int_lin import GurobiSorter, GurobiHeuristicSorter
+from crossing_minimization.gurobi_int_lin import GurobiHeuristicSorter, GurobiSorter
 from crossing_minimization.median_heuristic import (
     ImprovedMedianSorter,
     NaiveMedianSorter,
@@ -106,8 +110,8 @@ class CrossingsAnalyser:
                 # two_sided_algorithm_kwargs,
             ):
                 for ThesisSorter, OGSorter in (
-                    # (BarycenterThesisSorter, BarycenterImprovedSorter),
-                    # (ThesisMedianSorter, ImprovedMedianSorter),
+                    (BarycenterThesisSorter, BarycenterImprovedSorter),
+                    (ThesisMedianSorter, ImprovedMedianSorter),
                     (GurobiHeuristicSorter, GurobiSorter),
                 ):
                     logger.debug("%s vs %s", ThesisSorter.__name__, OGSorter.__name__)
