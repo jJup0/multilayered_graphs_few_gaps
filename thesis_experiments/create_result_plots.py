@@ -11,7 +11,7 @@ import seaborn as sns
 
 logging.basicConfig()
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
+logger.setLevel(logging.DEBUG)
 
 # filter out FutureWarning
 warnings.filterwarnings("ignore", category=FutureWarning)
@@ -24,7 +24,7 @@ test_case_root_dir = os.path.join(
     os.path.dirname(os.path.realpath(__file__)), "local_tests"
 )
 
-ALG_NAMES = ("median", "barycenter", "ilp")
+ALG_NAMES = ("median", "barycenter", "ilp", "gurobi_heuristic")
 
 
 def get_color_mapping_for_algorithms() -> dict[str, Any]:
@@ -143,6 +143,8 @@ def sort_df_for_proper_legend_order(df: pd.DataFrame) -> pd.DataFrame:
             res += 1
         elif "ilp" in alg_name:
             res += 2
+        elif "gurobi_heuristic" in alg_name:
+            res += 3
         else:
             logger.warning("unknown alg_name: %s", alg_name)
             res += 3
@@ -372,7 +374,9 @@ def find_matching_test_case_dirs_and_plot_data(test_case_name_match: str):
         if not os.path.isdir(test_case_dir_path):
             continue
         if test_case_name_match in test_case_dir_path:
-            logger.info("found matching test case: %s", os.path.split(test_case_dir_path)[1])
+            logger.info(
+                "found matching test case: %s", os.path.split(test_case_dir_path)[1]
+            )
             found_test_cases += 1
             create_graph(test_case_name_match, test_case_dir_path)
 

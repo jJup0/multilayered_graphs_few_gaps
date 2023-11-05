@@ -21,7 +21,7 @@ import time
 from typing import NoReturn
 
 from crossing_minimization.barycenter_heuristic import BarycenterThesisSorter
-from crossing_minimization.gurobi_int_lin import GurobiSorter, GurobiThesisSorter
+from crossing_minimization.gurobi_int_lin import GurobiSorter, GurobiHeuristicSorter
 from crossing_minimization.median_heuristic import ThesisMedianSorter
 from multilayered_graph.multilayered_graph import MultiLayeredGraph
 
@@ -37,7 +37,7 @@ alg_names_to_algs = {
     "barycenter": BarycenterThesisSorter,
     "median": ThesisMedianSorter,
     "ilp": GurobiSorter,
-    "gurobi_simplified": GurobiThesisSorter,
+    "gurobi_heuristic": GurobiHeuristicSorter,
     "none": None,
 }
 

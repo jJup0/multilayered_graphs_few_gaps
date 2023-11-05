@@ -11,7 +11,7 @@ from crossing_minimization.barycenter_heuristic import (
     BarycenterNaiveSorter,
     BarycenterThesisSorter,
 )
-from crossing_minimization.gurobi_int_lin import GurobiSorter, GurobiThesisSorter
+from crossing_minimization.gurobi_int_lin import GurobiSorter, GurobiHeuristicSorter
 from crossing_minimization.median_heuristic import (
     ImprovedMedianSorter,
     NaiveMedianSorter,
@@ -106,7 +106,7 @@ class CrossingsAnalyser:
                 for ThesisSorter, OGSorter in (
                     # (BarycenterThesisSorter, BarycenterImprovedSorter),
                     # (ThesisMedianSorter, ImprovedMedianSorter),
-                    (GurobiThesisSorter, GurobiSorter),
+                    (GurobiHeuristicSorter, GurobiSorter),
                 ):
                     logger.info("%s vs %s", ThesisSorter.__name__, OGSorter.__name__)
                     random_2_layer_graph = self._generate_random_two_layer_graph(
