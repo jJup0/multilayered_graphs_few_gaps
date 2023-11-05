@@ -11,18 +11,13 @@ from crossing_minimization.barycenter_heuristic import (
     BarycenterNaiveSorter,
     BarycenterThesisSorter,
 )
-from crossing_minimization.gurobi_int_lin import GurobiSorter
+from crossing_minimization.gurobi_int_lin import GurobiSorter, GurobiThesisSorter
 from crossing_minimization.median_heuristic import (
     ImprovedMedianSorter,
     NaiveMedianSorter,
     ThesisMedianSorter,
 )
 from crossing_minimization.utils import GraphSorter
-from crossings.crossing_analysis_visualization import (
-    DataSet,
-    GraphLabels,
-    draw_crossing_analysis_graph,
-)
 from multilayered_graph import multilayer_graph_generator
 from multilayered_graph.multilayered_graph import MultiLayeredGraph
 
@@ -75,8 +70,9 @@ class CrossingsAnalyser:
 
     def compare_improved_to_thesis_sorter(self) -> None:
         two_layer_graph_parameters: list[tuple[int, int, int, int]] = [
-            (7, 7, 7, 15),
-            (70, 70, 70, 150),
+            # (10, 10, 5, 15),
+            (20, 20, 10, 50),
+            # (70, 70, 35, 150),
         ]
         one_sided_algorithm_kwargs: SortGraphArgs = {
             "only_one_up_iteration": True,
@@ -84,22 +80,33 @@ class CrossingsAnalyser:
             "max_iterations": 1,
             "max_gaps": 2,
         }
-        two_sided_algorithm_kwargs: SortGraphArgs = {
-            "only_one_up_iteration": False,
-            "side_gaps_only": True,
-            "max_iterations": 5,
-            "max_gaps": 2,
+        one_sided_k_gaps_algorithm_kwargs: SortGraphArgs = {
+            "only_one_up_iteration": True,
+            "side_gaps_only": False,
+            "max_iterations": 1,
+            "max_gaps": 3,
         }
+        # two_sided_algorithm_kwargs: SortGraphArgs = {
+        #     "only_one_up_iteration": False,
+        #     "side_gaps_only": True,
+        #     "max_iterations": 5,
+        #     "max_gaps": 2,
+        # }
         for i, (
             l1_count,
             l2_count,
             vnode_count,
             reg_edges_count,
         ) in enumerate(two_layer_graph_parameters):
-            for sort_kwargs in (one_sided_algorithm_kwargs, two_sided_algorithm_kwargs):
+            for sort_kwargs in (
+                one_sided_algorithm_kwargs,
+                one_sided_k_gaps_algorithm_kwargs,
+                # two_sided_algorithm_kwargs,
+            ):
                 for ThesisSorter, OGSorter in (
-                    (BarycenterThesisSorter, BarycenterImprovedSorter),
-                    (ThesisMedianSorter, ImprovedMedianSorter),
+                    # (BarycenterThesisSorter, BarycenterImprovedSorter),
+                    # (ThesisMedianSorter, ImprovedMedianSorter),
+                    (GurobiThesisSorter, GurobiSorter),
                 ):
                     logger.info("%s vs %s", ThesisSorter.__name__, OGSorter.__name__)
                     random_2_layer_graph = self._generate_random_two_layer_graph(
