@@ -2,12 +2,12 @@ import sys
 from functools import cache
 from typing import Callable, Literal
 
+from crossing_minimization.calculate_crossings import crossings_for_node_pair
 from crossing_minimization.utils import (
     generate_layers_to_above_or_below,
     get_graph_neighbors_from_above_or_below,
     get_layer_idx_above_or_below,
 )
-from crossings.calculate_crossings import crossings_for_node_pair
 from multilayered_graph.multilayered_graph import MLGNode, MultiLayeredGraph
 
 
@@ -217,7 +217,7 @@ def _find_optimal_gaps(
 
 def k_gaps_sort_layer(
     ml_graph: MultiLayeredGraph,
-    layers_to_ordered_real_nodes: list[list[MLGNode]],
+    ordered_real_nodes: list[MLGNode],
     layer_idx: int,
     above_or_below: Literal["above"] | Literal["below"],
     gaps: int,
@@ -233,11 +233,10 @@ def k_gaps_sort_layer(
             ml_graph, node, above_or_below
         ),
     )
-    curr_layer_real_nodes = layers_to_ordered_real_nodes[layer_idx]
     _, vnode_placement = _find_optimal_gaps(
         ml_graph,
         above_or_below,
-        curr_layer_real_nodes,
+        ordered_real_nodes,
         sorted_virtual_nodes,
         gaps,
     )
@@ -246,11 +245,11 @@ def k_gaps_sort_layer(
     curr_gap_idx = 0
     for gap_idx, vnode in zip(vnode_placement, sorted_virtual_nodes, strict=True):
         for curr_gap_idx in range(curr_gap_idx, gap_idx):
-            final_node_order.append(curr_layer_real_nodes[curr_gap_idx])
+            final_node_order.append(ordered_real_nodes[curr_gap_idx])
         curr_gap_idx = gap_idx
         final_node_order.append(vnode)
-    for curr_gap_idx in range(curr_gap_idx, len(curr_layer_real_nodes)):
-        final_node_order.append(curr_layer_real_nodes[curr_gap_idx])
+    for curr_gap_idx in range(curr_gap_idx, len(ordered_real_nodes)):
+        final_node_order.append(ordered_real_nodes[curr_gap_idx])
 
     assert set(ml_graph.layers_to_nodes[layer_idx]) == set(
         final_node_order
@@ -312,7 +311,7 @@ def k_gaps_sort_whole_graph(
         )
         k_gaps_sort_layer(
             ml_graph,
-            layers_to_ordered_real_nodes=layer_to_unordered_real_nodes,
+            ordered_real_nodes=layer_to_unordered_real_nodes[layer_idx],
             layer_idx=layer_idx,
             above_or_below="below",
             gaps=max_gaps,

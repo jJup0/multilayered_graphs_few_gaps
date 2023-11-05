@@ -2,6 +2,7 @@ import logging
 import statistics
 from abc import abstractmethod
 
+from crossing_minimization.calculate_crossings import crossings_uv_vu
 from crossing_minimization.k_gaps import k_gaps_sort_whole_graph
 from crossing_minimization.utils import (
     DEFAULT_MAX_ITERATIONS_MULTILAYERED_CROSSING_MINIMIZATION,
@@ -10,9 +11,8 @@ from crossing_minimization.utils import (
     generate_layers_to_above_or_below,
     get_graph_neighbors_from_above_or_below,
     get_layer_idx_above_or_below,
-    thesis_side_gaps,
+    side_gaps_sort_whole_graph,
 )
-from crossings.calculate_crossings import crossings_uv_vu
 from multilayered_graph.multilayered_graph import MLGNode, MultiLayeredGraph
 
 logger = logging.getLogger(__name__)
@@ -67,7 +67,7 @@ class BarycenterThesisSorter(AbstractBarycenterSorter):
         max_iterations: int,
         only_one_up_iteration: bool,
     ) -> None:
-        thesis_side_gaps(
+        side_gaps_sort_whole_graph(
             ml_graph,
             max_iterations=max_iterations,
             only_one_up_iteration=only_one_up_iteration,

@@ -342,7 +342,7 @@ class GraphSorter(ABC):
         return made_switch
 
 
-def thesis_side_gaps(
+def side_gaps_sort_whole_graph(
     ml_graph: MultiLayeredGraph,
     *,
     max_iterations: int,
@@ -361,66 +361,92 @@ def thesis_side_gaps(
     for layer_idx, above_or_below in generate_layers_to_above_or_below(
         ml_graph, max_iterations, only_one_up_iteration
     ):
-        neighbor_layer_idx = get_layer_idx_above_or_below(layer_idx, above_or_below)
-
-        node_to_neighbors = get_graph_neighbors_from_above_or_below(
-            ml_graph, above_or_below
+        side_gaps_single_layer(
+            ml_graph,
+            get_median_or_barycenter=get_median_or_barycenter,
+            layer_idx=layer_idx,
+            above_or_below=above_or_below,
         )
+
+
+def side_gaps_single_layer(
+    ml_graph: MultiLayeredGraph,
+    *,
+    get_median_or_barycenter: Callable[
+        [MultiLayeredGraph, MLGNode, set[MLGNode], dict[MLGNode, int]], float
+    ],
+    layer_idx: int,
+    above_or_below: Above_or_below_T,
+):
+    """
+    Sorts layer `layer_idx` of ml_graph with side gaps restriction.
+
+    Args:
+        ml_graph (MultiLayeredGraph): Graph to sort.
+        get_median_or_barycenter (Callable[ [MultiLayeredGraph, MLGNode, set[MLGNode], dict[MLGNode, int]], float ]): Heuristic function to determine real node positions.
+        layer_idx (int): Layer to sort
+        above_or_below (Above_or_below_T): Whether to fix layer above or below `layer_idx`.
+    """
+    neighbor_layer_idx = get_layer_idx_above_or_below(layer_idx, above_or_below)
+
+    node_to_neighbors = get_graph_neighbors_from_above_or_below(
+        ml_graph, above_or_below
+    )
+
+    # O(|V_i|)
+    prev_layer_indices = ml_graph.nodes_to_indices_at_layer(neighbor_layer_idx)
+
+    curr_layer = ml_graph.layers_to_nodes[layer_idx]
+    # sort real and virtual nodes
+    # O(|E_i|)
+    # in our case either medians or barycenters
+    medians_or_barycenters = {
+        node: get_median_or_barycenter(
+            ml_graph, node, node_to_neighbors[node], prev_layer_indices
+        )
+        for node in curr_layer
+    }
+    # O(|V_i^r| * log(V_i^r))
+    real_nodes_sorted = sorted(
+        (n for n in curr_layer if not n.is_virtual),
+        key=lambda node: medians_or_barycenters[node],
+    )
+    # O(|V_i^{vt}| * log(V_i^{vt}))
+    virtual_nodes_sorted = sorted(
+        (n for n in curr_layer if n.is_virtual),
+        key=lambda node: medians_or_barycenters[node],
+    )
+
+    # neighbor prefix
+    # O(|E_j|)
+    neighbor_layer_degree_prefix_sum = _get_prev_layer_edges_prefix_sum(
+        ml_graph, above_or_below, neighbor_layer_idx
+    )
+    neighbor_layer_total_out_edges = neighbor_layer_degree_prefix_sum[-1]
+
+    # find split index
+    # O(|V_i^{vt}|)
+    vnode_i = 0
+    for vnode_i, vnode in enumerate(virtual_nodes_sorted):
+        # virtual node only has one neighbor,
+        vnode_neighbor_pos = sum(
+            prev_layer_indices[node] for node in node_to_neighbors[vnode]
+        )
+        # a virtual node has more crossings when placed on the left, if
+        # the accumulated edge count up until its neighbor is less than
+        # half of all outgoing edges of that layer
+        if (
+            neighbor_layer_degree_prefix_sum[vnode_neighbor_pos]
+            > neighbor_layer_total_out_edges // 2
+        ):
+            break
 
         # O(|V_i|)
-        prev_layer_indices = ml_graph.nodes_to_indices_at_layer(neighbor_layer_idx)
-
-        curr_layer = ml_graph.layers_to_nodes[layer_idx]
-        # sort real and virtual nodes
-        # O(|E_i|)
-        # in our case either medians or barycenters
-        medians_or_barycenters = {
-            node: get_median_or_barycenter(
-                ml_graph, node, node_to_neighbors[node], prev_layer_indices
-            )
-            for node in curr_layer
-        }
-        # O(|V_i^r| * log(V_i^r))
-        real_nodes_sorted = sorted(
-            (n for n in curr_layer if not n.is_virtual),
-            key=lambda node: medians_or_barycenters[node],
-        )
-        # O(|V_i^{vt}| * log(V_i^{vt}))
-        virtual_nodes_sorted = sorted(
-            (n for n in curr_layer if n.is_virtual),
-            key=lambda node: medians_or_barycenters[node],
-        )
-
-        # neighbor prefix
-        # O(|E_j|)
-        neighbor_layer_degree_prefix_sum = _get_prev_layer_edges_prefix_sum(
-            ml_graph, above_or_below, neighbor_layer_idx
-        )
-        neighbor_layer_total_out_edges = neighbor_layer_degree_prefix_sum[-1]
-
-        # find split index
-        # O(|V_i^{vt}|)
-        vnode_i = 0
-        for vnode_i, vnode in enumerate(virtual_nodes_sorted):
-            # virtual node only has one neighbor,
-            vnode_neighbor_pos = sum(
-                prev_layer_indices[node] for node in node_to_neighbors[vnode]
-            )
-            # a virtual node has more crossings when placed on the left, if
-            # the accumulated edge count up until its neighbor is less than
-            # half of all outgoing edges of that layer
-            if (
-                neighbor_layer_degree_prefix_sum[vnode_neighbor_pos]
-                > neighbor_layer_total_out_edges // 2
-            ):
-                break
-
-        # O(|V_i|)
-        ml_graph.layers_to_nodes[layer_idx] = (
-            virtual_nodes_sorted[:vnode_i]
-            + real_nodes_sorted
-            + virtual_nodes_sorted[vnode_i:]
-        )
+    ml_graph.layers_to_nodes[layer_idx] = (
+        virtual_nodes_sorted[:vnode_i]
+        + real_nodes_sorted
+        + virtual_nodes_sorted[vnode_i:]
+    )
 
 
 def _get_prev_layer_edges_prefix_sum(

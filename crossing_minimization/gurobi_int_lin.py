@@ -1,3 +1,4 @@
+# todo refactor function to be methods of GurobiSorter
 import collections
 import logging
 import warnings
@@ -5,13 +6,17 @@ import warnings
 import gurobipy as gp
 from gurobipy import GRB
 
-from crossing_minimization.k_gaps import virtual_node_to_neighbor_position_sorting_func
+from crossing_minimization.calculate_crossings import crossings_uv_vu
+from crossing_minimization.k_gaps import (
+    k_gaps_sort_layer,
+    virtual_node_to_neighbor_position_sorting_func,
+)
 from crossing_minimization.utils import (
     Above_or_below_T,
     GraphSorter,
     generate_layers_to_above_or_below,
+    side_gaps_single_layer,
 )
-from crossings.calculate_crossings import crossings_uv_vu
 from multilayered_graph.multilayered_graph import (
     MLGNode,
     MLGNodeEdge_T,
@@ -24,13 +29,140 @@ logger.setLevel(logging.WARNING)
 gp.setParam("LogToConsole", 0)
 # when running performance test set higher timeout and single thread
 production_env = True
-GUROBI_TIME_OUT = 60 * 5 if production_env else 60 * 20
+GUROBI_TIME_OUT = 60 * 5 if production_env else 60 * 2
 if production_env:
     gp.setParam("Threads", 1)
 
 print(
     f"Running with timeout of {GUROBI_TIME_OUT}s, using {gp.getParamInfo('Threads')} threads"
 )
+
+
+class GurobiThesisSorter(GraphSorter):
+    @classmethod
+    def _sort_graph(
+        cls,
+        ml_graph: MultiLayeredGraph,
+        *,
+        max_iterations: int,
+        only_one_up_iteration: bool,
+        side_gaps_only: bool,
+        max_gaps: int,
+    ) -> None:
+        # TSCM only implemented for side gaps, should be easily adjustable for k-gaps
+        if (
+            side_gaps_only is True
+            and only_one_up_iteration is False
+            and ml_graph.layer_count == 2
+        ):
+            # TSCM implemented by Gurobi sorter
+            return GurobiSorter.sort_graph(
+                ml_graph,
+                max_iterations=max_iterations,
+                only_one_up_iteration=only_one_up_iteration,
+                side_gaps_only=side_gaps_only,
+                max_gaps=max_gaps,
+            )
+
+        # else use general sorter
+        cls.gurobi_thesis_one_sided(
+            ml_graph,
+            max_iterations=max_iterations,
+            only_one_up_iteration=only_one_up_iteration,
+            side_gaps_only=side_gaps_only,
+            max_gaps=max_gaps,
+        )
+
+    @classmethod
+    def gurobi_thesis_one_sided(
+        cls,
+        ml_graph: MultiLayeredGraph,
+        *,
+        max_iterations: int,
+        only_one_up_iteration: bool,
+        side_gaps_only: bool,
+        max_gaps: int,
+    ) -> None:
+        layers_to_above_below = generate_layers_to_above_or_below(
+            ml_graph, max_iterations, only_one_up_iteration
+        )
+        layer_to_model: dict[int, gp.Model] = {}
+        layer_to_ordering_vars: dict[int, dict[tuple[MLGNode, MLGNode], gp.Var]] = {}
+
+        gap_constraint_vars = real_node_neighbor_vars = None
+        for layer_idx, above_below in layers_to_above_below:
+            real_nodes = [
+                n for n in ml_graph.layers_to_nodes[layer_idx] if not n.is_virtual
+            ]
+
+            if layer_idx not in layer_to_model:
+                m = gp.Model(
+                    f"Multilayered graph crossing minimization - layer {layer_idx}"
+                )
+                m.Params.LogToConsole = 0
+
+                ordering_gp_vars, _, _ = _gen_order_var_and_constraints(m, real_nodes)
+                layer_to_ordering_vars[layer_idx] = ordering_gp_vars
+                layer_to_model[layer_idx] = m
+
+            m = layer_to_model[layer_idx]
+            ordering_gp_vars = layer_to_ordering_vars[layer_idx]
+            # always update objective function
+            obj = gp.LinExpr()
+            n1__n2_crossings: int
+            n2__n1_crossings: int
+
+            for i, n1 in enumerate(real_nodes):
+                for j in range(i):
+                    n2 = real_nodes[j]
+                    # todo could check if both node are virtual, no need to add
+                    # to objective function if forced by constraints
+                    n1__n2_crossings, n2__n1_crossings = crossings_uv_vu(
+                        ml_graph, n1, n2, above_below
+                    )
+                    n1__n2 = ordering_gp_vars[(n1, n2)]
+                    n2__n1 = ordering_gp_vars[(n2, n1)]
+                    obj += n1__n2_crossings * n1__n2 + n2__n1_crossings * n2__n1
+
+            # set objective, update and optimize
+            _optimize_model(m, obj)
+
+            _gurobi_log_result_info(
+                ml_graph,
+                ordering_gp_vars=ordering_gp_vars,
+                gap_constraint_vars=gap_constraint_vars,
+                real_node_neighbor_vars=real_node_neighbor_vars,
+            )
+
+            # order graph using gurobi variables
+            _gurobi_merge_sort(real_nodes, ordering_gp_vars)
+
+            node_to_pos = {n: i for i, n in enumerate(real_nodes)}
+
+            def get_gurobi_pos(
+                ml_graph: MultiLayeredGraph,
+                node: MLGNode,
+                neighbors: set[MLGNode],
+                prev_layer_indices: dict[MLGNode, int],
+            ) -> float:
+                nonlocal node_to_pos
+                return node_to_pos[node]
+
+            if side_gaps_only:
+                side_gaps_single_layer(
+                    ml_graph,
+                    get_median_or_barycenter=get_gurobi_pos,
+                    layer_idx=layer_idx,
+                    above_or_below=above_below,
+                )
+            else:
+                k_gaps_sort_layer(
+                    ml_graph,
+                    ordered_real_nodes=real_nodes,
+                    layer_idx=layer_idx,
+                    above_or_below=above_below,
+                    gaps=max_gaps,
+                )
 
 
 class GurobiSorter(GraphSorter):
@@ -46,7 +178,7 @@ class GurobiSorter(GraphSorter):
         side_gaps_only: bool,
         max_gaps: int,
     ) -> None:
-        # two sided only implemented for side gaps
+        # two sided only implemented for side gaps, should be easily adjustable for k-gaps
         if (
             side_gaps_only is True
             and only_one_up_iteration is False
@@ -84,6 +216,8 @@ def side_gaps_gurobi_two_sided(
     ):
         real_nodes_layer = [n for n in nodes_in_layer if not n.is_virtual]
         virtual_nodes_layer = [n for n in nodes_in_layer if n.is_virtual]
+        # todo, can easily do if check here for k-gaps and use
+        # _gen_k_gap_constraints() instead, just like in one_sided()
         _gen_virtual_node_sidegap_vars_and_constraints(
             m,
             virtual_nodes=virtual_nodes_layer,

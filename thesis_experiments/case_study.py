@@ -2,8 +2,8 @@ import copy
 import logging
 import os
 import random
-from dataclasses import dataclass
 import sys
+from dataclasses import dataclass
 from typing import Any
 
 import matplotlib.pyplot as plt
@@ -31,7 +31,7 @@ def create_case_study_graph() -> MultiLayeredGraph:
         [39, 41, 38, 40],
         [42, 26, 3, 16, 17, 18, 11, 14, 37, 13, 12, 43, 36, 32, 34],
         [9, 25, 27, 2, 10, 31, 33],
-        # [8, 24, 1, 35, 30], # TODO add these numbers back in but add 100 or something to make them distinguishable from first layer
+        # [8, 24, 1, 35, 30],
     ]
 
     num_to_neighbors = {
@@ -163,7 +163,7 @@ def perform_case_study(case_study_run_name: str):
 
     named_graphs = [
         NamedGraphAndParams(
-            name="Barycenter side gaps",
+            name="Barycenter side-gaps",
             graph=copy.deepcopy(ml_graph),
             Sorter=BarycenterImprovedSorter,
             side_gaps=True,
@@ -184,7 +184,7 @@ def perform_case_study(case_study_run_name: str):
             max_gaps=100,
         ),
         NamedGraphAndParams(
-            name="ILP side gaps",
+            name="ILP side-gaps",
             graph=copy.deepcopy(ml_graph),
             Sorter=GurobiSorter,
             side_gaps=True,

@@ -298,6 +298,7 @@ def dispatch_minimize(
     alg_names = ["median", "barycenter"]
     if not only_heuristic:
         alg_names.append("ilp")
+        alg_names.append("ilp_reduced")
 
     files = os.listdir(in_dir_name(test_case_name))
 

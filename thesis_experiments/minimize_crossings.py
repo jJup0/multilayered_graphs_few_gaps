@@ -14,17 +14,16 @@
 
 import csv
 import getopt
+import logging
 import os
 import sys
 import time
 from typing import NoReturn
-import fcntl
 
 from crossing_minimization.barycenter_heuristic import BarycenterThesisSorter
-from crossing_minimization.gurobi_int_lin import GurobiSorter
+from crossing_minimization.gurobi_int_lin import GurobiSorter, GurobiThesisSorter
 from crossing_minimization.median_heuristic import ThesisMedianSorter
 from multilayered_graph.multilayered_graph import MultiLayeredGraph
-import logging
 
 logger = logging.getLogger(__name__)
 
@@ -38,6 +37,7 @@ alg_names_to_algs = {
     "barycenter": BarycenterThesisSorter,
     "median": ThesisMedianSorter,
     "ilp": GurobiSorter,
+    "ilp_reduced": GurobiThesisSorter,
     "none": None,
 }
 
@@ -162,8 +162,6 @@ for file_path in in_file_paths:
         "time_s",
     ]
     with open(out_csv_file, "a", newline="") as f:
-        fcntl.flock(f, fcntl.LOCK_EX)  # lock file with write access
-        f.seek(0, os.SEEK_END)  # seek to end, just in case
         csv_writer = csv.DictWriter(f, fieldnames=field_names)
         csv_writer.writerow(
             {
@@ -179,4 +177,3 @@ for file_path in in_file_paths:
                 "time_s": total_s,
             }
         )
-        fcntl.flock(f, fcntl.LOCK_UN)  # unlock the file
