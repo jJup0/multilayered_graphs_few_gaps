@@ -153,7 +153,7 @@ def _find_optimal_gaps(
             # more than one gap allowed, but only one node, so fetch result for when only one gap allowed
             crossing_res, distribution_res = find_crossings(1, 0, gap_idx)
         else:
-            # default result is packing all into one less gap
+            # default result is using k gaps, without current gap candidate
             crossing_res, distribution_res = find_crossings(
                 curr_gaps, upto_virtual_idx, gap_idx - 1
             )
@@ -161,7 +161,7 @@ def _find_optimal_gaps(
             # by iterating from i:= 0 to upto_virtual_idx-1 for the virtual node index
             # # and from j := 0 to gap_idx-1 for the maximum allowed gap index
             # for each iteration, place the remaining upto_virtual_idx - i nodes in the jth gap
-            for prev_vnode_idx in range(upto_virtual_idx):
+            for prev_vnode_idx in range(upto_virtual_idx + 1):
                 # find best placement for one fewer gap with the virtual
                 # nodes, and few gap-places to use
                 with_one_fewer_gaps_crossings, prev_distribution_res = find_crossings(
