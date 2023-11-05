@@ -11,7 +11,7 @@ from crossing_minimization.utils import (
     generate_layers_to_above_or_below,
     get_graph_neighbors_from_above_or_below,
     get_layer_idx_above_or_below,
-    thesis_side_gaps,
+    side_gaps_sort_whole_graph,
 )
 from multilayered_graph.multilayered_graph import MLGNode, MultiLayeredGraph
 
@@ -67,7 +67,7 @@ class BarycenterThesisSorter(AbstractBarycenterSorter):
         max_iterations: int,
         only_one_up_iteration: bool,
     ) -> None:
-        thesis_side_gaps(
+        side_gaps_sort_whole_graph(
             ml_graph,
             max_iterations=max_iterations,
             only_one_up_iteration=only_one_up_iteration,
