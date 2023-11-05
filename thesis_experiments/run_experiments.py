@@ -114,6 +114,7 @@ def get_qsub_args(
     gap_count: int | None = None,
     two_sided: bool = False,
     two_sided_iterations: int = 1,
+    nodes_per_layer: int,
 ) -> list[str]:
     # handle k- or side-gaps
     if gap_type_as_flag == "--kgaps":
@@ -135,7 +136,9 @@ def get_qsub_args(
 
     if alg_name == "ilp":
         # mem_required = 1 + 0.0001 * filesize
-        mem_required = 32
+        mem_required = 12
+        if nodes_per_layer > 100:
+            mem_required = 32
     else:
         # mem_required = 1 + 0.00003 * filesize
         mem_required = 1
@@ -283,6 +286,7 @@ def run_batch(
         run_k_gaps=run_k_gaps,
         two_sided=two_sided,
         two_sided_iterations=two_sided_iterations,
+        nodes_per_layer=max(nodes_per_layer),
     )
 
 
@@ -294,6 +298,7 @@ def dispatch_minimize(
     only_heuristic: bool = False,
     two_sided: bool = False,
     two_sided_iterations: list[int] = [1],
+    nodes_per_layer: int,
 ):
     alg_names = ["median", "barycenter"]
     if not only_heuristic:
@@ -319,6 +324,7 @@ def dispatch_minimize(
                         gap_count=gap_count,
                         two_sided=two_sided,
                         two_sided_iterations=_two_sided_iterations,
+                        nodes_per_layer=nodes_per_layer,
                     )
                     # logger.debug("submitting %s", standard_run_cmds)
                     popen_wrapper(standard_run_cmds)
@@ -387,7 +393,7 @@ class ClusterExperiments:
     @classmethod
     def side_gaps_vs_arbitrary_2_gaps(cls, test_case_suffix: str = ""):
         test_case_name = cls._test_case_name("2_gaps_vs_side_gaps", test_case_suffix)
-        nodes_per_layer = list(range(10, 71, 10))
+        nodes_per_layer = list(range(10, 61, 10))
         virtual_node_ratios = [cls.STANDARD_VIRTUAL_NODE_RATIO] * len(nodes_per_layer)
         average_node_degrees = [cls.STANDARD_AVERAGE_NODE_DEGREE] * len(nodes_per_layer)
         run_k_gaps = True
@@ -406,7 +412,11 @@ class ClusterExperiments:
 
         # manually run side gaps
         dispatch_minimize(
-            test_case_name, run_k_gaps=False, gap_counts=[2], only_heuristic=False
+            test_case_name,
+            run_k_gaps=False,
+            gap_counts=[2],
+            only_heuristic=False,
+            nodes_per_layer=max(nodes_per_layer),
         )
 
         # overwrite info file
@@ -541,6 +551,7 @@ class ClusterExperiments:
             only_heuristic=False,
             two_sided=True,
             two_sided_iterations=[1],
+            nodes_per_layer=max(nodes_per_layer),
         )
 
         logger.info("finished %s", test_case_name)
@@ -577,6 +588,7 @@ class ClusterExperiments:
 
     @classmethod
     def oscm_k_gaps_large_instances_vary_k(cls, test_case_suffix: str = ""):
+        # NOT INCLUDED IN THE THESIS
         test_case_name = cls._test_case_name(
             "oscm_k_gaps_large_instances_vary_k", test_case_suffix
         )
@@ -652,15 +664,15 @@ if __name__ == "__main__":
     else:
         test_case_suffix = "temp"
 
-    # ClusterExperiments.side_gaps_vary_node_count(test_case_suffix)
-    # ClusterExperiments.vary_gap_count(test_case_suffix)
-    # ClusterExperiments.side_gaps_vary_node_degree(test_case_suffix)
-    # ClusterExperiments.side_gaps_vary_virtual_node_ratio(test_case_suffix)
+    ClusterExperiments.side_gaps_vary_node_count(test_case_suffix)
     ClusterExperiments.side_gaps_vs_arbitrary_2_gaps(test_case_suffix)
-    # ClusterExperiments.tscm_sg(test_case_suffix)
-    # ClusterExperiments.tscm_sg_vary_up_and_down(test_case_suffix)
-    # ClusterExperiments.oscm_side_gaps_large_instances(test_case_suffix)
-    # ClusterExperiments.oscm_k_gaps_large_instances(test_case_suffix)
+    ClusterExperiments.side_gaps_vary_node_degree(test_case_suffix)
+    ClusterExperiments.k_gaps_vary_gap_count(test_case_suffix)
+    ClusterExperiments.side_gaps_vary_virtual_node_ratio(test_case_suffix)
+    ClusterExperiments.tscm_sg(test_case_suffix)
+    ClusterExperiments.tscm_sg_vary_up_and_down(test_case_suffix)
+    ClusterExperiments.oscm_side_gaps_large_instances(test_case_suffix)
+    ClusterExperiments.oscm_k_gaps_large_instances(test_case_suffix)
     # ClusterExperiments.oscm_k_gaps_large_instances_vary_k(test_case_suffix)
 
     ##### ClusterExperiments.run_micro(test_case_suffix)
