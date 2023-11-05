@@ -3,7 +3,7 @@
 ## Algorithms
 
 Algorithms for crossing minimization can found under `/crossing_minimization`.
-Alorithms of interest are `ThesisMedianSorter`, `ThesisBarycenterSorter` and `GurobiSorter`.
+Alorithms of interest are `ThesisMedianSorter`, `BarycenterThesisSorter` and `GurobiSorter`.
 
 ## Graph Implementation
 
