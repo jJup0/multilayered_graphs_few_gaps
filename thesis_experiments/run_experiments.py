@@ -141,7 +141,7 @@ def get_qsub_args(
             mem_required = 32
     else:
         # mem_required = 1 + 0.00003 * filesize
-        mem_required = 1
+        mem_required = 2
     # print(f"{file_name=} {alg_name=} {mem_required=}")
 
     # out_csv_path = out_csv_path(test_case_name)
