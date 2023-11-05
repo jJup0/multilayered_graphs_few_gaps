@@ -135,7 +135,7 @@ def get_qsub_args(
 
     if alg_name == "ilp":
         # mem_required = 1 + 0.0001 * filesize
-        mem_required = 8
+        mem_required = 32
     else:
         # mem_required = 1 + 0.00003 * filesize
         mem_required = 1
@@ -345,7 +345,7 @@ class ClusterExperiments:
     """Not a real class, just a container for all experiments that should be run for the thesis."""
 
     STANDARD_GRAPH_GEN_COUNT = 20
-    # STANDARD_GRAPH_GEN_COUNT = 1
+    # STANDARD_GRAPH_GEN_COUNT = 5
     STANDARD_NODE_COUNT = 40
     STANDARD_VIRTUAL_NODE_RATIO = 0.2
     STANDARD_AVERAGE_NODE_DEGREE = 3.0
@@ -356,7 +356,7 @@ class ClusterExperiments:
         return f"testcase_{test_case_version}_{base_name}"
 
     @classmethod
-    def vary_gap_count(cls, test_case_suffix: str = ""):
+    def k_gaps_vary_gap_count(cls, test_case_suffix: str = ""):
         test_case_name = cls._test_case_name("k_gaps_count_variation", test_case_suffix)
         nodes_per_layer = [cls.STANDARD_NODE_COUNT]
         virtual_node_ratios = [cls.STANDARD_VIRTUAL_NODE_RATIO]
@@ -469,7 +469,7 @@ class ClusterExperiments:
         test_case_name = cls._test_case_name(
             "side_gaps_vary_node_count", test_case_suffix
         )
-        nodes_per_layer = list(range(10, 71, 10))
+        nodes_per_layer = list(range(10, 251, 30))
         average_node_degrees = [cls.STANDARD_AVERAGE_NODE_DEGREE] * len(nodes_per_layer)
         virtual_node_ratios = [cls.STANDARD_VIRTUAL_NODE_RATIO] * len(nodes_per_layer)
         run_k_gaps = False
@@ -651,16 +651,16 @@ if __name__ == "__main__":
     else:
         test_case_suffix = "temp"
 
-    ClusterExperiments.vary_gap_count(test_case_suffix)
-    ClusterExperiments.side_gaps_vary_node_degree(test_case_suffix)
-    ClusterExperiments.side_gaps_vary_virtual_node_ratio(test_case_suffix)
+    # ClusterExperiments.side_gaps_vary_node_count(test_case_suffix)
+    # ClusterExperiments.vary_gap_count(test_case_suffix)
+    # ClusterExperiments.side_gaps_vary_node_degree(test_case_suffix)
+    # ClusterExperiments.side_gaps_vary_virtual_node_ratio(test_case_suffix)
     ClusterExperiments.side_gaps_vs_arbitrary_2_gaps(test_case_suffix)
-    ClusterExperiments.side_gaps_vary_node_count(test_case_suffix)
-    ClusterExperiments.tscm_sg(test_case_suffix)
-    ClusterExperiments.tscm_sg_vary_up_and_down(test_case_suffix)
-    ClusterExperiments.oscm_side_gaps_large_instances(test_case_suffix)
-    ClusterExperiments.oscm_k_gaps_large_instances(test_case_suffix)
-    ClusterExperiments.oscm_k_gaps_large_instances_vary_k(test_case_suffix)
+    # ClusterExperiments.tscm_sg(test_case_suffix)
+    # ClusterExperiments.tscm_sg_vary_up_and_down(test_case_suffix)
+    # ClusterExperiments.oscm_side_gaps_large_instances(test_case_suffix)
+    # ClusterExperiments.oscm_k_gaps_large_instances(test_case_suffix)
+    # ClusterExperiments.oscm_k_gaps_large_instances_vary_k(test_case_suffix)
 
     ##### ClusterExperiments.run_micro(test_case_suffix)
 
