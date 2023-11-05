@@ -29,7 +29,7 @@ logger.setLevel(logging.WARNING)
 
 gp.setParam("LogToConsole", 0)
 # when running performance test set higher timeout and single thread
-production_env = False
+production_env = True
 GUROBI_TIME_OUT = 60 * 5 if production_env else 60 * 2
 if production_env:
     gp.setParam("Threads", 1)
