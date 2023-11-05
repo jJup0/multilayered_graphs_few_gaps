@@ -4,6 +4,7 @@ from typing import Callable, Literal
 
 from crossing_minimization.calculate_crossings import crossings_for_node_pair
 from crossing_minimization.utils import (
+    Above_or_below_T,
     generate_layers_to_above_or_below,
     get_graph_neighbors_from_above_or_below,
     get_layer_idx_above_or_below,
@@ -261,7 +262,7 @@ def k_gaps_sort_layer(
 def virtual_node_to_neighbor_position_sorting_func(
     ml_graph: MultiLayeredGraph,
     vnode: MLGNode,
-    neighbors_are_above_or_below: Literal["above"] | Literal["below"],
+    neighbors_are_above_or_below: Above_or_below_T,
 ) -> int:
     assert vnode.is_virtual
     neighbors = (
