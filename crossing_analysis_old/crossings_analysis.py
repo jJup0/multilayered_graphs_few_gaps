@@ -1,6 +1,7 @@
 # run using `python -m crossings.crossings_analysis`
 import copy
 import logging
+import os
 import time
 from collections import defaultdict
 from dataclasses import dataclass
@@ -34,7 +35,7 @@ class SortGraphArgs(TypedDict):
     max_gaps: int
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=False, slots=True)
 class GraphAndType:
     graph: MultiLayeredGraph
     type_name: str
@@ -74,18 +75,19 @@ class CrossingsAnalyser:
             (20, 20, 10, 50),
             # (70, 70, 35, 150),
         ]
-        one_sided_algorithm_kwargs: SortGraphArgs = {
+        two_layer_graph_parameters *= 40
+        oscm_sg_algorithm_kwargs: SortGraphArgs = {
             "only_one_up_iteration": True,
             "side_gaps_only": True,
             "max_iterations": 1,
             "max_gaps": 2,
         }
-        one_sided_k_gaps_algorithm_kwargs: SortGraphArgs = {
-            "only_one_up_iteration": True,
-            "side_gaps_only": False,
-            "max_iterations": 1,
-            "max_gaps": 3,
-        }
+        # oscm_kg_algorithm_kwargs: SortGraphArgs = {
+        #     "only_one_up_iteration": True,
+        #     "side_gaps_only": False,
+        #     "max_iterations": 1,
+        #     "max_gaps": 3,
+        # }
         # two_sided_algorithm_kwargs: SortGraphArgs = {
         #     "only_one_up_iteration": False,
         #     "side_gaps_only": True,
@@ -99,8 +101,8 @@ class CrossingsAnalyser:
             reg_edges_count,
         ) in enumerate(two_layer_graph_parameters):
             for sort_kwargs in (
-                one_sided_algorithm_kwargs,
-                one_sided_k_gaps_algorithm_kwargs,
+                oscm_sg_algorithm_kwargs,
+                # oscm_kg_algorithm_kwargs,
                 # two_sided_algorithm_kwargs,
             ):
                 for ThesisSorter, OGSorter in (
@@ -108,7 +110,7 @@ class CrossingsAnalyser:
                     # (ThesisMedianSorter, ImprovedMedianSorter),
                     (GurobiThesisSorter, GurobiSorter),
                 ):
-                    logger.info("%s vs %s", ThesisSorter.__name__, OGSorter.__name__)
+                    logger.debug("%s vs %s", ThesisSorter.__name__, OGSorter.__name__)
                     random_2_layer_graph = self._generate_random_two_layer_graph(
                         layer1_count=l1_count,
                         layer2_count=l2_count,
@@ -131,22 +133,22 @@ class CrossingsAnalyser:
 
                     thesis_crossings = thesis_min_graph.graph.get_total_crossings()
                     og_crossings = og_min_graph.graph.get_total_crossings()
-                    if thesis_crossings > og_crossings:
+                    if thesis_crossings != og_crossings:
                         logger.warning(
                             "THESIS MINIMIZATION CAUSED MORE CROSSINGS: %s > %s",
                             thesis_crossings,
                             og_crossings,
                         )
                     else:
-                        logger.info(
-                            "Crossings: %s <= %s", thesis_crossings, og_crossings
+                        logger.debug(
+                            "Crossings: %s == %s", thesis_crossings, og_crossings
                         )
 
                     for layer_idx in range(thesis_min_graph.graph.layer_count):
                         assert str(
                             thesis_min_graph.graph.layers_to_nodes[layer_idx]
                         ) == str(og_min_graph.graph.layers_to_nodes[layer_idx])
-                        logger.info(
+                        logger.debug(
                             "Layer %d: both graphs have identical orders", layer_idx
                         )
 
@@ -458,7 +460,10 @@ class CrossingsAnalyser:
         # optional validation step, can be left out if correctness is guaranteed
         try:
             self._assert_sorted_graph_valid(
-                original_graph, graph_copy, gaps_allowed=algorithm_kwargs["max_gaps"]
+                original_graph,
+                graph_copy,
+                gaps_allowed=algorithm_kwargs["max_gaps"],
+                only_side_gaps=algorithm_kwargs["side_gaps_only"],
             )
             # print(f"graph valid")
         except AssertionError as err:
