@@ -39,7 +39,7 @@ print(
 )
 
 
-class GurobiThesisSorter(GraphSorter):
+class GurobiHeuristicSorter(GraphSorter):
     @classmethod
     def _sort_graph(
         cls,
