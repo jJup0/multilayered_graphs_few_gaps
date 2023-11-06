@@ -157,6 +157,14 @@ def _find_optimal_gaps(
             crossing_res, distribution_res = find_crossings(
                 curr_gaps, upto_virtual_idx, gap_idx - 1
             )
+            # check if placing all in current gap candidate is better
+            crossing_res_all_in_curr, distribution_res_all_in_curr = find_crossings(
+                1, upto_virtual_idx, gap_idx
+            )
+            if crossing_res_all_in_curr < crossing_res:
+                crossing_res = crossing_res_all_in_curr
+                distribution_res = distribution_res_all_in_curr
+
             # more than one gap allowed, find best placement for `gaps`-1 gaps,
             # by iterating from i:= 0 to upto_virtual_idx-1 for the virtual node index
             # # and from j := 0 to gap_idx-1 for the maximum allowed gap index
