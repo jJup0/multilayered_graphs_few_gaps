@@ -10,6 +10,9 @@ logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.DEBUG)
 logger.setLevel(logging.DEBUG)
 
+production_env = True
+GL_STANDARD_GRAPH_GEN_COUNT = 20 if production_env else 5
+
 STANDARD_CWD = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 
 thesis_experiments_dirname = "thesis_experiments"
@@ -152,6 +155,10 @@ def get_qsub_args(
         f"{file_name}{alg_name}{gap_type_as_flag}{gap_count}{two_sided_iterations}.out",
     )
 
+    bc4_args: list[str] = []
+    if production_env:
+        bc4_args = ["-l", "bc4"]
+
     return [
         "qsub",
         "-N",
@@ -164,8 +171,7 @@ def get_qsub_args(
         "-l",
         f"mem_free={mem_required:.3f}G",
         # only run on blade center 4
-        "-l",
-        "bc4",
+        *bc4_args,
         # restart on fail
         "-r",
         "y",
@@ -351,8 +357,7 @@ def wait_for_processes_to_finish():
 class ClusterExperiments:
     """Not a real class, just a container for all experiments that should be run for the thesis."""
 
-    STANDARD_GRAPH_GEN_COUNT = 20
-    # STANDARD_GRAPH_GEN_COUNT = 5
+    STANDARD_GRAPH_GEN_COUNT = GL_STANDARD_GRAPH_GEN_COUNT
     STANDARD_NODE_COUNT = 40
     STANDARD_VIRTUAL_NODE_RATIO = 0.2
     STANDARD_AVERAGE_NODE_DEGREE = 3.0
