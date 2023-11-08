@@ -204,9 +204,9 @@ def _find_optimal_gaps(
     if not ordered_real_nodes:
         return 0, [0] * len(ordered_virtual_nodes)
 
-    if gaps > len(ordered_real_nodes):
+    if gaps > len(ordered_real_nodes) + 1:
         # no need to check gap count higher than possible gaps in layer
-        gaps = len(ordered_real_nodes)
+        gaps = len(ordered_real_nodes) + 1
 
     recursion_limit = sys.getrecursionlimit()
     sys.setrecursionlimit(2100)
