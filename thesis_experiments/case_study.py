@@ -9,6 +9,7 @@ from typing import Any
 import matplotlib.pyplot as plt
 import networkx as nx
 
+from crossing_minimization.barycenter_heuristic import BarycenterClassicOSCMSorter
 from crossing_minimization.utils import GraphSorter
 from multilayered_graph.multilayered_graph import MLGNode, MultiLayeredGraph
 
@@ -201,6 +202,13 @@ def perform_case_study(case_study_run_name: str):
             name="ILP unlimited gaps",
             graph=copy.deepcopy(ml_graph),
             Sorter=GurobiSorter,
+            side_gaps=False,
+            max_gaps=100,
+        ),
+        NamedGraphAndParams(
+            name="Barycenter classic",
+            graph=copy.deepcopy(ml_graph),
+            Sorter=BarycenterClassicOSCMSorter,
             side_gaps=False,
             max_gaps=100,
         ),
