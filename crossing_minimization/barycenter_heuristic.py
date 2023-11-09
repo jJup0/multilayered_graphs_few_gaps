@@ -19,6 +19,46 @@ logger = logging.getLogger(__name__)
 PSEUDO_SORT_DISPLACE_VALUE = 1_000
 
 
+class BarycenterClassicOSCMSorter(GraphSorter):
+    @classmethod
+    def _sort_graph(
+        cls,
+        ml_graph: MultiLayeredGraph,
+        *,
+        max_iterations: int,
+        only_one_up_iteration: bool,
+        side_gaps_only: bool,
+        max_gaps: int,
+    ) -> None:
+        if side_gaps_only:
+            raise NotImplementedError("Only unlimited gaps")
+        for layer_idx in range(ml_graph.layer_count):
+            real_node_count = len(
+                [n for n in ml_graph.layers_to_nodes[layer_idx] if not n.is_virtual]
+            )
+            if max_gaps <= real_node_count + 1:
+                raise ValueError(
+                    f"{max_gaps=}, {real_node_count=} on layer {layer_idx}. Need unlimited gaps"
+                )
+
+        for layer_idx, above_or_below in generate_layers_to_above_or_below(
+            ml_graph, max_iterations, only_one_up_iteration
+        ):
+            prev_layer_idx = get_layer_idx_above_or_below(layer_idx, above_or_below)
+            neighbors = get_graph_neighbors_from_above_or_below(
+                ml_graph, above_or_below
+            )
+            prev_layer_indices = {
+                n: i for i, n in enumerate(ml_graph.layers_to_nodes[prev_layer_idx])
+            }
+            ml_graph.layers_to_nodes[layer_idx] = sorted(
+                ml_graph.layers_to_nodes[layer_idx],
+                key=lambda node: get_barycenter(
+                    ml_graph, node, neighbors[node], prev_layer_indices
+                ),
+            )
+
+
 class AbstractBarycenterSorter(GraphSorter):
     @classmethod
     def _sort_graph(
