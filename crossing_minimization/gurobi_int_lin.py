@@ -437,6 +437,11 @@ def _gen_order_var_and_constraints(m: gp.Model, nodes: list[MLGNode], prefix: st
     ] = {}
 
     # transitivity of order
+    # the contraint should be:
+    # 0 <= xij + xjk − xik <= 1 |  1 <= i < j < k <= n
+    # but for some reason I implemented it as
+    # xij + xjk − xik <= 1 |  1 <= i != j != k <= n
+    # which is probably slower, but it works
     for n1 in nodes:
         for n2 in nodes:
             if n1 is n2:
